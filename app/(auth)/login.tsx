@@ -7,7 +7,8 @@ import {
     StyleSheet,
     SafeAreaView,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome, AntDesign } from "@expo/vector-icons";
+
 import { useRouter } from "expo-router";
 import { login } from "../../src/auth/authService";
 
@@ -84,6 +85,26 @@ export default function LoginScreen() {
                         </Text>
                     </Pressable>
 
+                    <View style={styles.dividerRow}>
+                        <View style={styles.divider} />
+                        <Text style={styles.dividerText}>OR</Text>
+                        <View style={styles.divider} />
+                    </View>
+
+                    <View style={{ gap: 10 }}>
+                        {/* Google */}
+                        <Pressable style={styles.socialBtn} onPress={() => {}}>
+                            <AntDesign name="google" size={18} color="#DB4437" />
+                            <Text style={styles.socialText}>Continue with Google</Text>
+                        </Pressable>
+
+                        {/* Facebook */}
+                        <Pressable style={styles.socialBtn} onPress={() => {}}>
+                            <FontAwesome name="facebook" size={18} color="#1877F2" />
+                            <Text style={styles.socialText}>Continue with Facebook</Text>
+                        </Pressable>
+                    </View>
+
                     <View style={styles.footerRow}>
                         <Pressable onPress={() => { }}>
                             <Text style={styles.linkLeft}>Forgot password?</Text>
@@ -157,4 +178,36 @@ const styles = StyleSheet.create({
     },
     linkLeft: { color: "#2563EB", fontSize: 12.5, fontWeight: "600" },
     linkRight: { color: "#1651a3", fontSize: 12.5, fontWeight: "700" },
+    dividerRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginVertical: 14,
+    },
+    divider: {
+        flex: 1,
+        height: 1,
+        backgroundColor: "#E5E7EB",
+    },
+    dividerText: {
+        marginHorizontal: 8,
+        fontSize: 12,
+        color: "#6B7280",
+        fontWeight: "600",
+    },
+    socialBtn: {
+        height: 44,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        backgroundColor: "#FFFFFF",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+    },
+    socialText: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#111827",
+    },
 });
