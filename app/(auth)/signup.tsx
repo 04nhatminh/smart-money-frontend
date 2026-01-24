@@ -9,19 +9,23 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { t } from "../../src/i18n";
+import { LanguageSwitch } from "../../src/components/LanguageSwitch";
+import { useLanguage } from "../../src/i18n/LanguageProvider";
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { lang } = useLanguage();
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.bg}>
         <View style={styles.card}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join Smart Money today</Text>
+          <Text style={styles.title}>{t("common.sign_up")}</Text>
+          <Text style={styles.subtitle}>{t("auth.welcome")}</Text>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Full Name</Text>
+            <Text style={styles.label}>{t("common.full_name")}</Text>
             <View style={styles.inputRow}>
               <Ionicons name="person-outline" size={18} color="#6B7280" />
               <TextInput
@@ -33,7 +37,7 @@ export default function SignupScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t("common.email")}</Text>
             <View style={styles.inputRow}>
               <Ionicons name="mail-outline" size={18} color="#6B7280" />
               <TextInput
@@ -46,7 +50,7 @@ export default function SignupScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>{t("common.password")}</Text>
             <View style={styles.inputRow}>
               <Ionicons name="lock-closed-outline" size={18} color="#6B7280" />
               <TextInput
@@ -59,15 +63,18 @@ export default function SignupScreen() {
           </View>
 
           <Pressable style={styles.primaryBtn} onPress={() => {}}>
-            <Text style={styles.primaryBtnText}>Create Account</Text>
+            <Text style={styles.primaryBtnText}>{t("auth.sign_up_button")}</Text>
           </Pressable>
 
           <Pressable style={styles.bottomLinkWrap} onPress={() => router.replace("/(auth)/login")}>
             <Text style={styles.bottomText}>
-              Already have an account? <Text style={styles.bottomLink}>Sign in</Text>
+              {t("auth.already_have_account")} <Text style={styles.bottomLink}>{t("common.sign_in")}</Text>
             </Text>
           </Pressable>
         </View>
+      </View>
+      <View style={{ alignItems: "flex-end", marginBottom: 12, marginRight: 18 }}>
+        <LanguageSwitch />
       </View>
     </SafeAreaView>
   );

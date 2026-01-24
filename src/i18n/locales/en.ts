@@ -1,0 +1,30 @@
+export default {
+  common: {
+    name_app: "Smart Money",
+    sign_in: "Sign In",
+    sign_up: "Sign Up",
+    full_name: "Full Name",
+    email: "Email",
+    password: "Password",
+    or: "OR",
+    continue_with_google: "Continue with Google",
+    continue_with_facebook: "Continue with Facebook",
+  },
+  auth: {
+    welcome: "Join Smart Money Today!",
+    welcome_back: "Welcome back! Enter your credentials",
+    forgot_password: "Forgot password?",
+    create_account: "Create account",
+    sign_in_loading: "Signing in...",
+    sign_up_loading: "Signing up...",
+    sign_up_button: "Create Account",
+    already_have_account: "Already have an account?",
+  },
+  errors: {
+    required_email: "Email is required",
+    invalid_email: "Invalid email",
+    required_password: "Password is required",
+    offline: "No internet connection",
+    unknown: "Something went wrong",
+  },
+};
