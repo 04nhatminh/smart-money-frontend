@@ -11,6 +11,9 @@ import { Ionicons, FontAwesome, AntDesign } from "@expo/vector-icons";
 
 import { useRouter } from "expo-router";
 import { login } from "../../src/auth/authService";
+import { t } from "../../src/i18n";
+import { LanguageSwitch } from "../../src/components/LanguageSwitch";
+import { useLanguage } from "../../src/i18n/LanguageProvider";
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -19,15 +22,16 @@ export default function LoginScreen() {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
+    const { lang } = useLanguage();
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.bg}>
                 <View style={styles.card}>
-                    <Text style={styles.title}>Sign In</Text>
-                    <Text style={styles.subtitle}>Welcome back! Enter your credentials</Text>
+                    <Text style={styles.title}>{t("common.sign_in")}</Text>
+                    <Text style={styles.subtitle}>{t("auth.welcome_back")}</Text>
 
                     <View style={styles.field}>
-                        <Text style={styles.label}>Email</Text>
+                        <Text style={styles.label}>{t("common.email")}</Text>
                         <View style={styles.inputRow}>
                             <Ionicons name="mail-outline" size={18} color="#6B7280" />
                             <TextInput
@@ -42,7 +46,7 @@ export default function LoginScreen() {
                     </View>
 
                     <View style={styles.field}>
-                        <Text style={styles.label}>Password</Text>
+                        <Text style={styles.label}>{t("common.password")}</Text>
                         <View style={styles.inputRow}>
                             <Ionicons name="lock-closed-outline" size={18} color="#6B7280" />
                             <TextInput
@@ -81,13 +85,13 @@ export default function LoginScreen() {
                         }}
                     >
                         <Text style={styles.primaryBtnText}>
-                            {loading ? "Signing in..." : "Sign In"}
+                            {loading ? t("auth.sign_in_loading") : t("common.sign_in")}
                         </Text>
                     </Pressable>
 
                     <View style={styles.dividerRow}>
                         <View style={styles.divider} />
-                        <Text style={styles.dividerText}>OR</Text>
+                        <Text style={styles.dividerText}>{t("common.or")}</Text>
                         <View style={styles.divider} />
                     </View>
 
@@ -95,26 +99,29 @@ export default function LoginScreen() {
                         {/* Google */}
                         <Pressable style={styles.socialBtn} onPress={() => {}}>
                             <AntDesign name="google" size={18} color="#DB4437" />
-                            <Text style={styles.socialText}>Continue with Google</Text>
+                            <Text style={styles.socialText}>{t("common.continue_with_google")}</Text>
                         </Pressable>
 
                         {/* Facebook */}
                         <Pressable style={styles.socialBtn} onPress={() => {}}>
                             <FontAwesome name="facebook" size={18} color="#1877F2" />
-                            <Text style={styles.socialText}>Continue with Facebook</Text>
+                            <Text style={styles.socialText}>{t("common.continue_with_facebook")}</Text>
                         </Pressable>
                     </View>
 
                     <View style={styles.footerRow}>
                         <Pressable onPress={() => { }}>
-                            <Text style={styles.linkLeft}>Forgot password?</Text>
+                            <Text style={styles.linkLeft}>{t("auth.forgot_password")}</Text>
                         </Pressable>
 
                         <Pressable onPress={() => router.push("/(auth)/signup")}>
-                            <Text style={styles.linkRight}>Create account</Text>
+                            <Text style={styles.linkRight}>{t("auth.create_account")}</Text>
                         </Pressable>
                     </View>
                 </View>
+            </View>
+            <View style={{ alignItems: "flex-end", marginBottom: 12, marginRight: 18 }}>
+                <LanguageSwitch />
             </View>
         </SafeAreaView>
     );

@@ -1,0 +1,30 @@
+export default {
+  common: {
+    name_app: "Smart Money",
+    sign_in: "Đăng nhập",
+    sign_up: "Đăng ký",
+    full_name: "Họ và tên",
+    email: "Email",
+    password: "Mật khẩu",
+    or: "HOẶC",
+    continue_with_google: "Tiếp tục với Google",
+    continue_with_facebook: "Tiếp tục với Facebook",
+  },
+  auth: {
+    welcome: "Tham gia Smart Money ngay hôm nay!",
+    welcome_back: "Chào mừng quay lại! Vui lòng nhập thông tin",
+    forgot_password: "Quên mật khẩu?",
+    create_account: "Tạo tài khoản",
+    sign_in_loading: "Đang đăng nhập...",
+    sign_up_loading: "Đang đăng ký...",
+    sign_up_button: "Tạo tài khoản",
+    already_have_account: "Đã có tài khoản?",
+  },
+  errors: {
+    required_email: "Vui lòng nhập email",
+    invalid_email: "Email không hợp lệ",
+    required_password: "Vui lòng nhập mật khẩu",
+    offline: "Không có kết nối Internet",
+    unknown: "Có lỗi xảy ra",
+  },
+};
