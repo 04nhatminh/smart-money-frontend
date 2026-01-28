@@ -9,6 +9,8 @@ export type Theme = {
   border: string;
   primary: string;
   link: string;
+  fabBg: string;
+  fabIcon: string;
 };
 
 export const themes: Record<ThemeMode, Theme> = {
@@ -21,6 +23,8 @@ export const themes: Record<ThemeMode, Theme> = {
     border: "#E5E7EB",
     primary: "#1651a3",
     link: "#2563EB",
+    fabBg: "#111827",
+    fabIcon: "#FFFFFF",
   },
   dark: {
     bg: "#0B1220",
@@ -31,5 +35,7 @@ export const themes: Record<ThemeMode, Theme> = {
     border: "#1F2937",
     primary: "#3B82F6",
     link: "#60A5FA",
+    fabBg: "#FFFFFF",
+    fabIcon: "#111827",
   },
 };
