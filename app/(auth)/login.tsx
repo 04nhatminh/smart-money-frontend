@@ -13,7 +13,9 @@ import { useRouter } from "expo-router";
 import { login } from "../../src/auth/authService";
 import { t } from "../../src/i18n";
 import { LanguageSwitch } from "../../src/components/LanguageSwitch";
+import { ThemeSwitch } from "../../src/components/ThemeSwitch";
 import { useLanguage } from "../../src/i18n/LanguageProvider";
+import { useThemeMode } from "../../src/theme/ThemeProvider";
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -23,10 +25,12 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
 
     const { lang } = useLanguage();
+    const { theme } = useThemeMode();
+    
     return (
-        <SafeAreaView style={styles.safe}>
+        <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]}>
             <View style={styles.bg}>
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: theme.card }]}>
                     <Text style={styles.title}>{t("common.sign_in")}</Text>
                     <Text style={styles.subtitle}>{t("auth.welcome_back")}</Text>
 
@@ -120,7 +124,8 @@ export default function LoginScreen() {
                     </View>
                 </View>
             </View>
-            <View style={{ alignItems: "flex-end", marginBottom: 12, marginRight: 18 }}>
+            <View style={{ display: "flex", flexDirection: "row", gap: 10, justifyContent: "flex-end", marginBottom: 12, marginRight: 18 }}>
+                <ThemeSwitch />
                 <LanguageSwitch />
             </View>
         </SafeAreaView>
