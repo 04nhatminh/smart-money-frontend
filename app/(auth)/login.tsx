@@ -3,17 +3,18 @@ import { View, Text, TextInput, Pressable } from "react-native";
 import { Ionicons, FontAwesome, AntDesign } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { login } from "../../src/auth/authService";
+import { useAuth } from "../../src/auth/AuthContext";
 import { t } from "../../src/i18n";
 import { useLanguage } from "../../src/i18n/LanguageProvider";
 import { ThemeSwitch } from "../../src/components/ThemeSwitch";
 import { LanguageSwitch } from "../../src/components/LanguageSwitch";
-
 import { useThemeMode } from "../../src/theme/ThemeProvider";
 import { makeAuthStyles } from "../../src/styles/authStyles";
 import { AuthCardLayout } from "../../src/components/auth/AuthCardLayout";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { checkAuthStatus } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +23,20 @@ export default function LoginScreen() {
   useLanguage();
   const { theme } = useThemeMode();
   const styles = useMemo(() => makeAuthStyles(theme), [theme]);
+
+  const handleLogin = async () => {
+    setError(null);
+    setLoading(true);
+    const res = await login(email, password);
+    setLoading(false);
+
+    if (res.ok) {
+      await checkAuthStatus();
+      router.replace("/(tabs)/home");
+    } else {
+      setError(res.message);
+    }
+  };
 
   return (
     <AuthCardLayout
@@ -46,6 +61,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             value={email}
             onChangeText={setEmail}
+            editable={!loading}
           />
         </View>
       </View>
@@ -61,6 +77,7 @@ export default function LoginScreen() {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+            editable={!loading}
           />
         </View>
       </View>
@@ -72,15 +89,7 @@ export default function LoginScreen() {
       <Pressable
         style={styles.primaryBtn}
         disabled={loading}
-        onPress={async () => {
-          setError(null);
-          setLoading(true);
-          const res = await login(email, password);
-          setLoading(false);
-
-          if (res.ok) router.replace("/(tabs)/home");
-          else setError(res.message);
-        }}
+        onPress={handleLogin}
       >
         <Text style={styles.primaryBtnText}>
           {loading ? t("auth.sign_in_loading") : t("common.sign_in")}
@@ -114,6 +123,15 @@ export default function LoginScreen() {
           <Text style={styles.linkRight}>{t("auth.create_account")}</Text>
         </Pressable>
       </View>
+
+      <Pressable
+        style={[styles.primaryBtn, { marginTop: 16, backgroundColor: "#F3F4F6" }]}
+        onPress={() => router.push("/")}
+      >
+        <Text style={[styles.primaryBtnText, { color: "#374151" }]}>
+          {t("common.home")}
+        </Text>
+      </Pressable>
     </AuthCardLayout>
   );
 }

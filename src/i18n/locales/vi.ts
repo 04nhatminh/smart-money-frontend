@@ -9,6 +9,7 @@ export default {
     or: "HOẶC",
     continue_with_google: "Tiếp tục với Google",
     continue_with_facebook: "Tiếp tục với Facebook",
+    home: "Trang chủ",
   },
   auth: {
     welcome: "Tham gia Smart Money ngay hôm nay!",
