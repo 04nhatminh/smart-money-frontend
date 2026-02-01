@@ -19,6 +19,12 @@ export default {
     sign_up_loading: "Đang đăng ký...",
     sign_up_button: "Tạo tài khoản",
     already_have_account: "Đã có tài khoản?",
+    guest: "Khách",
+  },
+  profile: {
+    light_mode: "Chế độ sáng",
+    dark_mode: "Chế độ tối",
+    language: "Ngôn ngữ",
   },
   errors: {
     required_email: "Vui lòng nhập email",

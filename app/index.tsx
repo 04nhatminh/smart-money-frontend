@@ -18,7 +18,7 @@ export default function LandingHome() {
         onStats={() => {}}
         onAdd={() => console.log("scan/add")}
         onWallet={() => {}}
-        onProfile={() => router.push("/(auth)/login")}
+        onProfile={() => router.push("/(tabs)/profile")}
       />
     </SafeAreaView>
   );

@@ -14,3 +14,7 @@ export type Lang = "en" | "vi";
 export function t(key: string, options?: Record<string, any>) {
   return i18n.t(key, options);
 }
+
+export function setLanguage(lang: Lang) {
+  // implementation
+}

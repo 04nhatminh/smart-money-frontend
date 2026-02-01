@@ -1,6 +1,7 @@
 export type ThemeMode = "light" | "dark";
 
 export type Theme = {
+  mode: string;
   bg: string;
   card: string;
   text: string;
@@ -25,6 +26,7 @@ export const themes: Record<ThemeMode, Theme> = {
     link: "#2563EB",
     fabBg: "#111827",
     fabIcon: "#FFFFFF",
+    mode: "light"
   },
   dark: {
     bg: "#0B1220",
@@ -37,5 +39,6 @@ export const themes: Record<ThemeMode, Theme> = {
     link: "#60A5FA",
     fabBg: "#FFFFFF",
     fabIcon: "#111827",
+    mode: "dark"
   },
 };
