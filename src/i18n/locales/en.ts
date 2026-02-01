@@ -9,6 +9,7 @@ export default {
     or: "OR",
     continue_with_google: "Continue with Google",
     continue_with_facebook: "Continue with Facebook",
+    home: "Home",
   },
   auth: {
     welcome: "Join Smart Money Today!",

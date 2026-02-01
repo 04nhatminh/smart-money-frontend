@@ -123,6 +123,15 @@ export default function LoginScreen() {
           <Text style={styles.linkRight}>{t("auth.create_account")}</Text>
         </Pressable>
       </View>
+
+      <Pressable
+        style={[styles.primaryBtn, { marginTop: 16, backgroundColor: "#F3F4F6" }]}
+        onPress={() => router.push("/")}
+      >
+        <Text style={[styles.primaryBtnText, { color: "#374151" }]}>
+          {t("common.home")}
+        </Text>
+      </Pressable>
     </AuthCardLayout>
   );
 }
