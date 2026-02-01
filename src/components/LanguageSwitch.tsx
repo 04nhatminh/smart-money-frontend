@@ -13,5 +13,5 @@ export function LanguageSwitch() {
 
 const styles = StyleSheet.create({
   btn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" },
-  text: { fontWeight: "700" },
+  text: { fontWeight: "700", color: "#fff" },
 });

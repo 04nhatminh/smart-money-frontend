@@ -1,24 +1,410 @@
-import { loginApi } from "../api/auth.api";
-import { tokenStorage } from "../storage/tokenStorage";
-import { validateLogin } from "../utils/validation";
+import AuthApi from '../api/auth.api';
+import {
+  AuthResponse,
+  UserResponse,
+  UserState,
+  RegisterRequest,
+  CheckResponse,
+  UpdateUserRequest,
+  VerifyEmailRequest,
+  SendResetPasswordOtpRequest,
+  ApiResponse,
+  SendResetPasswordResponseData,
+  ResetPasswordRequest,
+  GoogleLoginRequest,
+  FacebookLoginRequest
+} from '../types/auth.types';
+import { userStorage } from '../storage/userStorage';
+import { tokenStorage } from '../storage/tokenStorage';
+import * as base64 from "base-64";
 
-export async function login(email: string, password: string) {
-  const error = validateLogin(email, password);
-  if (error) {
-    return { ok: false, message: error };
+class AuthService {
+  private tokenRefreshPromise: Promise<boolean> | null = null;
+
+  // Initialize service
+  init() {
+    this.setupInterceptors();
+    this.loadUserFromStorage();
   }
 
-  try {
-    const res = await loginApi(email, password);
+  // Load user from localStorage
+  async loadUserFromStorage(): Promise<UserState> {
+    const token = await tokenStorage.getAccessToken();
+    const refreshToken = await tokenStorage.getRefreshToken();
+    const user = await userStorage.getUser();
 
-    await tokenStorage.setAccessToken(res.accessToken);
-    await tokenStorage.setRefreshToken(res.refreshToken);
-
-    return { ok: true };
-  } catch (e: any) {
     return {
-      ok: false,
-      message: e?.response?.data?.message ?? "Login failed",
+      user,
+      token,
+      refreshToken,
+      isAuthenticated: !!token && !this.isTokenExpired(token),
+      loading: false,
+      error: null,
     };
   }
+
+  private decodeJWT(token: string) {
+    const payload = token.split(".")[1];
+    return JSON.parse(base64.decode(payload));
+  }
+
+  // Check if token is expired
+  isTokenExpired(token: string): boolean {
+    try {
+      const payload = this.decodeJWT(token);
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  }
+
+  // Store tokens and user data
+  async storeAuthData(auth: AuthResponse) {
+    if (auth.accessToken) {
+      await tokenStorage.setAccessToken(auth.accessToken);
+    }
+
+    if (auth.refreshToken) {
+      await tokenStorage.setRefreshToken(auth.refreshToken);
+    }
+
+    if (auth.user) {
+      await userStorage.setUser(auth.user);
+    }
+  }
+
+  async setResetStorage(token: string) {
+    if (!token) {
+      throw new Error('Token is missing');
+    }
+    await tokenStorage.setResetToken(token);
+  }
+
+  async getResetStorage() {
+    return await tokenStorage.getResetToken();
+  }
+
+  // Clear auth data
+  async clearAuthData() {
+    await tokenStorage.clear();
+    await userStorage.clear();
+  }
+
+  // Get current token
+  async getToken() {
+    return await tokenStorage.getAccessToken();
+  }
+
+  async getRefreshToken() {
+    return await tokenStorage.getRefreshToken();
+  }
+
+  async getCurrentUser() {
+    return await userStorage.getUser();
+  }
+
+  // Check if user is authenticated
+  async isAuthenticated(): Promise<boolean> {
+    const token = await this.getToken();
+    return !!token && !this.isTokenExpired(token);
+  }
+
+  // Refresh token if needed
+  async refreshTokenIfNeeded(): Promise<boolean> {
+    if (this.tokenRefreshPromise) return this.tokenRefreshPromise;
+
+    this.tokenRefreshPromise = (async () => {
+      const token = await this.getToken();
+      const refreshToken = await this.getRefreshToken();
+
+      if (!token || !refreshToken) return false;
+
+      if (this.isTokenExpired(token)) {
+        const res = await AuthApi.refreshToken({ refreshToken });
+        if (res.success && res.data) {
+          await this.storeAuthData(res.data);
+          return true;
+        }
+      }
+      return false;
+    })();
+
+    const result = await this.tokenRefreshPromise;
+    this.tokenRefreshPromise = null;
+    return result;
+  }
+
+  // Setup axios interceptors
+  setupInterceptors() {
+    // Request interceptor - add token to requests
+    const requestInterceptor = async (config: any) => {
+      const token = await this.getToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    };
+
+    // Response interceptor - handle token refresh
+    const responseInterceptor = async (error: any) => {
+      const originalRequest = error.config;
+
+      // Handle 401 errors for token refresh
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true;
+
+        try {
+          const refreshed = await this.refreshTokenIfNeeded();
+          if (refreshed) {
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${this.getToken()}`;
+            return import('../api/http').then(({ http }) => http(originalRequest));
+          }
+        } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError);
+          this.clearAuthData();
+        }
+      }
+
+      return Promise.reject(error);
+    };
+
+    // Apply interceptors
+    import('../api/http').then(({ http }) => {
+      http.interceptors.request.use(requestInterceptor);
+      http.interceptors.response.use(
+        (response) => response,
+        responseInterceptor
+      );
+    });
+  }
+
+  // Login method
+  async login(email: string, password: string): Promise<CheckResponse<AuthResponse>> {
+    const response = await AuthApi.login({ email, password });
+    if (response.success && response.data) {
+      await this.storeAuthData(response.data);
+    }
+    return response;
+  }
+
+  async googleLogin(data: GoogleLoginRequest): Promise<CheckResponse<AuthResponse>> {
+    try {
+      const response = await AuthApi.googleLogin(data);
+      if (response.success && response.data) {
+        await this.storeAuthData(response.data);
+      }
+      return response;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || 'Google login failed',
+      };
+    }
+  }
+
+  async facebookLogin(data: FacebookLoginRequest): Promise<CheckResponse<AuthResponse>> {
+    try {
+      const response = await AuthApi.facebookLogin(data);
+      if (response.success && response.data) {
+        await this.storeAuthData(response.data);
+      }
+      return response;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || 'Facebook login failed',
+      };
+    }
+  }
+
+    // Generate username from email
+  private generateUsername(email: string): string {
+    try {
+      // Extract the local part before @
+      const emailPart = email.split('@')[0];
+      
+      // Clean the email part (remove special characters, keep only alphanumeric)
+      const cleanedPart = emailPart.replace(/[^a-zA-Z0-9]/g, '');
+      
+      // Use cleaned part or 'user' as fallback
+      const baseUsername = cleanedPart || 'user';
+      
+      // Add random suffix (4 characters from UUID)
+      const randomSuffix = this.generateRandomSuffix(4);
+      
+      return `${baseUsername}_${randomSuffix}`.toLowerCase();
+    } catch (error) {
+      // Fallback username generation
+      return `user_${this.generateRandomSuffix(6)}`;
+    }
+  }
+
+  // Generate random suffix
+  private generateRandomSuffix(length: number): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  // Validate and prepare register data
+  prepareRegisterData(userData: Partial<RegisterRequest>): RegisterRequest {
+    const { email, username, ...rest } = userData;
+    
+    if (!email) {
+      throw new Error('Email is required');
+    }
+    
+    // Generate username from email if not provided
+    const finalUsername = username?.trim() || this.generateUsername(email);
+    
+    // Validate username (alphanumeric and underscores only)
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!usernameRegex.test(finalUsername)) {
+      throw new Error('Username can only contain letters, numbers, and underscores');
+    }
+    
+    // Ensure username length
+    if (finalUsername.length < 3 || finalUsername.length > 30) {
+      throw new Error('Username must be between 3 and 30 characters');
+    }
+    
+    return {
+      ...rest,
+      email: email.trim(),
+      username: finalUsername,
+    } as RegisterRequest;
+  }
+
+
+  // Register method
+  async register(userData: Partial<RegisterRequest>): Promise<CheckResponse<void>> {
+    try {
+      // Prepare and validate register data
+      const preparedData = this.prepareRegisterData(userData);
+      
+      // Call API
+      const response = await AuthApi.register(preparedData);
+      
+      return response;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Registration failed',
+      };
+    }
+  }
+
+  async verifyEmail(
+    data: VerifyEmailRequest
+  ): Promise<CheckResponse<void>> {
+    try {
+      const response = await AuthApi.verifyEmail(data);
+      return response;
+    } catch (error: any) {
+      return {
+          success: false,
+          message: error.message || "Email verification failed",
+      };
+    }
+  }
+
+  async resendOTP(
+    data: SendResetPasswordOtpRequest
+  ): Promise<CheckResponse<void>> {
+    try {
+      const response = await AuthApi.forgotPassword(data);
+      return response;
+    }
+    catch (error: any) {
+      return {
+        success: false,
+        message: error.message || "Invalid OTP",
+      }
+    }
+  }
+
+  async forgotPassword(
+    data: SendResetPasswordOtpRequest
+  ): Promise<CheckResponse<void>> {
+    try {
+      const response = await AuthApi.forgotPassword(data);
+      return response;
+    }
+    catch (error: any) {
+      return {
+        success: false,
+        message: error.message || "Invalid Email",
+      }
+    }
+  }
+
+  async verifyResetPassword (
+    data: VerifyEmailRequest
+  ): Promise<ApiResponse<SendResetPasswordResponseData>> {
+      try {
+        const response = await AuthApi.verifyResetPassword(data);
+        this.setResetStorage(response.data?.resetToken!);
+        return response;
+      }
+      catch (error: any) {
+        return {
+          success: false,
+          message: error.message || "Invalid OTP",
+        }
+      }
+  }
+
+  async resetPassword(
+    data: ResetPasswordRequest
+  ): Promise<CheckResponse<void>> {
+    try {
+      const resetToken = await this.getResetStorage(); 
+
+      if (!resetToken) {
+        return {
+          success: false,
+          message: 'Reset token is missing or expired',
+        };
+      }
+
+      const response = await AuthApi.resetPassword(data, resetToken);
+      return response;
+
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Wrong!',
+      };
+    }
+  }
+
+
+
+
+
+  // Logout method
+  async logout(): Promise<CheckResponse<void>> {
+    const response = await AuthApi.logout();
+    if (response.success) {
+      this.clearAuthData();
+    }
+    return response;
+  }
+
+  // Update profile
+  async updateProfile(data: UpdateUserRequest): Promise<CheckResponse<UserResponse>> {
+    const response = await AuthApi.updateUser(data);
+    if (response.success && response.data) {
+      localStorage.setItem('user', JSON.stringify(response.data));
+    }
+    return response;
+  }
 }
+
+// Export singleton instance
+const authService = new AuthService();
+export default authService;
