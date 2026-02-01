@@ -19,6 +19,12 @@ export default {
     sign_up_loading: "Signing up...",
     sign_up_button: "Create Account",
     already_have_account: "Already have an account?",
+    guest: "Guest",
+  },
+  profile: {
+    light_mode: "Light Mode",
+    dark_mode: "Dark Mode",
+    language: "Language",
   },
   errors: {
     required_email: "Email is required",

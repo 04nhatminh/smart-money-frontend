@@ -12,6 +12,7 @@ type Props = {
   onAdd?: () => void;
   onWallet?: () => void;
   onProfile?: () => void;
+  onCapture?: (uri: string) => void;
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -23,6 +24,7 @@ export function BottomBar({
   onAdd,
   onWallet,
   onProfile,
+  onCapture,
 }: Props) {
   const { theme } = useThemeMode();
 

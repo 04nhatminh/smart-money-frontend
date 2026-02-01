@@ -1,10 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, Pressable, StyleSheet, SafeAreaView } from "react-native";
 import { useRouter } from "expo-router";
 import { BottomBar } from "../src/components/BottomBar";
+import { CameraModal } from "../src/components/camera/CameraModal";
 
 export default function LandingHome() {
   const router = useRouter();
+  const [cameraVisible, setCameraVisible] = useState(false);
+
+  const handleCaptureBill = (uri: string) => {
+    console.log("Bill captured:", uri);
+    // TODO: Process the bill image here
+    setCameraVisible(false);
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -16,9 +24,15 @@ export default function LandingHome() {
         active="home"
         onHome={() => {}}
         onStats={() => {}}
-        onAdd={() => console.log("scan/add")}
+        onAdd={() => setCameraVisible(true)}
         onWallet={() => {}}
-        onProfile={() => router.push("/(auth)/login")}
+        onProfile={() => router.push("/(tabs)/profile")}
+      />
+
+      <CameraModal
+        visible={cameraVisible}
+        onClose={() => setCameraVisible(false)}
+        onCaptureBill={handleCaptureBill}
       />
     </SafeAreaView>
   );
