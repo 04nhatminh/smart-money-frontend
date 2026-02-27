@@ -7,9 +7,13 @@ import {
     Pressable,
     ScrollView,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    Dimensions,
+    Text,
+    StatusBar
 } from "react-native";
 import { useRouter } from "expo-router";
+import { LinearGradient } from 'expo-linear-gradient';
 import authService from "../../src/auth/authService";
 import { t } from "../../src/i18n";
 import { LanguageSwitch } from "../../src/components/LanguageSwitch";
@@ -23,6 +27,8 @@ import { AuthTabs } from "../../src/components/auth/AuthTabs";
 import { formatDateToDDMMYYYY } from "../../src/utils/dateFormatter";
 import { Ionicons } from '@expo/vector-icons';
 import { CheckResponse, AuthResponse, RegisterRequest, VerifyEmailRequest, SendResetPasswordOtpRequest, ResetPasswordRequest } from "../../src/types/auth.types";
+
+const { width, height } = Dimensions.get('window');
 
 export default function AuthScreen() {
     const router = useRouter();
@@ -60,7 +66,7 @@ export default function AuthScreen() {
 
     const { lang } = useLanguage();
     
-    const loginGif = require("../../assets/pig-bank.gif");
+    const loginGif = require("../../assets/auth-background.jpg");
     const themesGif = require("../../assets/themes-login.png");
 
     const handleSignIn = async () => {
@@ -173,15 +179,12 @@ export default function AuthScreen() {
         return res;
     };
 
-
     const onResendOtp = async (email: string) => {
         let request: SendResetPasswordOtpRequest = {
             email: email
         };
         
         if (otpType === "VERIFY") {
-            // For verify email resend, bạn cần tạo method mới trong authService
-            // Hoặc sử dụng forgotPassword cho reset password OTP
             const res = await authService.forgotPassword(request);
             return res;
         } else {
@@ -286,30 +289,44 @@ export default function AuthScreen() {
 
     return (
         <SafeAreaView style={styles.safe}>
+            <StatusBar barStyle="light-content" backgroundColor="#3629B7" />
+            
+            {/* Gradient Background */}
+            <LinearGradient
+                colors={['#3629B7', '#5655B9', '#A8A3D7']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.gradientBackground}
+            >
+                {/* Decorative Circles */}
+                <View style={styles.circle1} />
+                <View style={styles.circle2} />
+                <View style={styles.circle3} />
+            </LinearGradient>
+
+            {/* Header with Back Button */}
             <Pressable style={styles.exitBtn} onPress={goBack}>
-                <Ionicons style={styles.exitIcon} name="arrow-back" size={24} color="black" />
+                <View style={styles.exitBtnInner}>
+                    <Ionicons name="arrow-back" size={24} color="#3629B7" />
+                </View>
             </Pressable>
+
+            {/* Language Switch */}
+            <View style={styles.languageSwitchContainer}>
+                <LanguageSwitch />
+            </View>
+
+            {/* Main Content */}
             <View style={styles.container}>
-                {/* GIF Section */}
-                <View style={styles.gifContainer}>
-                    <Image
-                        source={loginGif}
-                        style={styles.gif}
-                        resizeMode="contain"
-                    />
+                {/* Logo/Title Section */}
+                <View style={styles.logoContainer}>
+                    <Text style={styles.appName}>Smart Money</Text>
+                    <Text style={styles.appTagline}>{t("auth.welcome")}</Text>
                 </View>
 
                 {/* Form Section */}
-                <View style={styles.formContainer}>
-                    <View style={styles.themesContainer}>
-                        <Image
-                            source={themesGif}
-                            style={styles.themes}
-                            resizeMode="contain"
-                        />
-                    </View>
-
-                    <View style={styles.card}>
+                <View style={styles.formWrapper}>
+                    <View style={styles.formCard}>
                         {showResetPassword ? (
                             <ResetPasswordForm
                                 password={newPassword}
@@ -336,7 +353,9 @@ export default function AuthScreen() {
                                 />
 
                                 {activeTab === "signin" ? (
-                                    <SignInForm
+                                    <KeyboardAvoidingView
+                                        behavior={Platform.OS === 'android' ? 'height' : 'padding'}>
+                                        <SignInForm
                                         email={email}
                                         setEmail={setEmail}
                                         password={password}
@@ -348,15 +367,21 @@ export default function AuthScreen() {
                                         onSignIn={handleSignIn}
                                         onForgotPassword={handleForgotPassword}
                                     />
+                                </KeyboardAvoidingView>
+
                                 ) : (
                                     <KeyboardAvoidingView
-                                        style={{ flex: 1 }}
                                         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                                        style={styles.keyboardView}
+                                            keyboardVerticalOffset={Platform.select({
+                                                ios: 64,
+                                                android: 0
+                                                })}
                                     >
                                         <ScrollView
-                                            contentContainerStyle={{ padding: 20 }}
                                             showsVerticalScrollIndicator={false}
                                             keyboardShouldPersistTaps="handled"
+                                            contentContainerStyle={styles.scrollContent}
                                         >
                                             <SignUpForm
                                                 fullName={fullName}
@@ -380,20 +405,17 @@ export default function AuthScreen() {
                                 )}
 
                                 {activeTab === "signin" && (
-                                    <SocialLogin
-                                        onGoogleLogin={handleGoogleLogin}
-                                        onFacebookLogin={handleFacebookLogin}
-                                        onSuccess={onSuccessSocialLogin}
-                                    />
+                                    <View style={styles.socialSection}>
+                                        <SocialLogin
+                                            onGoogleLogin={handleGoogleLogin}
+                                            onFacebookLogin={handleFacebookLogin}
+                                            onSuccess={onSuccessSocialLogin}
+                                        />
+                                    </View>
                                 )}
                             </>
                         )}
                     </View>
-                </View>
-                
-                {/* Language Switch */}
-                <View style={styles.languageSwitchContainer}>
-                    <LanguageSwitch />
                 </View>
             </View>
         </SafeAreaView>
@@ -403,69 +425,139 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
     safe: {
         flex: 1,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: '#3629B7',
+    },
+    gradientBackground: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+    },
+    circle1: {
+        position: 'absolute',
+        width: width * 0.8,
+        height: width * 0.8,
+        borderRadius: width * 0.4,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        top: -width * 0.2,
+        right: -width * 0.2,
+    },
+    circle2: {
+        position: 'absolute',
+        width: width * 0.6,
+        height: width * 0.6,
+        borderRadius: width * 0.3,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        bottom: -width * 0.1,
+        left: -width * 0.2,
+    },
+    circle3: {
+        position: 'absolute',
+        width: width * 0.4,
+        height: width * 0.4,
+        borderRadius: width * 0.2,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        top: height * 0.3,
+        right: width * 0.1,
     },
     container: {
         flex: 1,
-        backgroundColor: "#FFFFFF",
     },
-    gifContainer: {
-        height: "30%",
-        width: "100%",
-        justifyContent: "center",
-        alignItems: "center",
-        overflow: "hidden",
+    logoContainer: {
+        paddingTop: 60,
+        display: 'flex',
+        height: height * 0.2,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    gif: {
-        top: -40,
-        width: "180%",
-        height: "180%",
+    appName: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        marginBottom: 8,
+        letterSpacing: 0.5,
     },
-    formContainer: {
+    appTagline: {
+        fontSize: 16,
+        color: '#F2F1F9',
+        opacity: 0.9,
+        letterSpacing: 0.3,
+    },
+    formWrapper: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+    },
+    formCard: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        paddingHorizontal: 24,
+        paddingTop: 32,
+        paddingBottom: 40,
+        minHeight: height * 0.6,
+        shadowColor: '#3629B7',
+        shadowOffset: {
+            width: 0,
+            height: -4,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 10,
+        height: height * 0.8
+    },
+    keyboardView: {
         flex: 1,
-        width: "100%",
-        height: "70%"
     },
-    themesContainer: {
-        position: "absolute",
-        width: "100%",
-        height: "100%"
-    },
-    themes: {
-        display: "flex",
-        right: 0,
-        width: "100%",
-        height: "100%"
-    },
-    card: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 25,
-        padding: 20,
-        borderWidth: 1,
-        flex: 1,
-        borderColor: "#E5E7EB",
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 16,
-        shadowOffset: { width: 0, height: 8 },
-        elevation: 2,
-    },
-    languageSwitchContainer: {
-        position: "absolute",
-        top: 25,
-        right: 20,
+    scrollContent: {
+        flexGrow: 1,
+        paddingBottom: 20,
     },
     exitBtn: {
-        position: "absolute",
-        borderColor: "white",
-        borderWidth: 1,
-        padding: 2,
-        top: 30,
-        zIndex: 50,
-        left: 20,      
-        borderRadius: 50, 
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 60 : 40,
+        left: 20,
+        zIndex: 100,
     },
-    exitIcon: {
-        color: "#fff"
-    }
+    exitBtnInner: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#3629B7',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    languageSwitchContainer: {
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 60 : 40,
+        right: 20,
+        zIndex: 100,
+    },
+    socialSection: {
+        marginTop: 20,
+    },
+    divider: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 20,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#F2F1F9',
+    },
+    dividerText: {
+        marginHorizontal: 12,
+        color: '#A8A3D7',
+        fontSize: 14,
+        fontWeight: '500',
+    },
 });

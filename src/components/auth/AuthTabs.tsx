@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface AuthTabsProps {
     activeTab: 'signin' | 'signup';
@@ -16,14 +17,22 @@ export const AuthTabs: React.FC<AuthTabsProps> = ({ activeTab, onTabChange }) =>
                 ]}
                 onPress={() => onTabChange("signin")}
             >
-                <Text
-                    style={[
-                        styles.tabText,
-                        activeTab === "signin" && styles.tabTextActive,
-                    ]}
-                >
-                    Sign In
-                </Text>
+                {activeTab === "signin" ? (
+                    <LinearGradient
+                        colors={['#3629B7', '#5655B9']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.activeGradient}
+                    >
+                        <Text style={[styles.tabText, styles.tabTextActive]}>
+                            Sign In
+                        </Text>
+                    </LinearGradient>
+                ) : (
+                    <Text style={[styles.tabText, styles.tabTextInactive]}>
+                        Sign In
+                    </Text>
+                )}
             </Pressable>
 
             <Pressable
@@ -33,14 +42,22 @@ export const AuthTabs: React.FC<AuthTabsProps> = ({ activeTab, onTabChange }) =>
                 ]}
                 onPress={() => onTabChange("signup")}
             >
-                <Text
-                    style={[
-                        styles.tabText,
-                        activeTab === "signup" && styles.tabTextActive,
-                    ]}
-                >
-                    Sign Up
-                </Text>
+                {activeTab === "signup" ? (
+                    <LinearGradient
+                        colors={['#3629B7', '#5655B9']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.activeGradient}
+                    >
+                        <Text style={[styles.tabText, styles.tabTextActive]}>
+                            Sign Up
+                        </Text>
+                    </LinearGradient>
+                ) : (
+                    <Text style={[styles.tabText, styles.tabTextInactive]}>
+                        Sign Up
+                    </Text>
+                )}
             </Pressable>
         </View>
     );
@@ -49,27 +66,57 @@ export const AuthTabs: React.FC<AuthTabsProps> = ({ activeTab, onTabChange }) =>
 const styles = StyleSheet.create({
     tabContainer: {
         flexDirection: "row",
-        backgroundColor: "#f1f5f9",
-        borderRadius: 36,
-        padding: 4,
+        backgroundColor: "#F2F1F9",
+        borderRadius: 16,
+        padding: 6,
         marginTop: 10,
-        marginBottom: 24
+        marginBottom: 28,
+        shadowColor: "#3629B7",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
     tabItem: {
         flex: 1,
-        paddingVertical: 12,
-        borderRadius: 36,
+        height: 48,
+        borderRadius: 12,
         alignItems: "center",
+        justifyContent: "center",
+        overflow: 'hidden',
     },
     tabItemActive: {
-        backgroundColor: "#3b82f6",
+        shadowColor: "#3629B7",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 5,
+    },
+    activeGradient: {
+        flex: 1,
+        width: '100%',
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 12,
     },
     tabText: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: "600",
-        color: "#64748b",
+        letterSpacing: 0.3,
     },
     tabTextActive: {
-        color: "#fff",
+        color: "#FFFFFF",
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
+    },
+    tabTextInactive: {
+        color: "#5655B9",
     },
 });

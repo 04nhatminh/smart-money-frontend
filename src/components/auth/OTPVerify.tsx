@@ -9,6 +9,7 @@ import {
     ActivityIndicator
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { t } from "../../i18n";
 import authService from "../../auth/authService";
 import { CheckResponse, ApiResponse, SendResetPasswordResponseData } from "../../types/auth.types";
@@ -17,7 +18,7 @@ interface OtpVerificationFormProps {
     email: string;
     type: string;
     onBack?: () => void;
-    onResendOtp?: (email: string) =>  Promise<CheckResponse<void>>;
+    onResendOtp?: (email: string) => Promise<CheckResponse<void>>;
     onVerifyOtp?: (email: string, otp: string) => Promise<CheckResponse<void>>;
     OnForgetPassword?: (email: string, otp: string) => Promise<ApiResponse<SendResetPasswordResponseData>>;
 }
@@ -34,6 +35,7 @@ export default function OtpVerificationForm({
     const [timer, setTimer] = useState(600); // 10 phút = 600 giây
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [activeIndex, setActiveIndex] = useState<number | null>(null);
     
     const inputRefs = useRef<(TextInput | null)[]>(Array(6).fill(null));
 
@@ -57,6 +59,7 @@ export default function OtpVerificationForm({
         setTimeout(() => {
             if (inputRefs.current[0]) {
                 inputRefs.current[0].focus();
+                setActiveIndex(0);
             }
         }, 100);
     }, []);
@@ -72,11 +75,13 @@ export default function OtpVerificationForm({
         // Tự động chuyển sang ô tiếp theo
         if (value && index < 5) {
             inputRefs.current[index + 1]?.focus();
+            setActiveIndex(index + 1);
         }
 
         // Nếu xóa thì chuyển về ô trước đó
         if (!value && index > 0) {
             inputRefs.current[index - 1]?.focus();
+            setActiveIndex(index - 1);
         }
     };
 
@@ -84,7 +89,17 @@ export default function OtpVerificationForm({
         // Xử lý phím Backspace
         if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
             inputRefs.current[index - 1]?.focus();
+            setActiveIndex(index - 1);
         }
+    };
+
+    const handleFocus = (index: number) => {
+        setActiveIndex(index);
+        setError(null);
+    };
+
+    const handleBlur = () => {
+        setActiveIndex(null);
     };
 
     const handleVerifyOtp = async () => {
@@ -138,6 +153,7 @@ export default function OtpVerificationForm({
             // Focus vào ô đầu tiên
             if (inputRefs.current[0]) {
                 inputRefs.current[0].focus();
+                setActiveIndex(0);
             }
             
             Alert.alert(t("auth.otp_resent"), t("auth.check_email"));
@@ -160,18 +176,30 @@ export default function OtpVerificationForm({
             <View style={styles.header}>
                 {onBack && (
                     <Pressable 
-                        style={styles.backButton}
+                        style={({ pressed }) => [
+                            styles.backButton,
+                            pressed && styles.backButtonPressed
+                        ]}
                         onPress={onBack}
                         disabled={loading}
                     >
-                        <Ionicons name="arrow-back" size={20} color="#4F46E5" />
+                        <Ionicons name="arrow-back" size={20} color="#3629B7" />
                     </Pressable>
                 )}
                 <View style={styles.headerContent}>
-                    <Ionicons name="mail-unread-outline" size={40} color="#4F46E5" />
+                    <View style={styles.iconContainer}>
+                        <LinearGradient
+                            colors={['#3629B7', '#5655B9']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.iconGradient}
+                        >
+                            <Ionicons name="mail-unread-outline" size={24} color="#FFFFFF" />
+                        </LinearGradient>
+                    </View>
                     <Text style={styles.title}>{t("auth.verify_email")}</Text>
                     <Text style={styles.subtitle}>
-                        {t("auth.otp_sent_to")} {email}
+                        {t("auth.otp_sent_to")} <Text style={styles.emailText}>{email}</Text>
                     </Text>
                 </View>
             </View>
@@ -179,31 +207,52 @@ export default function OtpVerificationForm({
             {/* OTP Inputs */}
             <View style={styles.otpContainer}>
                 {otp.map((digit, index) => (
-                    <TextInput
+                    <Pressable
                         key={index}
-                        ref={(ref) => {
-                            inputRefs.current[index] = ref;
+                        onPress={() => {
+                            inputRefs.current[index]?.focus();
+                            setActiveIndex(index);
                         }}
-                        style={[
-                            styles.otpInput,
-                            error && styles.otpInputError,
-                            digit && styles.otpInputFilled
+                        style={({ pressed }) => [
+                            styles.otpPressable,
+                            pressed && styles.otpPressablePressed
                         ]}
-                        value={digit}
-                        onChangeText={(value) => handleOtpChange(value, index)}
-                        onKeyPress={(e) => handleKeyPress(e, index)}
-                        keyboardType="numeric"
-                        maxLength={1}
-                        selectTextOnFocus
-                        editable={!loading}
-                    />
+                    >
+                        <TextInput
+                            ref={(ref) => {
+                                inputRefs.current[index] = ref;
+                            }}
+                            style={[
+                                styles.otpInput,
+                                activeIndex === index && styles.otpInputFocused,
+                                error && !digit && styles.otpInputError,
+                                digit && styles.otpInputFilled
+                            ]}
+                            value={digit}
+                            onChangeText={(value) => handleOtpChange(value, index)}
+                            onKeyPress={(e) => handleKeyPress(e, index)}
+                            onFocus={() => handleFocus(index)}
+                            onBlur={handleBlur}
+                            keyboardType="numeric"
+                            maxLength={1}
+                            selectTextOnFocus
+                            editable={!loading}
+                        />
+                    </Pressable>
                 ))}
             </View>
 
             {/* Timer và Error */}
             <View style={styles.statusContainer}>
-                <View style={styles.timerContainer}>
-                    <Ionicons name="time-outline" size={16} color={timer < 60 ? "#EF4444" : "#6B7280"} />
+                <View style={[
+                    styles.timerContainer,
+                    timer < 60 && styles.timerContainerWarning
+                ]}>
+                    <Ionicons 
+                        name="time-outline" 
+                        size={16} 
+                        color={timer < 60 ? "#EF4444" : "#3629B7"} 
+                    />
                     <Text style={[
                         styles.timerText,
                         timer < 60 && styles.timerTextWarning
@@ -219,7 +268,7 @@ export default function OtpVerificationForm({
 
                 {error && (
                     <View style={styles.errorContainer}>
-                        <Ionicons name="alert-circle-outline" size={16} color="#EF4444" />
+                        <Ionicons name="alert-circle" size={16} color="#EF4444" />
                         <Text style={styles.errorText}>{error}</Text>
                     </View>
                 )}
@@ -228,29 +277,49 @@ export default function OtpVerificationForm({
             {/* Action Buttons */}
             <View style={styles.buttonContainer}>
                 <Pressable
-                    style={[
-                        styles.verifyButton,
+                    style={({ pressed }) => [
+                        styles.verifyButtonWrapper,
+                        pressed && styles.verifyButtonPressed,
                         (loading || otp.join("").length !== 6 || timer === 0) && styles.verifyButtonDisabled
                     ]}
                     onPress={handleVerifyOtp}
                     disabled={loading || otp.join("").length !== 6 || timer === 0}
                 >
-                    {loading ? (
-                        <ActivityIndicator color="#FFFFFF" size="small" />
-                    ) : (
-                        <Text style={styles.buttonText}>{t("auth.verify")}</Text>
-                    )}
+                    <LinearGradient
+                        colors={['#3629B7', '#5655B9']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.verifyButton}
+                    >
+                        {loading ? (
+                            <View style={styles.loadingContainer}>
+                                <ActivityIndicator color="#FFFFFF" size="small" />
+                                <Text style={styles.buttonText}>Verifying...</Text>
+                            </View>
+                        ) : (
+                            <Text style={styles.buttonText}>{t("auth.verify")}</Text>
+                        )}
+                    </LinearGradient>
                 </Pressable>
 
                 <Pressable
-                    style={[
+                    style={({ pressed }) => [
                         styles.resendButton,
+                        pressed && styles.resendButtonPressed,
                         (loading || timer > 0) && styles.resendButtonDisabled
                     ]}
                     onPress={handleResendOtp}
                     disabled={loading || timer > 0}
                 >
-                    <Text style={styles.resendButtonText}>
+                    <Ionicons 
+                        name="refresh-outline" 
+                        size={16} 
+                        color={timer > 0 ? "#A8A3D7" : "#3629B7"} 
+                    />
+                    <Text style={[
+                        styles.resendButtonText,
+                        (loading || timer > 0) && styles.resendButtonTextDisabled
+                    ]}>
                         {t("auth.resend_otp")}
                     </Text>
                 </Pressable>
@@ -258,6 +327,7 @@ export default function OtpVerificationForm({
 
             {/* Help Text */}
             <View style={styles.helpContainer}>
+                <Ionicons name="information-circle-outline" size={14} color="#A8A3D7" />
                 <Text style={styles.helpText}>
                     {t("auth.otp_help")}
                 </Text>
@@ -270,37 +340,56 @@ const styles = StyleSheet.create({
     container: {
         backgroundColor: "#FFFFFF",
         borderRadius: 16,
-        padding: 20,
+        padding: 24,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
+        borderColor: "#F2F1F9",
+        shadowColor: "#3629B7",
+        shadowOpacity: 0.08,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 4 },
-        elevation: 2,
+        elevation: 3,
         width: "100%",
         maxWidth: 400,
         alignSelf: "center",
     },
     header: {
-        marginBottom: 24,
+        marginBottom: 28,
     },
     backButton: {
         position: "absolute",
         left: 0,
         top: 0,
         zIndex: 1,
-        padding: 4,
+        padding: 8,
+        borderRadius: 20,
+    },
+    backButtonPressed: {
+        opacity: 0.7,
+        backgroundColor: "#F2F1F9",
     },
     headerContent: {
         alignItems: "center",
     },
+    iconContainer: {
+        marginBottom: 16,
+    },
+    iconGradient: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#3629B7",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
+    },
     title: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "#111827",
-        marginTop: 12,
-        marginBottom: 4,
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#1F2937",
+        marginBottom: 6,
         textAlign: "center",
     },
     subtitle: {
@@ -309,44 +398,73 @@ const styles = StyleSheet.create({
         textAlign: "center",
         lineHeight: 18,
     },
+    emailText: {
+        color: "#3629B7",
+        fontWeight: "600",
+    },
     otpContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginBottom: 16,
+        marginBottom: 20,
+        gap: 8,
+    },
+    otpPressable: {
+        flex: 1,
+    },
+    otpPressablePressed: {
+        opacity: 0.8,
     },
     otpInput: {
-        width: 44,
-        height: 52,
-        borderRadius: 10,
+        width: '100%',
+        height: 56,
+        borderRadius: 12,
         borderWidth: 2,
-        borderColor: "#E5E7EB",
+        borderColor: "#F2F1F9",
         textAlign: "center",
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: "600",
-        color: "#111827",
+        color: "#1F2937",
         backgroundColor: "#F9FAFB",
     },
+    otpInputFocused: {
+        borderColor: "#3629B7",
+        backgroundColor: "#FFFFFF",
+        shadowColor: "#3629B7",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
     otpInputFilled: {
-        borderColor: "#4F46E5",
+        borderColor: "#3629B7",
         backgroundColor: "#FFFFFF",
     },
     otpInputError: {
         borderColor: "#EF4444",
+        backgroundColor: "#FEF2F2",
     },
     statusContainer: {
-        marginBottom: 20,
-        gap: 8,
+        marginBottom: 24,
+        gap: 10,
     },
     timerContainer: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         gap: 6,
+        backgroundColor: "#F2F1F9",
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        alignSelf: "center",
+    },
+    timerContainerWarning: {
+        backgroundColor: "#FEF2F2",
     },
     timerText: {
         fontSize: 14,
-        fontWeight: "500",
-        color: "#6B7280",
+        fontWeight: "600",
+        color: "#3629B7",
     },
     timerTextWarning: {
         color: "#EF4444",
@@ -355,66 +473,101 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#EF4444",
         fontWeight: "500",
-        marginLeft: 6,
+        marginLeft: 4,
     },
     errorContainer: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "center",
         backgroundColor: "#FEF2F2",
-        padding: 10,
+        padding: 12,
         borderRadius: 10,
-        gap: 6,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: "#FEE2E2",
     },
     errorText: {
         color: "#DC2626",
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: "500",
         flex: 1,
     },
     buttonContainer: {
-        gap: 10,
-        marginBottom: 16,
+        gap: 12,
+        marginBottom: 20,
+    },
+    verifyButtonWrapper: {
+        borderRadius: 25,
+        overflow: 'hidden',
+        shadowColor: '#3629B7',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
     },
     verifyButton: {
-        backgroundColor: "#4F46E5",
-        padding: 14,
-        borderRadius: 10,
-        alignItems: "center",
-        flexDirection: "row",
-        justifyContent: "center",
+        height: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+    },
+    verifyButtonPressed: {
+        transform: [{ scale: 0.98 }],
     },
     verifyButtonDisabled: {
-        backgroundColor: "#9CA3AF",
-        opacity: 0.7,
+        opacity: 0.6,
     },
     buttonText: {
         color: "#FFFFFF",
         fontSize: 15,
         fontWeight: "600",
+        letterSpacing: 0.5,
+    },
+    loadingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     resendButton: {
-        padding: 14,
-        borderRadius: 10,
+        height: 48,
+        borderRadius: 25,
         alignItems: "center",
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
+        justifyContent: "center",
+        flexDirection: "row",
+        gap: 8,
+        borderWidth: 1.5,
+        borderColor: "#F2F1F9",
+        backgroundColor: "#FFFFFF",
+    },
+    resendButtonPressed: {
+        backgroundColor: "#F2F1F9",
+        borderColor: "#3629B7",
     },
     resendButtonDisabled: {
         opacity: 0.5,
+        borderColor: "#E5E7EB",
     },
     resendButtonText: {
-        color: "#4F46E5",
+        color: "#3629B7",
         fontSize: 14,
         fontWeight: "600",
     },
+    resendButtonTextDisabled: {
+        color: "#A8A3D7",
+    },
     helpContainer: {
+        flexDirection: "row",
         alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: "#F2F1F9",
     },
     helpText: {
         fontSize: 11,
         color: "#6B7280",
         textAlign: "center",
         lineHeight: 14,
+        flex: 1,
     },
 });
