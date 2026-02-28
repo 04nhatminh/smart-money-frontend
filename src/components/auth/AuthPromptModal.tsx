@@ -22,12 +22,12 @@ export function AuthPromptModal({ visible, onClose }: Props) {
 
   const handleLogin = () => {
     onClose();
-    router.push("/(auth)/login");
+    router.push("/(auth)/auth");
   };
 
   const handleSignUp = () => {
     onClose();
-    router.push("/(auth)/signup");
+    router.push("/(auth)/auth");
   };
 
   return (

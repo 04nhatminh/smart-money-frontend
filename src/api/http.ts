@@ -1,10 +1,18 @@
-import axios from "axios";
-import { tokenStorage } from "../storage/tokenStorage";
+import axios, {
+  AxiosInstance,
+  AxiosResponse,
+  AxiosError,
+  AxiosHeaders,
+  InternalAxiosRequestConfig,
+} from 'axios';
+import { tokenStorage } from "../storage/tokenStorage"; 
+import { API_CONFIG } from '../config/api';
 
-export const http = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_BASE_URL,
-  timeout: 15000,
-  headers: { "Content-Type": "application/json" },
+
+// Create axios instance with default config
+const http: AxiosInstance = axios.create({
+  baseURL: API_CONFIG.BASE_URL,
+  timeout: API_CONFIG.TIMEOUT,
 });
 
 // Request interceptor - Thêm token vào headers
@@ -59,3 +67,6 @@ http.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export { http };
+export default http;
