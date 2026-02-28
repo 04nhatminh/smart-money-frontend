@@ -126,7 +126,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({
                             <Ionicons name="checkmark" size={12} color="#FFFFFF" />
                         )}
                     </View>
-                    <Text style={styles.rememberText}>Remember me</Text>
+                    <Text style={styles.rememberText}>{t("auth.remember_me")}</Text>
                 </Pressable>
 
                 <Pressable 
@@ -138,7 +138,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({
                         styles.forgotPasswordText,
                         forgotDisabled && styles.forgotPasswordDisabled
                     ]}>
-                        Forgot Password?
+                        {t("auth.forgot_password")}
                     </Text>
                 </Pressable>
             </View>
@@ -162,10 +162,10 @@ export const SignInForm: React.FC<SignInFormProps> = ({
                     {loading ? (
                         <View style={styles.loadingContainer}>
                             <Ionicons name="sync-outline" size={18} color="#FFFFFF" />
-                            <Text style={styles.signinBtnText}>Signing in...</Text>
+                            <Text style={styles.signinBtnText}>{t("auth.sign_in_loading")}</Text>
                         </View>
                     ) : (
-                        <Text style={styles.signinBtnText}>Sign In</Text>
+                        <Text style={styles.signinBtnText}>{t("common.sign_in")}</Text>
                     )}
                 </LinearGradient>
             </Pressable>

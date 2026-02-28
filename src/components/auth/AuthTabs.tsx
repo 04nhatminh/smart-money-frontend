@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { t } from "../../i18n";
 
 interface AuthTabsProps {
     activeTab: 'signin' | 'signup';
@@ -25,12 +26,12 @@ export const AuthTabs: React.FC<AuthTabsProps> = ({ activeTab, onTabChange }) =>
                         style={styles.activeGradient}
                     >
                         <Text style={[styles.tabText, styles.tabTextActive]}>
-                            Sign In
+                            {t("common.sign_in")}
                         </Text>
                     </LinearGradient>
                 ) : (
                     <Text style={[styles.tabText, styles.tabTextInactive]}>
-                        Sign In
+                        {t("common.sign_in")}
                     </Text>
                 )}
             </Pressable>
@@ -50,12 +51,12 @@ export const AuthTabs: React.FC<AuthTabsProps> = ({ activeTab, onTabChange }) =>
                         style={styles.activeGradient}
                     >
                         <Text style={[styles.tabText, styles.tabTextActive]}>
-                            Sign Up
+                            {t("common.sign_up")}
                         </Text>
                     </LinearGradient>
                 ) : (
                     <Text style={[styles.tabText, styles.tabTextInactive]}>
-                        Sign Up
+                        {t("common.sign_up")}
                     </Text>
                 )}
             </Pressable>

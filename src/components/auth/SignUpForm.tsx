@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { t } from "../../i18n";
 
 interface SignUpFormProps {
     fullName: string;
@@ -101,7 +102,7 @@ const SignUpFormComponent: React.FC<SignUpFormProps> = ({
                     />
                     <TextInput
                         ref={fullNameRef}
-                        placeholder="Full name"
+                        placeholder={t('common.full_name')}
                         placeholderTextColor="#A8A3D7"
                         style={styles.input}
                         autoCapitalize="words"
@@ -135,7 +136,7 @@ const SignUpFormComponent: React.FC<SignUpFormProps> = ({
                     />
                     <TextInput
                         ref={emailRef}
-                        placeholder="Email"
+                        placeholder={t('common.email')}
                         placeholderTextColor="#A8A3D7"
                         style={styles.input}
                         autoCapitalize="none"
@@ -170,7 +171,7 @@ const SignUpFormComponent: React.FC<SignUpFormProps> = ({
                     />
                     <TextInput
                         ref={phoneRef}
-                        placeholder="Phone number"
+                        placeholder={t('auth.phone')}
                         placeholderTextColor="#A8A3D7"
                         style={styles.input}
                         keyboardType="phone-pad"
@@ -241,7 +242,7 @@ const SignUpFormComponent: React.FC<SignUpFormProps> = ({
                     />
                     <TextInput
                         ref={passwordRef}
-                        placeholder="Password"
+                        placeholder={t('common.password')}
                         placeholderTextColor="#A8A3D7"
                         style={styles.input}
                         secureTextEntry
@@ -275,7 +276,7 @@ const SignUpFormComponent: React.FC<SignUpFormProps> = ({
                     />
                     <TextInput
                         ref={confirmPasswordRef}
-                        placeholder="Confirm password"
+                        placeholder={t('common.confirm_password')}
                         placeholderTextColor="#A8A3D7"
                         style={styles.input}
                         secureTextEntry
@@ -317,10 +318,10 @@ const SignUpFormComponent: React.FC<SignUpFormProps> = ({
                     {loading ? (
                         <View style={styles.loadingContainer}>
                             <Ionicons name="sync-outline" size={18} color="#FFFFFF" />
-                            <Text style={styles.signupBtnText}>Creating...</Text>
+                            <Text style={styles.signupBtnText}>{t('auth.sign_up_loading')}</Text>
                         </View>
                     ) : (
-                        <Text style={styles.signupBtnText}>Create Account</Text>
+                        <Text style={styles.signupBtnText}>{t('auth.create_account')}</Text>
                     )}
                 </LinearGradient>
             </Pressable>
