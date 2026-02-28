@@ -15,6 +15,13 @@ function RootLayoutNav() {
   useEffect(() => {
     // Kiểm tra lần đầu mở app
     checkFirstLaunch();
+    
+    // Kiểm tra định kỳ xem hasLaunched có thay đổi không
+    const interval = setInterval(() => {
+      checkFirstLaunch();
+    }, 500);
+
+    return () => clearInterval(interval);
   }, []);
 
   const checkFirstLaunch = async () => {
@@ -50,8 +57,8 @@ function RootLayoutNav() {
       if (isSignedIn && (inAuthGroup || inIntroGroup)) {
         // Đã đăng nhập và đang ở auth/intro -> chuyển về tabs
         router.replace("/(tabs)");
-      } else if (!isSignedIn && !inAuthGroup && !inIntroGroup && inTabsGroup) {
-        // Chưa đăng nhập nhưng đang ở tabs -> chuyển đến auth
+      } else if (!isSignedIn && (inIntroGroup || inTabsGroup)) {
+        // Chưa đăng nhập nhưng đang ở intro/tabs -> chuyển đến auth
         router.replace("/(auth)/auth");
       }
     }
