@@ -1,22 +1,22 @@
-// import AsyncStorage from "@react-native-async-storage/async-storage";
-// import { setLanguage, type Lang } from "./index";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setLanguage, type Lang } from "./index";
 
-// const KEY = "lang";
+const KEY = "lang";
 
-// export async function loadLanguageFromStorage() {
-//   try {
-//     const v = await AsyncStorage.getItem(KEY);
-//     if (v === "en" || v === "vi") setLanguage(v as Lang);
-//   } catch (e) {
-//     // ignore: app vẫn chạy theo device locale
-//   }
-// }
+export async function loadLanguageFromStorage() {
+  try {
+    const v = await AsyncStorage.getItem(KEY);
+    if (v === "en" || v === "vi") setLanguage(v as Lang);
+  } catch (e) {
+    // ignore: app vẫn chạy theo device locale
+  }
+}
 
-// export async function saveLanguageToStorage(lang: Lang) {
-//   try {
-//     await AsyncStorage.setItem(KEY, lang);
-//     setLanguage(lang);
-//   } catch (e) {
-//     // ignore
-//   }
-// }
+export async function saveLanguageToStorage(lang: Lang) {
+  try {
+    await AsyncStorage.setItem(KEY, lang);
+    setLanguage(lang);
+  } catch (e) {
+    // ignore
+  }
+}
