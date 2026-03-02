@@ -27,6 +27,7 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         gap: 6,
     },
+    text: {
         color: '#EF4444',
         fontSize: 12,
         flex: 1,
