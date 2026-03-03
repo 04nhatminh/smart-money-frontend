@@ -23,6 +23,9 @@ export const InputField: React.FC<InputFieldProps> = ({
 }) => {
     const inputRef = useRef<TextInput>(null);
     const [isFocused, setIsFocused] = useState(false);
+    const [hidePassword, setHidePassword] = useState(secureTextEntry);
+
+    const isPassword = secureTextEntry;
 
     return (
         <View style={styles.field}>
@@ -36,11 +39,14 @@ export const InputField: React.FC<InputFieldProps> = ({
                     isFocused && styles.inputRowFocused,
                 ]}
             >
+                {/* Left Icon */}
                 <Ionicons
                     name={iconName}
                     size={18}
                     color={isFocused ? '#3629B7' : '#A8A3D7'}
                 />
+
+                {/* Input */}
                 <TextInput
                     ref={inputRef}
                     placeholder={placeholder}
@@ -51,9 +57,24 @@ export const InputField: React.FC<InputFieldProps> = ({
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     keyboardType={keyboardType}
-                    secureTextEntry={secureTextEntry}
+                    secureTextEntry={isPassword ? hidePassword : false}
                     autoCapitalize={autoCapitalize}
                 />
+
+                {/* Eye icon nếu là password */}
+                {isPassword && (
+                    <Pressable
+                        onPress={() => setHidePassword(!hidePassword)}
+                        hitSlop={10}
+                        style={styles.eyeButton}
+                    >
+                        <Ionicons
+                            name={hidePassword ? 'eye-off-outline' : 'eye-outline'}
+                            size={18}
+                            color={isFocused ? '#3629B7' : '#A8A3D7'}
+                        />
+                    </Pressable>
+                )}
             </Pressable>
         </View>
     );
@@ -88,5 +109,8 @@ const styles = StyleSheet.create({
         color: '#1F2937',
         fontSize: 14,
         paddingVertical: 8,
+    },
+    eyeButton: {
+        paddingLeft: 4,
     },
 });

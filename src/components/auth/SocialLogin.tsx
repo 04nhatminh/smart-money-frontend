@@ -36,20 +36,23 @@ export const SocialLogin: React.FC<SocialLoginProps> = ({
         const processGoogleToken = async () => {
             if (token && activeMethod === 'google' && !processingToken) {
                 try {
+                    console.log('🔐 Processing Google token...');
                     setProcessingToken(true);
                     
                     // Gọi API đăng nhập với Google
                     const response = await authService.googleLogin({ idToken: token });
                     
+                    console.log('✅ Google login response:', response.success);
+                    
                     if (response.success) {
+                        console.log('🎉 Calling onGoogleLogin and onSuccess callbacks...');
                         onGoogleLogin?.();
                         onSuccess?.();
-                        Alert.alert('Thành công', 'Đăng nhập với Google thành công!');
                     } else {
                         throw new Error(response.message || 'Đăng nhập với Google thất bại');
                     }
                 } catch (error: any) {
-                    console.error('Google login API error:', error);
+                    console.error('❌ Google login API error:', error);
                     const errorMessage = error.message || 'Đã xảy ra lỗi khi đăng nhập với Google';
                     onError?.(errorMessage);
                     Alert.alert('Lỗi', errorMessage);
@@ -61,7 +64,7 @@ export const SocialLogin: React.FC<SocialLoginProps> = ({
         };
 
         processGoogleToken();
-    }, [token, activeMethod]);
+    }, [token, activeMethod, onGoogleLogin, onSuccess, onError]);
 
     // Xử lý khi có session Facebook mới
     useEffect(() => {
@@ -95,7 +98,7 @@ export const SocialLogin: React.FC<SocialLoginProps> = ({
         };
 
         processFacebookSession();
-    }, [session, activeMethod]);
+    }, [session, activeMethod, onFacebookLogin, onSuccess, onError]);
 
     const handleLogin = (method: 'google' | 'facebook') => {
         if (disabled || activeMethod !== null) return;

@@ -1,74 +1,80 @@
-import { useEffect, useState } from "react";
+// app/_layout.tsx
+import React, { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { useRouter, useSegments } from "expo-router";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, ActivityIndicator } from "react-native";
 import { LanguageProvider } from "../src/i18n/LanguageProvider";
 import { ThemeProvider } from "../src/theme/ThemeProvider";
-import { AuthProvider, useAuth } from "../src/auth/AuthContext";
+import { AuthProvider, useAuth } from "../src/context/AuthContext";
+import { OnboardingProvider, useOnboarding } from "../src/context/OnboardingContext";
+import * as SplashScreen from "expo-splash-screen";
+
+SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
-  const { isLoading, isSignedIn } = useAuth();
-  const segments = useSegments();
+  const { isSignedIn, isLoading: authLoading } = useAuth();
+  const { isFirstLaunch, isLoading: onboardingLoading } = useOnboarding();
   const router = useRouter();
-  const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
+  const segments = useSegments();
+  
+  const [navigationReady, setNavigationReady] = useState(false);
+  const [initialRoute, setInitialRoute] = useState<string | null>(null);
 
+  // Xác định route ban đầu chỉ một lần
   useEffect(() => {
-    // Kiểm tra lần đầu mở app
-    checkFirstLaunch();
-    
-    // Kiểm tra định kỳ xem hasLaunched có thay đổi không
-    const interval = setInterval(() => {
-      checkFirstLaunch();
-    }, 500);
+    if (authLoading || onboardingLoading || isFirstLaunch === null) return;
 
-    return () => clearInterval(interval);
-  }, []);
-
-  const checkFirstLaunch = async () => {
-    try {
-      const hasLaunched = await AsyncStorage.getItem('hasLaunched');
-      if (hasLaunched === null) {
-        // Lần đầu mở app
-        setIsFirstLaunch(true);
+    const determineInitialRoute = () => {
+      if (isFirstLaunch) {
+        return "/(intro)/intro";
+      } else if (!isSignedIn) {
+        return "/(auth)/auth";
       } else {
-        setIsFirstLaunch(false);
+        return "/(tabs)";
       }
-    } catch (error) {
-      console.error('Error checking first launch:', error);
-      setIsFirstLaunch(false);
-    }
-  };
+    };
 
+    const route = determineInitialRoute();
+    setInitialRoute(route);
+    
+    // Ẩn splash screen sau khi đã xác định route
+    SplashScreen.hideAsync();
+    
+    // Đánh dấu đã sẵn sàng điều hướng
+    setTimeout(() => {
+      setNavigationReady(true);
+    }, 100); // Delay nhỏ để tránh flicker
+  }, [authLoading, onboardingLoading, isFirstLaunch, isSignedIn]);
+
+  // Xử lý điều hướng khi đã sẵn sàng
   useEffect(() => {
-    if (isLoading || isFirstLaunch === null) return;
+    if (!navigationReady || !initialRoute) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
-    const inIntroGroup = segments[0] === "(intro)";
-    const inTabsGroup = segments[0] === "(tabs)";
+    const currentPath = segments.join('/');
+    const shouldRedirect = 
+      (initialRoute === "/(intro)/intro" && !currentPath.includes('intro')) ||
+      (initialRoute === "/(auth)/auth" && !currentPath.includes('auth') && !currentPath.includes('tabs')) ||
+      (initialRoute === "/(tabs)" && !currentPath.includes('tabs'));
 
-    // Logic điều hướng - ưu tiên check isFirstLaunch
-    if (isFirstLaunch) {
-      // Lần đầu mở app -> chuyển đến Intro (bất kể auth state)
-      if (!inIntroGroup) {
-        router.replace("/(intro)/intro");
-      }
-    } else {
-      // Không phải lần đầu -> xử lý auth flow
-      if (isSignedIn && (inAuthGroup || inIntroGroup)) {
-        // Đã đăng nhập và đang ở auth/intro -> chuyển về tabs
-        router.replace("/(tabs)");
-      } else if (!isSignedIn && (inIntroGroup || inTabsGroup)) {
-        // Chưa đăng nhập nhưng đang ở intro/tabs -> chuyển đến auth
-        router.replace("/(auth)/auth");
-      }
+    if (shouldRedirect) {
+      router.replace(initialRoute);
     }
-  }, [isSignedIn, isLoading, segments, isFirstLaunch]);
+  }, [navigationReady, initialRoute, segments]);
+
+  // Hiển thị loading khi chưa sẵn sàng
+  if (authLoading || onboardingLoading || isFirstLaunch === null || !navigationReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(intro)" options={{ headerShown: false }} />
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(intro)" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tabs)" />
     </Stack>
   );
 }
@@ -78,7 +84,9 @@ export default function RootLayout() {
     <LanguageProvider>
       <ThemeProvider>
         <AuthProvider>
-          <RootLayoutNav />
+          <OnboardingProvider>
+            <RootLayoutNav />
+          </OnboardingProvider>
         </AuthProvider>
       </ThemeProvider>
     </LanguageProvider>

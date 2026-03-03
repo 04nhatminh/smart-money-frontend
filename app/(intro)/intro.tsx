@@ -14,6 +14,7 @@ import { Video, ResizeMode } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width, height } = Dimensions.get('window');
 import { router } from 'expo-router';
+import { useOnboarding } from '../../src/context/OnboardingContext';
 
 const videos = [
   require('../../assets/intro1.mp4'),
@@ -32,12 +33,12 @@ const texts = [
 const Intro: React.FC = () => {
   const [gifIndex, setGifIndex] = useState(0);
   const [textIndex, setTextIndex] = useState(0);
-  
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const buttonScaleAnim = useRef(new Animated.Value(1)).current;
   const dotAnimations = useRef([...Array(4)].map(() => new Animated.Value(0))).current;
+  const { completeOnboarding } = useOnboarding();
 
   useEffect(() => {
     const gifInterval = setInterval(() => {
@@ -94,13 +95,8 @@ const Intro: React.FC = () => {
   };
 
   const handleGetStarted = async () => {
-    try {
-      await AsyncStorage.setItem('hasLaunched', 'true');
-      router.replace("/(auth)/auth");
-    } catch (error) {
-      console.error('Error saving first launch:', error);
-      router.replace("/(auth)/auth");
-    }
+    await completeOnboarding();
+    router.replace("/(auth)/auth");
   };
 
   return (

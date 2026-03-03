@@ -1,35 +1,54 @@
 import React from "react";
 import { View, Pressable, StyleSheet, Platform, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Feather from '@expo/vector-icons/Feather';
 import { useThemeMode } from "../theme/ThemeProvider";
 
 type TabKey = "home" | "stats" | "wallet" | "profile";
 
+type NavigationHandlers = {
+  onHome: () => void;
+  onStats: () => void;
+  onAdd: () => void;
+  onWallet: () => void;
+  onProfile: () => void;
+};
+
 type Props = {
   active?: TabKey;
+  handlers?: NavigationHandlers;
+  // Legacy props for backward compatibility
   onHome?: () => void;
   onStats?: () => void;
   onAdd?: () => void;
   onWallet?: () => void;
   onProfile?: () => void;
-  onCapture?: (uri: string) => void;
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export function BottomBar({
   active = "home",
+  handlers,
   onHome,
   onStats,
   onAdd,
   onWallet,
   onProfile,
-  onCapture,
 }: Props) {
   const { theme } = useThemeMode();
 
+  // Use handlers if provided, otherwise fallback to individual props
+  const actualHandlers = handlers || {
+    onHome: onHome || (() => {}),
+    onStats: onStats || (() => {}),
+    onAdd: onAdd || (() => {}),
+    onWallet: onWallet || (() => {}),
+    onProfile: onProfile || (() => {}),
+  };
+
   const iconColor = (key: TabKey) =>
-    active === key ? theme.primary : theme.subtext;
+    active === key ? '#3629B7' : '#A8A3D7'; // Active: primary purple, Inactive: light purple
 
   return (
     <View pointerEvents="box-none" style={styles.root}>
@@ -37,18 +56,28 @@ export function BottomBar({
         style={[
           styles.bar,
           {
-            backgroundColor: theme.card,
-            borderColor: theme.border,
+            backgroundColor: '#FFFFFF',
+            borderColor: '#F2F1F9',
           },
         ]}
       >
-        <Pressable style={styles.item} onPress={onHome}>
-          <Ionicons name="home-outline" size={22} color={iconColor("home")} />
+        <Pressable 
+          style={[styles.item, active === 'home' && styles.activeItem]} 
+          onPress={actualHandlers.onHome}
+        >
+          <Ionicons 
+            name={active === 'home' ? "home" : "home-outline"} 
+            size={22} 
+            color={iconColor("home")} 
+          />
         </Pressable>
 
-        <Pressable style={styles.item} onPress={onStats}>
+        <Pressable 
+          style={[styles.item, active === 'stats' && styles.activeItem]} 
+          onPress={actualHandlers.onStats}
+        >
           <Ionicons
-            name="stats-chart-outline"
+            name={active === 'stats' ? "stats-chart" : "stats-chart-outline"}
             size={22}
             color={iconColor("stats")}
           />
@@ -56,17 +85,23 @@ export function BottomBar({
 
         <View style={{ width: 56 }} />
 
-        <Pressable style={styles.item} onPress={onWallet}>
+        <Pressable 
+          style={[styles.item, active === 'wallet' && styles.activeItem]} 
+          onPress={actualHandlers.onWallet}
+        >
           <Ionicons
-            name="wallet-outline"
+            name={active === 'wallet' ? "wallet" : "wallet-outline"}
             size={22}
             color={iconColor("wallet")}
           />
         </Pressable>
 
-        <Pressable style={styles.item} onPress={onProfile}>
+        <Pressable 
+          style={[styles.item, active === 'profile' && styles.activeItem]} 
+          onPress={actualHandlers.onProfile}
+        >
           <Ionicons
-            name="person-outline"
+            name={active === 'profile' ? "person" : "person-outline"}
             size={22}
             color={iconColor("profile")}
           />
@@ -78,14 +113,14 @@ export function BottomBar({
           styles.fab,
           {
             left: SCREEN_WIDTH / 2 - FAB_SIZE / 2,
-            backgroundColor: theme.fabBg,
-            borderColor: theme.border,
+            backgroundColor: '#3629B7', // Primary purple
+            borderColor: '#5655B9',
           },
         ]}
-        onPress={onAdd}
+        onPress={actualHandlers.onAdd}
       >
-        <Ionicons name="scan-outline" size={22} color={theme.fabIcon} />
-      </Pressable>
+        <Feather name="plus-square" size={24} color="white" />
+     </Pressable>
     </View>
   );
 }
@@ -105,7 +140,7 @@ const styles = StyleSheet.create({
   bar: {
     width: "92%",
     height: BAR_HEIGHT,
-    borderRadius: 28,
+    borderRadius: 36, // More rounded
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -114,13 +149,13 @@ const styles = StyleSheet.create({
 
     ...Platform.select({
       ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 16,
+        shadowColor: "#3629B7",
+        shadowOpacity: 0.12,
+        shadowRadius: 20,
         shadowOffset: { width: 0, height: 8 },
       },
       android: {
-        elevation: 6,
+        elevation: 8,
       },
     }),
   },
@@ -131,6 +166,10 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  activeItem: {
+    backgroundColor: '#F2F1F9', // Light purple background for active item
   },
 
   fab: {
@@ -145,13 +184,13 @@ const styles = StyleSheet.create({
 
     ...Platform.select({
       ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.18,
-        shadowRadius: 18,
-        shadowOffset: { width: 0, height: 10 },
+        shadowColor: "#3629B7",
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
       },
       android: {
-        elevation: 10,
+        elevation: 12,
       },
     }),
   },

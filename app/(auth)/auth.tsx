@@ -3,18 +3,18 @@ import {
     View,
     StyleSheet,
     SafeAreaView,
-    Image,
     Pressable,
     ScrollView,
     KeyboardAvoidingView,
     Platform,
     Dimensions,
     Text,
-    StatusBar
+    StatusBar,
+    Alert
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from 'expo-linear-gradient';
-import authService from "../../src/auth/authService";
+import { useAuth } from "../../src/context/AuthContext";
 import { t } from "../../src/i18n";
 import { LanguageSwitch } from "../../src/components/LanguageSwitch";
 import { useLanguage } from "../../src/i18n/LanguageProvider";
@@ -26,12 +26,19 @@ import { SocialLogin } from "../../src/components/auth/SocialLogin";
 import { AuthTabs } from "../../src/components/auth/AuthTabs";
 import { formatDateToDDMMYYYY } from "../../src/utils/dateFormatter";
 import { Ionicons } from '@expo/vector-icons';
-import { CheckResponse, AuthResponse, RegisterRequest, VerifyEmailRequest, SendResetPasswordOtpRequest, ResetPasswordRequest } from "../../src/types/auth.types";
+import authService from "../../src/auth/authService";
+import { 
+    RegisterRequest, 
+    VerifyEmailRequest, 
+    SendResetPasswordOtpRequest, 
+    ResetPasswordRequest 
+} from "../../src/types/auth.types";
 
 const { width, height } = Dimensions.get('window');
 
 export default function AuthScreen() {
     const router = useRouter();
+    const { login, checkAuthStatus } = useAuth();
     const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
     
     // Sign In states
@@ -65,20 +72,31 @@ export default function AuthScreen() {
     const [loading, setLoading] = useState(false);
 
     const { lang } = useLanguage();
-    
-    const loginGif = require("../../assets/auth-background.jpg");
-    const themesGif = require("../../assets/themes-login.png");
 
     const handleSignIn = async () => {
         setError(null);
         setLoading(true);
         
         try {
-            const res = await authService.login(email, password);
-            if(res.success) {
-                router.replace('/(auth)/profile');
+            console.log('🔐 Attempting login with email:', email);
+            const res = await login(email, password);
+            
+            if (res.success) {
+                console.log('✅ Login successful, updating auth status...');
+                // Update auth context state
+                await checkAuthStatus();
+                
+                // Small delay to ensure state is updated
+                setTimeout(() => {
+                    console.log('🚀 Redirecting to home...');
+                    router.replace('/(tabs)');
+                }, 100);
+            } else {
+                console.log('❌ Login failed:', res.message);
+                setError(res.message || t("auth.login_failed"));
             }
         } catch (err: any) {
+            console.error('💥 Login error:', err);
             setError(err.message || t("auth.login_failed"));
         } finally {
             setLoading(false);
@@ -118,7 +136,7 @@ export default function AuthScreen() {
             const formattedDate = formatDateToDDMMYYYY(dateOfBirth);
             
             const registerData: RegisterRequest = {
-                username: username.trim(),
+                username: username.trim() || signupEmail.split('@')[0], // Generate from email if empty
                 fullName: fullName.trim(),
                 email: signupEmail.trim(),
                 password: signupPassword,
@@ -128,23 +146,26 @@ export default function AuthScreen() {
                 avatar: avatar.trim()
             };
             
+            console.log('📝 Registering with data:', { ...registerData, password: '***' });
             const response = await authService.register(registerData);
             
             if (response.success) {
+                console.log('✅ Registration successful, showing OTP modal');
                 setShowOTPModal(true);
                 setOtpEmail(signupEmail);
                 setOtpType("VERIFY");
+                setSuccess(t("auth.verification_code_sent"));
             } else {
+                console.log('❌ Registration failed:', response.message);
                 setError(response.message || t("auth.registration_failed"));
                 
-                // Handle specific errors
                 if (response.errors) {
                     const errorMessages = Object.values(response.errors).flat();
                     setError(errorMessages.join(", "));
                 }
             }
         } catch (err: any) {
-            console.error("Registration error:", err);
+            console.error("💥 Registration error:", err);
             setError(err.message || t("auth.registration_error"));
         } finally {
             setLoading(false);
@@ -152,44 +173,99 @@ export default function AuthScreen() {
     };
 
     const onVerifyOtp = async (email: string, otpString: string) => {
-        let request: VerifyEmailRequest = {
-            email: email,
-            otp: otpString
-        };
-        const res = await authService.verifyEmail(request);
-        if (res.success) {
-            setShowOTPModal(false);
-            setActiveTab("signin");
-            setSuccess(t("auth.email_verified"));
+        try {
+            setLoading(true);
+            const request: VerifyEmailRequest = {
+                email: email,
+                otp: otpString
+            };
+            
+            console.log('🔐 Verifying OTP for:', email);
+            const res = await authService.verifyEmail(request);
+            
+            if (res.success) {
+                console.log('✅ OTP verified successfully');
+                setShowOTPModal(false);
+                setActiveTab("signin");
+                setSuccess(t("auth.email_verified"));
+                
+                // Auto-fill email for sign in
+                setEmail(email);
+            } else {
+                console.log('❌ OTP verification failed:', res.message);
+                setError(res.message || t("auth.verification_failed"));
+            }
+            return res;
+        } catch (error: any) {
+            console.error('💥 OTP verification error:', error);
+            setError(error.message || t("auth.verification_failed"));
+            return { success: false, message: error.message };
+        } finally {
+            setLoading(false);
         }
-        return res;
     };
 
     const onVerifyResetPassword = async (email: string, otpString: string) => {
-        let request: VerifyEmailRequest = {
-            email: email,
-            otp: otpString
-        };
-        const res = await authService.verifyResetPassword(request);
-        if (res.success) {
-            setShowResetPassword(true);
-            setShowOTPModal(false);
-            setSuccess(t("auth.email_verified"));
+        try {
+            setLoading(true);
+            const request: VerifyEmailRequest = {
+                email: email,
+                otp: otpString
+            };
+            
+            console.log('🔐 Verifying reset password OTP for:', email);
+            const res = await authService.verifyResetPassword(request);
+            
+            if (res.success) {
+                console.log('✅ Reset password OTP verified');
+                setShowResetPassword(true);
+                setShowOTPModal(false);
+                setSuccess(t("auth.email_verified"));
+            } else {
+                console.log('❌ Reset password OTP verification failed:', res.message);
+                setError(res.message || t("auth.verification_failed"));
+            }
+            return res;
+        } catch (error: any) {
+            console.error('💥 Reset password OTP error:', error);
+            setError(error.message || t("auth.verification_failed"));
+            return { success: false, message: error.message };
+        } finally {
+            setLoading(false);
         }
-        return res;
     };
 
     const onResendOtp = async (email: string) => {
-        let request: SendResetPasswordOtpRequest = {
-            email: email
-        };
-        
-        if (otpType === "VERIFY") {
-            const res = await authService.forgotPassword(request);
+        try {
+            setLoading(true);
+            const request: SendResetPasswordOtpRequest = {
+                email: email
+            };
+            
+            console.log('📧 Resending OTP to:', email);
+            let res;
+            
+            if (otpType === "VERIFY") {
+                res = await authService.forgotPassword(request);
+            } else {
+                res = await authService.resendOTP(request);
+            }
+            
+            if (res.success) {
+                console.log('✅ OTP resent successfully');
+                setSuccess(t("auth.otp_resent"));
+            } else {
+                console.log('❌ Failed to resend OTP:', res.message);
+                setError(res.message || t("auth.resend_failed"));
+            }
+            
             return res;
-        } else {
-            const res = await authService.resendOTP(request);
-            return res;
+        } catch (error: any) {
+            console.error('💥 Resend OTP error:', error);
+            setError(error.message || t("auth.resend_failed"));
+            return { success: false, message: error.message };
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -199,19 +275,33 @@ export default function AuthScreen() {
             return;
         }
         
-        let request: SendResetPasswordOtpRequest = {
-            email: email
-        };
-        
-        const res = await authService.forgotPassword(request);
-        if (res.success) {
-            setOtpEmail(email);
-            setOtpType("UPDATE");
-            setShowOTPModal(true);
-        } else {
-            setError(res.message);
+        try {
+            setLoading(true);
+            const request: SendResetPasswordOtpRequest = {
+                email: email
+            };
+            
+            console.log('🔑 Requesting password reset for:', email);
+            const res = await authService.forgotPassword(request);
+            
+            if (res.success) {
+                console.log('✅ Password reset OTP sent');
+                setOtpEmail(email);
+                setOtpType("UPDATE");
+                setShowOTPModal(true);
+                setSuccess(t("auth.reset_code_sent"));
+            } else {
+                console.log('❌ Password reset request failed:', res.message);
+                setError(res.message || t("auth.reset_request_failed"));
+            }
+            return res;
+        } catch (error: any) {
+            console.error('💥 Forgot password error:', error);
+            setError(error.message || t("auth.reset_request_failed"));
+            return { success: false, message: error.message };
+        } finally {
+            setLoading(false);
         }
-        return res;
     };
 
     const handleResetPassword = async () => {
@@ -237,45 +327,72 @@ export default function AuthScreen() {
         }
         
         try {
-            let request: ResetPasswordRequest = {
+            console.log('🔄 Resetting password for:', otpEmail);
+            const request: ResetPasswordRequest = {
                 email: otpEmail,
                 newPassword: newPassword
-            }
+            };
+            
             const res = await authService.resetPassword(request);
+            
             if (res.success) {
+                console.log('✅ Password reset successful');
                 setSuccess(t("auth.password_reset_success"));
                 setShowResetPassword(false);
                 setActiveTab("signin");
-                authService.clearAuthData();
+                
+                // Auto-fill email for sign in
+                setEmail(otpEmail);
+                
+                // Clear reset token
+                await authService.clearAuthData();
             } else {
-                setError(res.message);
+                console.log('❌ Password reset failed:', res.message);
+                setError(res.message || t("auth.reset_failed"));
             }
         } catch (err: any) {
+            console.error('💥 Reset password error:', err);
             const message = err.response?.data?.message;
 
             if (message?.includes('expired')) {
                 setError(t('auth.reset_token_expired'));
             } else {
                 setError(message ?? t('common.error'));
-            }       
+            }
         } finally {
             setLoading(false);
         }
     };
 
     const handleGoogleLogin = () => {
-        // Implement Google login logic
-        console.log("Google login");
+        console.log('👤 Google login initiated');
+        // The actual Google login flow will be handled by SocialLogin component
+        // onSuccessSocialLogin will be called after successful authentication
     };
-
+    
     const handleFacebookLogin = () => {
-        // Implement Facebook login logic
-        console.log("Facebook login");
+        console.log('👤 Facebook login initiated');
+        // The actual Facebook login flow will be handled by SocialLogin component
+        // onSuccessSocialLogin will be called after successful authentication
     };
 
-    const onSuccessSocialLogin = () => {
-        router.replace('/(auth)/profile');
-    }
+    const onSuccessSocialLogin = async () => {
+        try {
+            console.log('🔄 Social login successful, updating auth status...');
+            // Update auth context state
+            await checkAuthStatus();
+            
+            // Small delay to ensure state is updated
+            setTimeout(() => {
+                console.log('🚀 Redirecting to home...');
+                router.replace('/(tabs)');
+            }, 100);
+        } catch (error) {
+            console.error("❌ Error updating auth status:", error);
+            // Force redirect even if there's an error
+            router.replace('/(tabs)');
+        }
+    };
 
     const goBack = () => {
         if (showResetPassword) {
@@ -286,6 +403,17 @@ export default function AuthScreen() {
             router.back();
         }
     };
+
+    // Clear error/success after 5 seconds
+    React.useEffect(() => {
+        if (error || success) {
+            const timer = setTimeout(() => {
+                setError(null);
+                setSuccess(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, success]);
 
     return (
         <SafeAreaView style={styles.safe}>
@@ -354,29 +482,29 @@ export default function AuthScreen() {
 
                                 {activeTab === "signin" ? (
                                     <KeyboardAvoidingView
-                                        behavior={Platform.OS === 'android' ? 'height' : 'padding'}>
+                                        behavior={Platform.OS === 'android' ? 'height' : 'padding'}
+                                    >
                                         <SignInForm
-                                        email={email}
-                                        setEmail={setEmail}
-                                        password={password}
-                                        setPassword={setPassword}
-                                        rememberMe={rememberMe}
-                                        setRememberMe={setRememberMe}
-                                        error={error}
-                                        loading={loading}
-                                        onSignIn={handleSignIn}
-                                        onForgotPassword={handleForgotPassword}
-                                    />
-                                </KeyboardAvoidingView>
-
+                                            email={email}
+                                            setEmail={setEmail}
+                                            password={password}
+                                            setPassword={setPassword}
+                                            rememberMe={rememberMe}
+                                            setRememberMe={setRememberMe}
+                                            error={error}
+                                            loading={loading}
+                                            onSignIn={handleSignIn}
+                                            onForgotPassword={handleForgotPassword}
+                                        />
+                                    </KeyboardAvoidingView>
                                 ) : (
                                     <KeyboardAvoidingView
                                         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                                         style={styles.keyboardView}
-                                            keyboardVerticalOffset={Platform.select({
-                                                ios: 64,
-                                                android: 0
-                                                })}
+                                        keyboardVerticalOffset={Platform.select({
+                                            ios: 64,
+                                            android: 0
+                                        })}
                                     >
                                         <ScrollView
                                             showsVerticalScrollIndicator={false}
@@ -414,6 +542,18 @@ export default function AuthScreen() {
                                     </View>
                                 )}
                             </>
+                        )}
+
+                        {/* Success/Error Toast */}
+                        {(success || error) && (
+                            <View style={[
+                                styles.toast,
+                                success ? styles.successToast : styles.errorToast
+                            ]}>
+                                <Text style={styles.toastText}>
+                                    {success || error}
+                                </Text>
+                            </View>
                         )}
                     </View>
                 </View>
@@ -544,20 +684,25 @@ const styles = StyleSheet.create({
     socialSection: {
         marginTop: 20,
     },
-    divider: {
-        flexDirection: 'row',
+    toast: {
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        padding: 16,
+        borderRadius: 12,
         alignItems: 'center',
-        marginVertical: 20,
+        zIndex: 1000,
     },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#F2F1F9',
+    successToast: {
+        backgroundColor: '#4CAF50',
     },
-    dividerText: {
-        marginHorizontal: 12,
-        color: '#A8A3D7',
+    errorToast: {
+        backgroundColor: '#F44336',
+    },
+    toastText: {
+        color: '#FFFFFF',
         fontSize: 14,
-        fontWeight: '500',
+        fontWeight: '600',
     },
 });

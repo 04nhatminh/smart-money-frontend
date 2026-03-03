@@ -15,6 +15,7 @@ import {
   ApiResponse,
   SendResetPasswordResponseData
 } from '../types/auth.types';
+import { tokenStorage } from '../storage/tokenStorage';
 
 class AuthApi {
   // Register new user
@@ -98,7 +99,7 @@ class AuthApi {
   // Logout user
   async logout(): Promise<CheckResponse<void>> {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = await tokenStorage.getAccessToken();
       if (!token) {
         return {
           success: true,
@@ -136,7 +137,7 @@ class AuthApi {
   // Get current user info
   async getCurrentUser(): Promise<CheckResponse<UserResponse>> {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = await tokenStorage.getAccessToken();
       if (!token) {
         return {
           success: false,
@@ -161,7 +162,7 @@ class AuthApi {
   // Update user profile
   async updateUser(data: UpdateUserRequest): Promise<CheckResponse<UserResponse>> {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = await tokenStorage.getAccessToken();
       if (!token) {
         return {
           success: false,
