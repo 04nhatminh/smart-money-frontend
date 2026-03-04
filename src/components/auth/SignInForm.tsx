@@ -1,8 +1,8 @@
 import React, {useState} from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { t } from "../../i18n";
-import { InputField } from './InputField';
-import { SubmitButton } from './SubmitButton';
+import { InputField } from '../InputField';
+import { SubmitButton } from '../SubmitButton';
 import { RememberMeCheckbox } from './RememberMeCheckbox';
 import { ErrorMessage } from './ErrorMessage';
 

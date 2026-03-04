@@ -9,8 +9,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { t } from "../../i18n";
-import { InputField } from './InputField';
-import { SubmitButton } from './SubmitButton';
+import { InputField } from '../InputField';
+import { SubmitButton } from '../SubmitButton';
 import { ErrorMessage } from './ErrorMessage';
 
 interface SignUpFormProps {
