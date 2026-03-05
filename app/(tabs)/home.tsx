@@ -250,6 +250,9 @@ export default function HomePage() {
         onAdd={navigation.handleCameraOpen}
         onWallet={navigation.navigateToWallet}
         onProfile={navigation.navigateToProfile}
+        onAddByForm={() => console.log("Form input triggered")}
+        onAddByCamera={() => setCameraVisible(true)}
+        onAddByVoice={() => console.log("Voice input triggered")}
       />
 
       <CameraModal
