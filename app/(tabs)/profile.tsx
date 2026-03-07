@@ -452,11 +452,12 @@ const ProfileScreen: React.FC = () => {
       <BottomBar
         active={navigation.activeTab}
         handlers={{
-          onHome: navigation.navigateToHome,
-          onStats: navigation.navigateToStats,
-          onAdd: navigation.handleCameraOpen,
-          onWallet: navigation.navigateToWallet,
-          onProfile: navigation.navigateToProfile,
+          onHome: () => router.push('/(tabs)'),
+          onStats: () => router.push('/(tabs)/stats'),
+          onAdd: () => setCameraVisible(true),
+          onWallet: () => router.push('/(tabs)/wallet'),
+          onProfile: () => {},
+          onTransaction: () => router.push('/(tabs)/transactions'),
         }}
       />
 

@@ -1,7 +1,7 @@
 import { useRouter, usePathname } from 'expo-router';
 import { useCallback } from 'react';
 
-type TabKey = 'home' | 'stats' | 'wallet' | 'profile';
+type TabKey = 'home' | 'stats' | 'transaction' | 'wallet' | 'profile';
 
 export const useTabNavigation = (onCameraOpen?: () => void) => {
   const router = useRouter();
@@ -10,6 +10,7 @@ export const useTabNavigation = (onCameraOpen?: () => void) => {
   // Determine current active tab
   const getActiveTab = useCallback((): TabKey => {
     if (pathname.includes('profile')) return 'profile';
+    if (pathname.includes('transaction')) return 'transaction';
     if (pathname.includes('stats')) return 'stats';
     if (pathname.includes('wallet')) return 'wallet';
     return 'home';
@@ -22,6 +23,10 @@ export const useTabNavigation = (onCameraOpen?: () => void) => {
 
   const navigateToStats = useCallback(() => {
     router.navigate('/(tabs)/stats');
+  }, [router]);
+
+  const navigateToTransaction = useCallback(() => {
+    router.navigate('/(tabs)/transaction');
   }, [router]);
 
   const navigateToWallet = useCallback(() => {
@@ -38,10 +43,11 @@ export const useTabNavigation = (onCameraOpen?: () => void) => {
 
   return {
     activeTab: getActiveTab(),
-    navigateToHome,
-    navigateToStats,
-    navigateToWallet,
-    navigateToProfile,
-    handleCameraOpen,
+    onHome: navigateToHome,
+    onStats: navigateToStats,
+    onTransaction: navigateToTransaction,
+    onAdd: handleCameraOpen,
+    onWallet: navigateToWallet,
+    onProfile: navigateToProfile,
   };
 };
