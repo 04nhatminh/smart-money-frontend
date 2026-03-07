@@ -111,24 +111,13 @@ export function BottomBar({
 
         <Pressable 
           style={[styles.item, active === 'stats' && styles.activeItem]} 
-          onPress={actualHandlers.onStats}
+          onPress={actualHandlers.onTransaction}
         >
           <Ionicons
             name={active === 'stats' ? "stats-chart" : "stats-chart-outline"}
             size={22}
             color={iconColor("stats")}
           />
-        <Pressable 
-          style={[styles.item, active === 'transaction' && styles.activeItem]} 
-          onPress={actualHandlers.onTransaction}
-        >
-          <Ionicons
-            name={active === 'transaction' ? "swap-vertical" : "swap-vertical-outline"}
-            size={22}
-            color={iconColor("transaction")}
-          />
-        </Pressable>
-
         </Pressable>
 
         <View style={{ width: 56 }} />

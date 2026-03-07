@@ -18,6 +18,7 @@ import { UserResponse } from "../../src/types/auth.types";
 import { BottomBar } from "../../src/components/BottomBar";
 import { CameraModal } from "../../src/components/camera/CameraModal";
 import { useTabNavigation } from "../../src/hooks/useTabNavigation";
+import { router } from "expo-router";
 
 // Mock data for categories
 const categories = [
@@ -245,14 +246,15 @@ export default function HomePage() {
 
       <BottomBar
         active={navigation.activeTab}
-        onHome={navigation.navigateToHome}
-        onStats={navigation.navigateToStats}
-        onAdd={navigation.handleCameraOpen}
-        onWallet={navigation.navigateToWallet}
-        onProfile={navigation.navigateToProfile}
+        onHome={() => router.push('(tabs)/home')}
+        onStats={() => router.push('(tabs)/stats')}
+        onAdd={() => setCameraVisible(true)}
+        onWallet={() => router.push('(tabs)/wallet')}
+        onProfile={() => router.push('(tabs)/profile')}
         onAddByForm={() => console.log("Form input triggered")}
         onAddByCamera={() => setCameraVisible(true)}
         onAddByVoice={() => console.log("Voice input triggered")}
+        onTransaction={() => {router.push('(tabs)/transaction')}}
       />
 
       <CameraModal
