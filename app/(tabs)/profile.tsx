@@ -133,9 +133,9 @@ const ProfileScreen: React.FC = () => {
   };
 
   // Handle capture bill
-  const handleCaptureBill = (uri: string) => {
-    console.log("Bill captured:", uri);
-    // TODO: Process the bill image here
+  const handleCaptureBill = (receipt: any) => {
+    console.log("Bill captured:", receipt);
+    // TODO: Process the bill receipt here
     setCameraVisible(false);
   };
 

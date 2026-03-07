@@ -255,8 +255,8 @@ export default function HomePage() {
       <CameraModal
         visible={cameraVisible}
         onClose={() => setCameraVisible(false)}
-        onCaptureBill={(uri: string) => {
-          console.log("Bill captured:", uri);
+        onCaptureBill={(receipt) => {
+          console.log("Bill captured:", receipt);
           setCameraVisible(false);
         }}
       />
