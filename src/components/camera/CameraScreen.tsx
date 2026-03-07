@@ -98,6 +98,11 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         flash="auto"
       />
 
+      {/* Receipt Guide Frame - Overlay */}
+      <View style={styles.frameGuideContainer}>
+        <View style={styles.frameGuide} />
+      </View>
+
       {/* Header - Overlay */}
       <View style={[styles.header, { position: "absolute", top: 0, left: 0, right: 0 }]}>
         <Pressable onPress={onClose} style={styles.closeBtn}>
@@ -214,5 +219,24 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: "#FFFFFF",
+  },
+  frameGuideContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+  },
+  frameGuide: {
+    width: "80%",
+    aspectRatio: 1 / 1.4,
+    borderWidth: 3,
+    borderColor: "rgba(255, 255, 255, 0.7)",
+    borderStyle: "dashed",
+    borderRadius: 12,
   },
 });
