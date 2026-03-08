@@ -9,6 +9,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeMode } from "../../theme/ThemeProvider";
+import { SubmitButton } from "../SubmitButton";
+import { ActionButton } from "../ActionButton";
 
 export interface Receipt {
   type: "Expense" | "Income";
@@ -22,6 +24,7 @@ export interface Receipt {
 type Props = {
   imageUri: string;
   onCancel: () => void;
+  onRetakePhoto: () => void;
   onConfirm: (receipt: Receipt) => void;
 };
 
@@ -35,10 +38,9 @@ const MOCK_RECEIPT: Receipt = {
   description: "Eat Pho",
 };
 
-export function ReceiptPreview({ imageUri, onCancel, onConfirm }: Props) {
+export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }: Props) {
   const { theme } = useThemeMode();
   const [receipt, setReceipt] = useState<Receipt>(MOCK_RECEIPT);
-  const [isEditing, setIsEditing] = useState(false);
 
   const handleConfirm = () => {
     onConfirm(receipt);
@@ -53,15 +55,18 @@ export function ReceiptPreview({ imageUri, onCancel, onConfirm }: Props) {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Upload Receipt Section */}
-        <View style={[styles.uploadSection, { backgroundColor: theme.card }]}>
-          <Ionicons name="document-outline" size={48} color={theme.primary} />
+        <Pressable 
+          onPress={onRetakePhoto}
+          style={[styles.uploadSection, { backgroundColor: theme.card }]}
+        >
+          <Ionicons name="camera" size={48} color={theme.primary} />
           <Text style={[styles.uploadTitle, { color: theme.text }]}>
-            Upload receipt
+            Upload again
           </Text>
           <Text style={[styles.uploadDesc, { color: theme.subtext }]}>
             Upload image or capture receipt
           </Text>
-        </View>
+        </Pressable>
 
         {/* Receipt Details */}
         <View style={[styles.detailsSection, { backgroundColor: theme.card }]}>
@@ -77,12 +82,12 @@ export function ReceiptPreview({ imageUri, onCancel, onConfirm }: Props) {
                   {
                     color:
                       receipt.type === "Expense"
-                        ? theme.primary
+                        ? "#ef4444"
                         : "#10b981",
                     backgroundColor:
                       receipt.type === "Expense"
-                        ? `${theme.primary}15`
-                        : `#10b98115`,
+                        ? "#ef444415"
+                        : "#10b98115",
                     paddingHorizontal: 8,
                     paddingVertical: 4,
                     borderRadius: 6,
@@ -91,11 +96,13 @@ export function ReceiptPreview({ imageUri, onCancel, onConfirm }: Props) {
               >
                 {receipt.type}
               </Text>
-              {!isEditing && (
-                <Pressable onPress={() => setIsEditing(true)}>
-                  <Ionicons name="pencil" size={16} color={theme.primary} />
-                </Pressable>
-              )}
+              <Pressable 
+                onPress={() => {
+                  console.log("Edit receipt");
+                }}
+              >
+                <Ionicons name="pencil" size={16} color={theme.primary} />
+              </Pressable>
             </View>
           </View>
 
@@ -153,18 +160,18 @@ export function ReceiptPreview({ imageUri, onCancel, onConfirm }: Props) {
 
       {/* Actions */}
       <View style={[styles.actions, { borderTopColor: theme.border }]}>
-        <Pressable
+        <SubmitButton
+          label="Confirm"
           onPress={handleConfirm}
-          style={[styles.confirmBtn, { backgroundColor: theme.primary }]}
-        >
-          <Text style={styles.confirmBtnText}>Confirm</Text>
-        </Pressable>
+        />
 
-        <Pressable onPress={onCancel} style={styles.cancelBtn}>
-          <Text style={[styles.cancelBtnText, { color: theme.subtext }]}>
-            Cancel
-          </Text>
-        </Pressable>
+        <ActionButton 
+          label="Cancel"
+          onPress={onCancel}
+          variant="secondary"
+          color={theme.subtext}
+          borderColor={theme.border}
+        />
       </View>
     </SafeAreaView>
   );
@@ -237,27 +244,5 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     gap: 12,
-  },
-  confirmBtn: {
-    height: 48,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  confirmBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  cancelBtn: {
-    height: 48,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(200, 200, 200, 0.1)",
-  },
-  cancelBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
   },
 });

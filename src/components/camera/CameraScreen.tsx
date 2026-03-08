@@ -196,6 +196,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 24,
     paddingBottom: 32,
+    paddingTop: 24,
     backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   galleryBtn: {
@@ -230,6 +231,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     pointerEvents: "none",
+    paddingBottom: 40,
   },
   frameGuide: {
     width: "80%",

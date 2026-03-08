@@ -2,13 +2,12 @@ import React from "react";
 import {
   View,
   Image,
-  Pressable,
   StyleSheet,
   SafeAreaView,
   Text,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useThemeMode } from "../../theme/ThemeProvider";
+import { ActionButton } from "../ActionButton";
 
 type Props = {
   uri: string;
@@ -32,21 +31,21 @@ export function CameraPreview({ uri, onRetake, onConfirm }: Props) {
 
       {/* Actions */}
       <View style={styles.actions}>
-        <Pressable
+        <ActionButton
+          label="Chụp lại"
           onPress={onRetake}
-          style={[styles.btn, { borderColor: theme.border, borderWidth: 1 }]}
-        >
-          <Ionicons name="refresh" size={20} color={theme.primary} />
-          <Text style={[styles.btnText, { color: theme.text }]}>Chụp lại</Text>
-        </Pressable>
+          variant="secondary"
+          icon="refresh"
+          color={theme.primary}
+          borderColor={theme.border}
+        />
 
-        <Pressable
+        <ActionButton
+          label="Xác nhận"
           onPress={() => onConfirm(uri)}
-          style={[styles.btn, { backgroundColor: theme.primary }]}
-        >
-          <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-          <Text style={[styles.btnText, { color: "#FFFFFF" }]}>Xác nhận</Text>
-        </Pressable>
+          variant="primary"
+          icon="checkmark"
+        />
       </View>
     </SafeAreaView>
   );
@@ -81,6 +80,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 18,
     paddingBottom: 24,
+    paddingTop: 20,
   },
   btn: {
     flex: 1,

@@ -43,6 +43,11 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
     onClose();
   };
 
+  const handleRetakeFromReceipt = () => {
+    setPhotoUri("");
+    setStep("camera");
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleCancel}>
       {step === "camera" ? (
@@ -57,6 +62,7 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
         <ReceiptPreview
           imageUri={photoUri}
           onCancel={handleCancel}
+          onRetakePhoto={handleRetakeFromReceipt}
           onConfirm={handleReceiptConfirm}
         />
       )}
