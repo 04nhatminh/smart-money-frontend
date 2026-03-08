@@ -56,6 +56,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 4,
         elevation: 3,
+        width: '100%',
     },
     btn: {
         height: 48,

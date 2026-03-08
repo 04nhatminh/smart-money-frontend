@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useThemeMode } from "../../theme/ThemeProvider";
 import { ActionButton } from "../ActionButton";
+import { t } from "../../i18n";
 
 type Props = {
   uri: string;
@@ -21,7 +22,7 @@ export function CameraPreview({ uri, onRetake, onConfirm }: Props) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>Preview</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{t("camera.preview")}</Text>
       </View>
 
       {/* Image Preview */}
@@ -32,7 +33,7 @@ export function CameraPreview({ uri, onRetake, onConfirm }: Props) {
       {/* Actions */}
       <View style={styles.actions}>
         <ActionButton
-          label="Chụp lại"
+          label={t("camera.retake")}
           onPress={onRetake}
           variant="secondary"
           icon="refresh"
@@ -41,7 +42,7 @@ export function CameraPreview({ uri, onRetake, onConfirm }: Props) {
         />
 
         <ActionButton
-          label="Xác nhận"
+          label={t("camera.confirm")}
           onPress={() => onConfirm(uri)}
           variant="primary"
           icon="checkmark"

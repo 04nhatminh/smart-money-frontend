@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useThemeMode } from "../../theme/ThemeProvider";
 import { SubmitButton } from "../SubmitButton";
 import { ActionButton } from "../ActionButton";
+import { t } from "../../i18n";
 
 export interface Receipt {
   type: "Expense" | "Income";
@@ -50,7 +51,7 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Text style={[styles.title, { color: theme.text }]}>Scan Receipt</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{t("camera.scan_receipt")}</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -61,55 +62,53 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
         >
           <Ionicons name="camera" size={48} color={theme.primary} />
           <Text style={[styles.uploadTitle, { color: theme.text }]}>
-            Upload again
+            {t("camera.upload_again")}
           </Text>
           <Text style={[styles.uploadDesc, { color: theme.subtext }]}>
-            Upload image or capture receipt
+            {t("camera.upload_image_or_capture")}
           </Text>
         </Pressable>
 
         {/* Receipt Details */}
         <View style={[styles.detailsSection, { backgroundColor: theme.card }]}>
-          {/* Type */}
-          <View style={styles.detailRow}>
+          {/* Type with Edit Button */}
+          <View style={[styles.detailRow, styles.typeRow]}>
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
-              Type:
+              {t("camera.type")}
             </Text>
-            <View style={styles.detailValueRow}>
-              <Text
-                style={[
-                  styles.detailValue,
-                  {
-                    color:
-                      receipt.type === "Expense"
-                        ? "#ef4444"
-                        : "#10b981",
-                    backgroundColor:
-                      receipt.type === "Expense"
-                        ? "#ef444415"
-                        : "#10b98115",
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 6,
-                  },
-                ]}
-              >
-                {receipt.type}
-              </Text>
-              <Pressable 
-                onPress={() => {
-                  console.log("Edit receipt");
-                }}
-              >
-                <Ionicons name="pencil" size={16} color={theme.primary} />
-              </Pressable>
-            </View>
+            <Text
+              style={[
+                styles.detailValue,
+                {
+                  color:
+                    receipt.type === "Expense"
+                      ? "#ef4444"
+                      : "#10b981",
+                  backgroundColor:
+                    receipt.type === "Expense"
+                      ? "#ef444415"
+                      : "#10b98115",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 6,
+                },
+              ]}
+            >
+              {receipt.type}
+            </Text>
+            <Pressable 
+              onPress={() => {
+                console.log("Edit receipt");
+              }}
+            >
+              <Ionicons name="pencil" size={18} color={theme.primary} />
+            </Pressable>
           </View>
 
           {/* Transaction Name */}
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
-              Transaction Name:
+              {t("camera.transaction_name")}
             </Text>
             <Text style={[styles.detailValue, { color: theme.text }]}>
               {receipt.transactionName}
@@ -119,7 +118,7 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
           {/* Amount */}
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
-              Amount:
+              {t("camera.amount")}
             </Text>
             <Text style={[styles.detailValue, { color: theme.text }]}>
               {receipt.amount.toFixed(3)} VND
@@ -129,7 +128,7 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
           {/* Category */}
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
-              Category:
+              {t("camera.category")}
             </Text>
             <Text style={[styles.detailValue, { color: theme.text }]}>
               {receipt.category}
@@ -139,7 +138,7 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
           {/* Date */}
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
-              Date:
+              {t("camera.date")}
             </Text>
             <Text style={[styles.detailValue, { color: theme.text }]}>
               {receipt.date}
@@ -149,7 +148,7 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
           {/* Description */}
           <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
-              Description:
+              {t("camera.description")}
             </Text>
             <Text style={[styles.detailValue, { color: theme.text }]}>
               {receipt.description}
@@ -161,12 +160,12 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
       {/* Actions */}
       <View style={[styles.actions, { borderTopColor: theme.border }]}>
         <SubmitButton
-          label="Confirm"
+          label={t("camera.confirm")}
           onPress={handleConfirm}
         />
 
         <ActionButton 
-          label="Cancel"
+          label={t("camera.cancel")}
           onPress={onCancel}
           variant="secondary"
           color={theme.subtext}
@@ -226,23 +225,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(200, 200, 200, 0.2)",
   },
+  typeRow: {
+    alignItems: "flex-end",
+    gap: 12,
+  },
   detailLabel: {
     fontSize: 12,
     fontWeight: "500",
+    flex: 1,
   },
   detailValue: {
     fontSize: 14,
     fontWeight: "600",
   },
-  detailValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   actions: {
     paddingHorizontal: 16,
     paddingVertical: 16,
+    paddingBottom: 24,
     borderTopWidth: 1,
     gap: 12,
+    flexDirection: "column",
   },
 });
