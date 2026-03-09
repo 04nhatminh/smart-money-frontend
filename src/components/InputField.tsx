@@ -10,6 +10,7 @@ interface InputFieldProps {
     keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
     secureTextEntry?: boolean;
     autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+    customStyle?: any;
 }
 
 export const InputField: React.FC<InputFieldProps> = ({
@@ -20,6 +21,7 @@ export const InputField: React.FC<InputFieldProps> = ({
     keyboardType = 'default',
     secureTextEntry = false,
     autoCapitalize = 'none',
+    customStyle = {},
 }) => {
     const inputRef = useRef<TextInput>(null);
     const [isFocused, setIsFocused] = useState(false);
@@ -28,7 +30,7 @@ export const InputField: React.FC<InputFieldProps> = ({
     const isPassword = secureTextEntry;
 
     return (
-        <View style={styles.field}>
+        <View style={[styles.field, customStyle]}>
             <Pressable
                 onPressIn={() => {
                     setIsFocused(true);
@@ -43,14 +45,14 @@ export const InputField: React.FC<InputFieldProps> = ({
                 <Ionicons
                     name={iconName}
                     size={18}
-                    color={isFocused ? '#3629B7' : '#A8A3D7'}
+                    color={isFocused ? '#CBCBCB' : '#E5E5EA'}
                 />
 
                 {/* Input */}
                 <TextInput
                     ref={inputRef}
                     placeholder={placeholder}
-                    placeholderTextColor="#A8A3D7"
+                    placeholderTextColor="#E5E5EA"
                     style={styles.input}
                     value={value}
                     onChangeText={onChangeText}
@@ -71,7 +73,7 @@ export const InputField: React.FC<InputFieldProps> = ({
                         <Ionicons
                             name={hidePassword ? 'eye-off-outline' : 'eye-outline'}
                             size={18}
-                            color={isFocused ? '#3629B7' : '#A8A3D7'}
+                            color={isFocused ? '#CBCBCB' : '#E5E5EA'}
                         />
                     </Pressable>
                 )}
@@ -85,24 +87,18 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     inputRow: {
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: '#F2F1F9',
-        borderWidth: 1,
-        borderColor: 'transparent',
-        paddingHorizontal: 14,
+        height: 46,
+        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1.5,
+        borderColor: '#E5E5EA',
+        paddingHorizontal: 16,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
     },
     inputRowFocused: {
-        borderColor: '#3629B7',
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#3629B7',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        borderColor: '#CBCBCB',
     },
     input: {
         flex: 1,
