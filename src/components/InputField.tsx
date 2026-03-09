@@ -45,7 +45,7 @@ export const InputField: React.FC<InputFieldProps> = ({
                 <Ionicons
                     name={iconName}
                     size={18}
-                    color={isFocused ? '#CBCBCB' : '#E5E5EA'}
+                    color={isFocused ? '#CBCBCBa' : '#E5E5EA'}
                 />
 
                 {/* Input */}

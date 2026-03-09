@@ -31,7 +31,9 @@ function RootLayoutNav() {
         return "/(auth)/auth";
       } else {
         return "/(tabs)";
+        //return "/(transactions)/addTransaction";
       }
+      
     };
 
     const route = determineInitialRoute();
@@ -52,9 +54,10 @@ function RootLayoutNav() {
 
     const currentPath = segments.join('/');
     const shouldRedirect = 
-      (initialRoute === "/(intro)/intro" && !currentPath.includes('intro')) ||
-      (initialRoute === "/(auth)/auth" && !currentPath.includes('auth') && !currentPath.includes('tabs')) ||
-      (initialRoute === "/(tabs)" && !currentPath.includes('tabs'));
+      // (initialRoute === "/(intro)/intro" && !currentPath.includes('intro')) ||
+      // (initialRoute === "/(auth)/auth" && !currentPath.includes('auth') && !currentPath.includes('tabs')) ||
+      // (initialRoute === "/(tabs)" && !currentPath.includes('tabs')) ||
+      (initialRoute === "/(transactions)/addTransaction" && !currentPath.includes('transactions'));
 
     if (shouldRedirect) {
       router.replace(initialRoute);
@@ -75,6 +78,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(intro)" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(transactions)" />
     </Stack>
   );
 }

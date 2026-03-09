@@ -5,3 +5,15 @@ export const formatDateToDDMMYYYY = (date: Date): string => {
   
   return `${day}/${month}/${year}`;
 };
+
+export const formatTime = (date: Date) => {
+  const h = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+
+  return `${h}:${min}`;
+};
+
+export const formatDateTime = (date: Date) => {
+
+  return `${formatDateToDDMMYYYY(date)} ${formatTime(date)}`;
+};

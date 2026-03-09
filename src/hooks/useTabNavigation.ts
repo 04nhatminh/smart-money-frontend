@@ -36,6 +36,10 @@ export const useTabNavigation = (onCameraOpen?: () => void) => {
     onCameraOpen?.();
   }, [onCameraOpen]);
 
+  const handleAddTransaction = useCallback(() => {
+    router.navigate('/(transactions)/addTransaction');
+  }, [router]);
+
   return {
     activeTab: getActiveTab(),
     navigateToHome,
@@ -43,5 +47,6 @@ export const useTabNavigation = (onCameraOpen?: () => void) => {
     navigateToWallet,
     navigateToProfile,
     handleCameraOpen,
+    handleAddTransaction,
   };
 };

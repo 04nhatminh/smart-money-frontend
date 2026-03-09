@@ -18,6 +18,7 @@ import { UserResponse } from "../../src/types/auth.types";
 import { BottomBar } from "../../src/components/BottomBar";
 import { CameraModal } from "../../src/components/camera/CameraModal";
 import { useTabNavigation } from "../../src/hooks/useTabNavigation";
+import { useRouter } from "expo-router";
 
 // Mock data for categories
 const categories = [
@@ -38,6 +39,7 @@ const recentTransactions = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [user, setUser] = useState<UserResponse | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -100,6 +102,10 @@ export default function HomePage() {
       </SafeAreaView>
     );
   }
+
+  const handleTransactionsListPress = () => {
+    router.push("/(transactions)");
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -198,8 +204,10 @@ export default function HomePage() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recent Transactions</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAllText}>See All</Text>
+              <TouchableOpacity onPress={handleTransactionsListPress}>
+                <Text style={styles.seeAllText}>
+                  See All
+                </Text>
               </TouchableOpacity>
             </View>
             
@@ -247,7 +255,7 @@ export default function HomePage() {
         active={navigation.activeTab}
         onHome={navigation.navigateToHome}
         onStats={navigation.navigateToStats}
-        onAdd={navigation.handleCameraOpen}
+        onAdd={navigation.handleAddTransaction}
         onWallet={navigation.navigateToWallet}
         onProfile={navigation.navigateToProfile}
       />
