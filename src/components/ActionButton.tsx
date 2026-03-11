@@ -86,7 +86,12 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
             ) : (
                 <View style={styles.buttonContent}>
                     {icon && <Ionicons name={icon as any} size={20} color={color || '#000000'} />}
-                    <Text style={[styles.buttonText, { color: color || '#000000' }]}>{label}</Text>
+                    <Text 
+                        style={[styles.buttonText, { color: color || '#000000' }]}
+                        numberOfLines={1}
+                    >
+                        {label}
+                    </Text>
                 </View>
             )}
         </Pressable>
@@ -96,6 +101,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
 const styles = StyleSheet.create({
     primaryWrapper: {
         flex: 1,
+        height: 48,
         borderRadius: 50,
         overflow: 'hidden',
         shadowColor: '#3629B7',
@@ -119,6 +125,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#FFFFFF',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 5,
     },
     secondaryPressed: {
         opacity: 0.8,

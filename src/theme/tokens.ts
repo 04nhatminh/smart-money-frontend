@@ -16,7 +16,7 @@ export type Theme = {
 
 export const themes: Record<ThemeMode, Theme> = {
   light: {
-    bg: "#EAF4F7",
+    bg: "#FFFFFF",
     card: "#FFFFFF",
     text: "#111827",
     subtext: "#6B7280",

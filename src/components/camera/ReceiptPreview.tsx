@@ -8,10 +8,11 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import AntDesign from '@expo/vector-icons/AntDesign';
 import { useThemeMode } from "../../theme/ThemeProvider";
-import { SubmitButton } from "../SubmitButton";
 import { ActionButton } from "../ActionButton";
 import { t } from "../../i18n";
+import { SubmitButton } from "../SubmitButton";
 
 export interface Receipt {
   type: "Expense" | "Income";
@@ -60,7 +61,7 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
           onPress={onRetakePhoto}
           style={[styles.uploadSection, { backgroundColor: theme.card }]}
         >
-          <Ionicons name="camera" size={48} color={theme.primary} />
+          <AntDesign name="scan" size={24} color="black" />
           <Text style={[styles.uploadTitle, { color: theme.text }]}>
             {t("camera.upload_again")}
           </Text>
@@ -71,8 +72,8 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
 
         {/* Receipt Details */}
         <View style={[styles.detailsSection, { backgroundColor: theme.card }]}>
-          {/* Type with Edit Button */}
-          <View style={[styles.detailRow, styles.typeRow]}>
+          {/* Type */}
+          <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
               {t("camera.type")}
             </Text>
@@ -96,13 +97,6 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
             >
               {receipt.type}
             </Text>
-            <Pressable 
-              onPress={() => {
-                console.log("Edit receipt");
-              }}
-            >
-              <Ionicons name="pencil" size={18} color={theme.primary} />
-            </Pressable>
           </View>
 
           {/* Transaction Name */}
@@ -158,7 +152,7 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
       </ScrollView>
 
       {/* Actions */}
-      <View style={[styles.actions, { borderTopColor: theme.border }]}>
+      <View style={styles.actions}>
         <SubmitButton
           label={t("camera.confirm")}
           onPress={handleConfirm}
@@ -168,7 +162,7 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
           label={t("camera.cancel")}
           onPress={onCancel}
           variant="secondary"
-          color={theme.subtext}
+          color={theme.text}
           borderColor={theme.border}
         />
       </View>
@@ -202,6 +196,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   uploadTitle: {
     fontSize: 14,
@@ -216,6 +215,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   detailRow: {
     flexDirection: "row",
@@ -224,10 +228,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(200, 200, 200, 0.2)",
-  },
-  typeRow: {
-    alignItems: "flex-end",
-    gap: 12,
   },
   detailLabel: {
     fontSize: 12,
@@ -242,8 +242,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     paddingBottom: 24,
-    borderTopWidth: 1,
+    paddingTop: 20,
     gap: 12,
     flexDirection: "column",
+    width: "100%",
+    minHeight: 150,
   },
 });
