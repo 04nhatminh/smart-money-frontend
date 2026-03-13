@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   Text,
   ScrollView,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AntDesign from '@expo/vector-icons/AntDesign';
@@ -51,7 +52,8 @@ export function ReceiptPreview({
   errorMessage,
 }: Props) {
   const { theme } = useThemeMode();
-  const [receipt] = useState<Receipt>(MOCK_RECEIPT);
+  const [receipt, setReceipt] = useState<Receipt>(MOCK_RECEIPT);
+  const [isEditing, setIsEditing] = useState(false);
 
   const handleConfirm = () => {
     console.log("📝 ReceiptPreview.handleConfirm called");
@@ -59,11 +61,31 @@ export function ReceiptPreview({
     onConfirm(receipt);
   };
 
+  const updateReceipt = (field: keyof Receipt, value: any) => {
+    setReceipt(prev => ({
+      ...prev,
+      [field]: field === 'amount' ? parseFloat(value) || 0 : value,
+    }));
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Text style={[styles.title, { color: theme.text }]}>{t("camera.scan_receipt")}</Text>
+        <Pressable 
+          onPress={() => setIsEditing(!isEditing)}
+          style={styles.editButton}
+        >
+          <Ionicons 
+            name={isEditing ? "checkmark-done" : "create"} 
+            size={20} 
+            color={theme.primary}
+          />
+          <Text style={{ color: theme.primary, fontSize: 12, fontWeight: '600', marginLeft: 4 }}>
+            {isEditing ? "Done" : "Edit"}
+          </Text>
+        </Pressable>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -88,26 +110,50 @@ export function ReceiptPreview({
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
               {t("camera.type")}
             </Text>
-            <Text
-              style={[
-                styles.detailValue,
-                {
-                  color:
-                    receipt.type === "Expense"
-                      ? "#ef4444"
-                      : "#10b981",
-                  backgroundColor:
-                    receipt.type === "Expense"
-                      ? "#ef444415"
-                      : "#10b98115",
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 6,
-                },
-              ]}
-            >
-              {receipt.type}
-            </Text>
+            {isEditing ? (
+              <View style={styles.typeSelector}>
+                {(['Expense', 'Income'] as const).map(type => (
+                  <Pressable
+                    key={type}
+                    onPress={() => updateReceipt('type', type)}
+                    style={[
+                      styles.typeOption,
+                      receipt.type === type && {
+                        backgroundColor: type === "Expense" ? "#ef4444" : "#10b981",
+                      }
+                    ]}
+                  >
+                    <Text style={[
+                      styles.typeOptionText,
+                      receipt.type === type && styles.typeOptionTextActive
+                    ]}>
+                      {type}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <Text
+                style={[
+                  styles.detailValue,
+                  {
+                    color:
+                      receipt.type === "Expense"
+                        ? "#ef4444"
+                        : "#10b981",
+                    backgroundColor:
+                      receipt.type === "Expense"
+                        ? "#ef444415"
+                        : "#10b98115",
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 6,
+                  },
+                ]}
+              >
+                {receipt.type}
+              </Text>
+            )}
           </View>
 
           {/* Transaction Name */}
@@ -115,9 +161,19 @@ export function ReceiptPreview({
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
               {t("camera.transaction_name")}
             </Text>
-            <Text style={[styles.detailValue, { color: theme.text }]}>
-              {receipt.transactionName}
-            </Text>
+            {isEditing ? (
+              <TextInput
+                style={[styles.editInput, { color: theme.text, borderColor: theme.border }]}
+                value={receipt.transactionName}
+                onChangeText={(text) => updateReceipt('transactionName', text)}
+                placeholder="Transaction name"
+                placeholderTextColor={theme.subtext}
+              />
+            ) : (
+              <Text style={[styles.detailValue, { color: theme.text }]}>
+                {receipt.transactionName}
+              </Text>
+            )}
           </View>
 
           {/* Amount */}
@@ -125,9 +181,20 @@ export function ReceiptPreview({
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
               {t("camera.amount")}
             </Text>
-            <Text style={[styles.detailValue, { color: theme.text }]}>
-              {receipt.amount.toFixed(3)} VND
-            </Text>
+            {isEditing ? (
+              <TextInput
+                style={[styles.editInput, { color: theme.text, borderColor: theme.border }]}
+                value={String(receipt.amount)}
+                onChangeText={(text) => updateReceipt('amount', text)}
+                placeholder="0.000"
+                placeholderTextColor={theme.subtext}
+                keyboardType="decimal-pad"
+              />
+            ) : (
+              <Text style={[styles.detailValue, { color: theme.text }]}>
+                {receipt.amount.toFixed(3)} VND
+              </Text>
+            )}
           </View>
 
           {/* Category */}
@@ -135,9 +202,19 @@ export function ReceiptPreview({
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
               {t("camera.category")}
             </Text>
-            <Text style={[styles.detailValue, { color: theme.text }]}>
-              {receipt.category}
-            </Text>
+            {isEditing ? (
+              <TextInput
+                style={[styles.editInput, { color: theme.text, borderColor: theme.border }]}
+                value={receipt.category}
+                onChangeText={(text) => updateReceipt('category', text)}
+                placeholder="Category"
+                placeholderTextColor={theme.subtext}
+              />
+            ) : (
+              <Text style={[styles.detailValue, { color: theme.text }]}>
+                {receipt.category}
+              </Text>
+            )}
           </View>
 
           {/* Date */}
@@ -145,9 +222,19 @@ export function ReceiptPreview({
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
               {t("camera.date")}
             </Text>
-            <Text style={[styles.detailValue, { color: theme.text }]}>
-              {receipt.date}
-            </Text>
+            {isEditing ? (
+              <TextInput
+                style={[styles.editInput, { color: theme.text, borderColor: theme.border }]}
+                value={receipt.date}
+                onChangeText={(text) => updateReceipt('date', text)}
+                placeholder="dd/MM/yyyy"
+                placeholderTextColor={theme.subtext}
+              />
+            ) : (
+              <Text style={[styles.detailValue, { color: theme.text }]}>
+                {receipt.date}
+              </Text>
+            )}
           </View>
 
           {/* Description */}
@@ -155,9 +242,21 @@ export function ReceiptPreview({
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>
               {t("camera.description")}
             </Text>
-            <Text style={[styles.detailValue, { color: theme.text }]}>
-              {receipt.description}
-            </Text>
+            {isEditing ? (
+              <TextInput
+                style={[styles.editInput, { color: theme.text, borderColor: theme.border }]}
+                value={receipt.description}
+                onChangeText={(text) => updateReceipt('description', text)}
+                placeholder="Description"
+                placeholderTextColor={theme.subtext}
+                multiline={true}
+                numberOfLines={2}
+              />
+            ) : (
+              <Text style={[styles.detailValue, { color: theme.text }]}>
+                {receipt.description}
+              </Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -196,11 +295,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     alignItems: "center",
+    justifyContent: "space-between",
+    flexDirection: "row",
     borderBottomWidth: 1,
   },
   title: {
     fontSize: 18,
     fontWeight: "700",
+    flex: 1,
+    textAlign: "center",
+  },
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "rgba(54, 41, 183, 0.1)",
   },
   content: {
     flex: 1,
@@ -255,6 +366,36 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  editInput: {
+    flex: 1,
+    marginLeft: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  typeSelector: {
+    flexDirection: "row",
+    gap: 8,
+    marginLeft: 12,
+  },
+  typeOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#ccc",
+  },
+  typeOptionText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#666",
+  },
+  typeOptionTextActive: {
+    color: "#FFFFFF",
   },
   actions: {
     paddingHorizontal: 16,
