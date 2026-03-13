@@ -10,14 +10,17 @@ import {
   TouchableOpacity,
   FlatList,
   StatusBar,
-  RefreshControl
+  RefreshControl,
+  Alert
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { userStorage } from "../../src/storage/userStorage";
 import { UserResponse } from "../../src/types/auth.types";
 import { BottomBar } from "../../src/components/BottomBar";
 import { CameraModal } from "../../src/components/camera/CameraModal";
+import { Receipt } from "../../src/components/camera/ReceiptPreview";
 import { useTabNavigation } from "../../src/hooks/useTabNavigation";
+import transactionApi from "../../src/api/transaction.api";
 import { router } from "expo-router";
 
 // Mock data for categories
@@ -66,6 +69,56 @@ export default function HomePage() {
     setRefreshing(true);
     await loadUserData();
     setRefreshing(false);
+  };
+
+  const parseReceiptDate = (input: string): string => {
+    // Input format: "28/02/2026"
+    // Expected backend format: "dd/MM/yyyy HH:mm"
+    const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(input.trim());
+    if (ddmmyyyy) {
+      const [, day, month, year] = ddmmyyyy;
+      return `${day}/${month}/${year} 00:00`;
+    }
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${d}/${m}/${y} ${h}:${min}`;
+  };
+
+  const handleCreateTransaction = async (receipt: Receipt) => {
+    console.log("🚀 home.handleCreateTransaction called");
+    try {
+      const transactionType = receipt.type === "Income" ? "INCOME" as const : "EXPENSE" as const;
+      const payload = {
+        amount: receipt.amount,
+        type: transactionType,
+        category: receipt.category.toUpperCase(),
+        description: receipt.description?.trim() || receipt.transactionName,
+        date: parseReceiptDate(receipt.date),
+      };
+      console.log("📤 Creating transaction with payload:", JSON.stringify(payload, null, 2));
+      
+      const result = await transactionApi.createTransaction(payload);
+      console.log("📥 API Response:", result);
+
+      if (!result.success) {
+        const errorMsg = result.message || "Tao giao dich that bai";
+        console.error("❌ Transaction creation failed:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("✅ Transaction created successfully:", result.data);
+      Alert.alert("Success", "Transaction created successfully");
+      setCameraVisible(false);
+    } catch (error: any) {
+      const message = error?.message || "Failed to create transaction";
+      console.error("❌ Error in handleCreateTransaction:", error);
+      Alert.alert("Error", message);
+      throw error;
+    }
   };
 
   const renderCategoryItem = ({ item }: { item: typeof categories[0] }) => (
@@ -260,10 +313,7 @@ export default function HomePage() {
       <CameraModal
         visible={cameraVisible}
         onClose={() => setCameraVisible(false)}
-        onCaptureBill={(receipt) => {
-          console.log("Bill captured:", receipt);
-          setCameraVisible(false);
-        }}
+        onCaptureBill={handleCreateTransaction}
       />
     </SafeAreaView>
   );

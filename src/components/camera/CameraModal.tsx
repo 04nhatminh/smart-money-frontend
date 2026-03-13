@@ -7,7 +7,7 @@ import { ReceiptPreview, Receipt } from "./ReceiptPreview";
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onCaptureBill: (receipt: Receipt) => void;
+  onCaptureBill: (receipt: Receipt) => void | Promise<void>;
 };
 
 type CameraStep = "camera" | "preview" | "receipt";
@@ -15,9 +15,12 @@ type CameraStep = "camera" | "preview" | "receipt";
 export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
   const [step, setStep] = useState<CameraStep>("camera");
   const [photoUri, setPhotoUri] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleCapture = (uri: string) => {
     setPhotoUri(uri);
+    setSubmitError(null);
     setStep("preview");
   };
 
@@ -30,21 +33,34 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
     setStep("receipt");
   };
 
-  const handleReceiptConfirm = (receipt: Receipt) => {
-    onCaptureBill(receipt);
-    setPhotoUri("");
-    setStep("camera");
-    onClose();
+  const handleReceiptConfirm = async (receipt: Receipt) => {
+    console.log("🎯 CameraModal.handleReceiptConfirm called");
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      console.log("📤 Calling onCaptureBill...");
+      await onCaptureBill(receipt);
+      setPhotoUri("");
+      setStep("camera");
+      onClose();
+    } catch (error: any) {
+      setSubmitError(error?.message || "Failed to create transaction");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
     setPhotoUri("");
     setStep("camera");
+    setSubmitError(null);
     onClose();
   };
 
   const handleRetakeFromReceipt = () => {
     setPhotoUri("");
+    setSubmitError(null);
     setStep("camera");
   };
 
@@ -64,6 +80,8 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
           onCancel={handleCancel}
           onRetakePhoto={handleRetakeFromReceipt}
           onConfirm={handleReceiptConfirm}
+          isSubmitting={isSubmitting}
+          errorMessage={submitError}
         />
       )}
     </Modal>

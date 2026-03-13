@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomBar } from "../../src/components/BottomBar";
 import { CameraModal } from "../../src/components/camera/CameraModal";
+import { Receipt } from "../../src/components/camera/ReceiptPreview";
 import { useTabNavigation } from "../../src/hooks/useTabNavigation";
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -26,6 +27,7 @@ import { useThemeMode } from "../../src/theme/ThemeProvider";
 import { Modal } from 'react-native';
 import {useAuth} from "../../src/context/AuthContext";
 import { useOnboarding } from '../../src/context/OnboardingContext';
+import transactionApi from "../../src/api/transaction.api";
 
 
 const { width, height } = Dimensions.get('window');
@@ -133,10 +135,54 @@ const ProfileScreen: React.FC = () => {
   };
 
   // Handle capture bill
-  const handleCaptureBill = (receipt: any) => {
-    console.log("Bill captured:", receipt);
-    // TODO: Process the bill receipt here
-    setCameraVisible(false);
+  const handleCaptureBill = async (receipt: Receipt) => {
+    console.log("🚀 profile.handleCaptureBill called");
+    try {
+      const parseReceiptDate = (input: string): string => {
+        // Input format: "28/02/2026"
+        // Expected backend format: "dd/MM/yyyy HH:mm"
+        const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(input.trim());
+        if (ddmmyyyy) {
+          const [, day, month, year] = ddmmyyyy;
+          return `${day}/${month}/${year} 00:00`;
+        }
+        const now = new Date();
+        const d = String(now.getDate()).padStart(2, '0');
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const y = now.getFullYear();
+        const h = String(now.getHours()).padStart(2, '0');
+        const min = String(now.getMinutes()).padStart(2, '0');
+        return `${d}/${m}/${y} ${h}:${min}`;
+      };
+
+      const transactionType = receipt.type === "Income" ? "INCOME" as const : "EXPENSE" as const;
+      const payload = {
+        amount: receipt.amount,
+        type: transactionType,
+        category: receipt.category.toUpperCase(),
+        description: receipt.description?.trim() || receipt.transactionName,
+        date: parseReceiptDate(receipt.date),
+      };
+      console.log("📤 Creating transaction with payload:", JSON.stringify(payload, null, 2));
+      
+      const result = await transactionApi.createTransaction(payload);
+      console.log("📥 API Response:", result);
+
+      if (!result.success) {
+        const errorMsg = result.message || "Tao giao dich that bai";
+        console.error("❌ Transaction creation failed:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("✅ Transaction created successfully:", result.data);
+      Alert.alert("Success", "Transaction created successfully");
+      setCameraVisible(false);
+    } catch (error: any) {
+      const message = error?.message || "Failed to create transaction";
+      console.error("❌ Error in handleCaptureBill:", error);
+      Alert.alert("Error", message);
+      throw error;
+    }
   };
 
   // Format date

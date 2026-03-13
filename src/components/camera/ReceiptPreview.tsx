@@ -28,6 +28,8 @@ type Props = {
   onCancel: () => void;
   onRetakePhoto: () => void;
   onConfirm: (receipt: Receipt) => void;
+  isSubmitting?: boolean;
+  errorMessage?: string | null;
 };
 
 // Mock receipt data (simulating OCR extraction from image)
@@ -40,11 +42,20 @@ const MOCK_RECEIPT: Receipt = {
   description: "Eat Pho",
 };
 
-export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }: Props) {
+export function ReceiptPreview({
+  imageUri,
+  onCancel,
+  onRetakePhoto,
+  onConfirm,
+  isSubmitting = false,
+  errorMessage,
+}: Props) {
   const { theme } = useThemeMode();
-  const [receipt, setReceipt] = useState<Receipt>(MOCK_RECEIPT);
+  const [receipt] = useState<Receipt>(MOCK_RECEIPT);
 
   const handleConfirm = () => {
+    console.log("📝 ReceiptPreview.handleConfirm called");
+    console.log("📊 Receipt data:", receipt);
     onConfirm(receipt);
   };
 
@@ -153,9 +164,15 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
 
       {/* Actions */}
       <View style={styles.actions}>
+        {!!errorMessage && (
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        )}
+
         <SubmitButton
           label={t("camera.confirm")}
           onPress={handleConfirm}
+          loading={isSubmitting}
+          loadingText="Creating..."
         />
 
         <ActionButton 
@@ -164,6 +181,7 @@ export function ReceiptPreview({ imageUri, onCancel, onRetakePhoto, onConfirm }:
           variant="secondary"
           color={theme.text}
           borderColor={theme.border}
+          disabled={isSubmitting}
         />
       </View>
     </SafeAreaView>
@@ -247,5 +265,10 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     width: "100%",
     minHeight: 150,
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#ef4444",
+    textAlign: "center",
   },
 });
