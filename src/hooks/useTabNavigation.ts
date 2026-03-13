@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 
 type TabKey = 'home' | 'stats' | 'transaction' | 'wallet' | 'profile';
 
-export const useTabNavigation = (onCameraOpen?: () => void) => {
+export const useTabNavigation = (onCameraOpen?: () => void, onVoiceOpen?: () => void) => {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -41,6 +41,10 @@ export const useTabNavigation = (onCameraOpen?: () => void) => {
     onCameraOpen?.();
   }, [onCameraOpen]);
 
+  const handleVoiceOpen = useCallback(() => {
+    onVoiceOpen?.();
+  }, [onVoiceOpen]);
+
   return {
     activeTab: getActiveTab(),
     onHome: navigateToHome,
@@ -49,5 +53,7 @@ export const useTabNavigation = (onCameraOpen?: () => void) => {
     onAdd: handleCameraOpen,
     onWallet: navigateToWallet,
     onProfile: navigateToProfile,
+    onAddByCamera: handleCameraOpen,
+    onAddByVoice: handleVoiceOpen,
   };
 };

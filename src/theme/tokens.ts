@@ -22,8 +22,8 @@ export const themes: Record<ThemeMode, Theme> = {
     subtext: "#6B7280",
     inputBg: "#F3F4F6",
     border: "#E5E7EB",
-    primary: "#1651a3",
-    link: "#2563EB",
+    primary: "#3629B7",
+    link: "#5655B9",  
     fabBg: "#111827",
     fabIcon: "#FFFFFF",
     mode: "light"
@@ -35,8 +35,8 @@ export const themes: Record<ThemeMode, Theme> = {
     subtext: "#9CA3AF",
     inputBg: "#111827",
     border: "#1F2937",
-    primary: "#3B82F6",
-    link: "#60A5FA",
+    primary: "#3629B7",
+    link: "#5655B9",
     fabBg: "#FFFFFF",
     fabIcon: "#111827",
     mode: "dark"

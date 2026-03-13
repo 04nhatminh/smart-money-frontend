@@ -19,6 +19,8 @@ import { UserResponse } from "../../src/types/auth.types";
 import { BottomBar } from "../../src/components/BottomBar";
 import { CameraModal } from "../../src/components/camera/CameraModal";
 import { Receipt } from "../../src/components/camera/ReceiptPreview";
+import { VoiceInputModal } from "../../src/components/camera/VoiceInputModal";
+import { VoiceTransaction } from "../../src/components/camera/VoiceInput";
 import { useTabNavigation } from "../../src/hooks/useTabNavigation";
 import transactionApi from "../../src/api/transaction.api";
 import { router } from "expo-router";
@@ -46,9 +48,10 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [cameraVisible, setCameraVisible] = useState(false);
+  const [voiceVisible, setVoiceVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const navigation = useTabNavigation(() => setCameraVisible(true));
+  const navigation = useTabNavigation(() => setCameraVisible(true), () => setVoiceVisible(true));
 
   useEffect(() => {
     loadUserData();
@@ -116,6 +119,39 @@ export default function HomePage() {
     } catch (error: any) {
       const message = error?.message || "Failed to create transaction";
       console.error("❌ Error in handleCreateTransaction:", error);
+      Alert.alert("Error", message);
+      throw error;
+    }
+  };
+
+  const handleCreateVoiceTransaction = async (transaction: VoiceTransaction) => {
+    console.log("🚀 home.handleCreateVoiceTransaction called");
+    try {
+      const transactionType = transaction.type === "Income" ? "INCOME" as const : "EXPENSE" as const;
+      const payload = {
+        amount: transaction.amount,
+        type: transactionType,
+        category: transaction.category.toUpperCase(),
+        description: transaction.description?.trim() || transaction.transactionName,
+        date: parseReceiptDate(transaction.date),
+      };
+      console.log("📤 Creating voice transaction with payload:", JSON.stringify(payload, null, 2));
+      
+      const result = await transactionApi.createTransaction(payload);
+      console.log("📥 API Response:", result);
+
+      if (!result.success) {
+        const errorMsg = result.message || "Tao giao dich that bai";
+        console.error("❌ Voice transaction creation failed:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("✅ Voice transaction created successfully:", result.data);
+      Alert.alert("Success", "Voice transaction created successfully");
+      setVoiceVisible(false);
+    } catch (error: any) {
+      const message = error?.message || "Failed to create voice transaction";
+      console.error("❌ Error in handleCreateVoiceTransaction:", error);
       Alert.alert("Error", message);
       throw error;
     }
@@ -306,7 +342,7 @@ export default function HomePage() {
         onProfile={() => router.push('(tabs)/profile')}
         onAddByForm={() => console.log("Form input triggered")}
         onAddByCamera={() => setCameraVisible(true)}
-        onAddByVoice={() => console.log("Voice input triggered")}
+        onAddByVoice={() => setVoiceVisible(true)}
         onTransaction={() => {router.push('(tabs)/transaction')}}
       />
 
@@ -314,6 +350,12 @@ export default function HomePage() {
         visible={cameraVisible}
         onClose={() => setCameraVisible(false)}
         onCaptureBill={handleCreateTransaction}
+      />
+
+      <VoiceInputModal
+        visible={voiceVisible}
+        onClose={() => setVoiceVisible(false)}
+        onCaptureVoice={handleCreateVoiceTransaction}
       />
     </SafeAreaView>
   );
