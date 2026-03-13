@@ -396,10 +396,10 @@ class AuthService {
   }
 
   // Update profile
-  async updateProfile(data: UpdateUserRequest): Promise<CheckResponse<UserResponse>> {
+  async updateProfile(data: UpdateUserRequest | FormData): Promise<CheckResponse<UserResponse>> {
     const response = await AuthApi.updateUser(data);
     if (response.success && response.data) {
-      localStorage.setItem('user', JSON.stringify(response.data));
+      await userStorage.setUser(response.data);
     }
     return response;
   }

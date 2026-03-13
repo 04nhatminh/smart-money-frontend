@@ -1,1 +1,3 @@
-export { default } from "./(tabs)";
+export default function Index() {
+    return null;
+}
