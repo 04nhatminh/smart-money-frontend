@@ -105,4 +105,80 @@ export const transactionStyles = StyleSheet.create({
     color: "#1F2937",
   },
 
+  amountSection: {
+    alignItems: "center",
+    marginBottom: 30,
+  },
+
+  amount: {
+    fontSize: 28,
+    fontWeight: "700",
+    marginTop: 10,
+  },
+
+  category: {
+    fontSize: 16,
+    color: "#666",
+    marginTop: 4,
+  },
+
+  card: {
+    backgroundColor: "white",
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 20,
+  },
+
+  label: {
+    fontSize: 14,
+    color: "#888",
+  },
+
+  value: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+  expense: {
+    color: "#FF4D6D",
+  },
+
+  income: {
+    color: "#2ECC71",
+  },
+
+  actions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+
+  editBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  editText: {
+    color: "#3629B7",
+    fontWeight: "600",
+  },
+
+  deleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  deleteText: {
+    color: "#FF4D6D",
+    fontWeight: "600",
+  },
+
+  errorText: {
+    color: "#FF4D6D",
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 6
+  }
+
 });

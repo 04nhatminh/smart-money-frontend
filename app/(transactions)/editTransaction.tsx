@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Modal, FlatList, Pressable, ScrollView } from "react-native";
+import { View, Text, Pressable, ScrollView } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { InputField } from "../../src/components/InputField";
-import { ButtonSave } from "../../src/components/Button";
+import { ButtonSave } from "../../src/components/ButtonSave";
 import { transactionStyles as styles } from "../../src/styles/transactionStyles";
 import { CategoryPicker } from "../../src/components/transactions/CategoryPicker";
 import { TransactionAPI } from "../../src/api/transaction.api";
 import { CATEGORY_ENUM_MAP, CATEGORY_DISPLAY_MAP } from "../../src/constants/categories";
 import { formatDateTime, formatTime, formatDateToDDMMYYYY } from "../../src/utils/dateFormatter";
-
+import SuccessModal from "../../src/components/transactions/SuccessModal";
+import ConfirmExitModal from "../../src/components/transactions/ConfirmExitModal";
 
 export default function EditTransaction() {
     
@@ -25,6 +26,11 @@ export default function EditTransaction() {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [description, setDescription] = useState("");
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showExitModal, setShowExitModal] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
+    const [amountError, setAmountError] = useState("");
+    const [categoryError, setCategoryError] = useState("");
 
     // --- Fetch transaction details by ID and populate state ---
     
@@ -62,15 +68,32 @@ export default function EditTransaction() {
     const handleUpdate = async () => {
         try {
 
+            let valid = true;
+
+            if (!amount) {
+                setAmountError("Amount is required");
+                valid = false;
+            } else if (isNaN(Number(amount))) {
+                setAmountError("Amount must be a number");
+                valid = false;
+            }
+
+            if (!category) {
+                setCategoryError("Please select a category");
+                valid = false;
+            }
+
+            if (!valid) return;
+
             await TransactionAPI.update(id as string, {
             amount: Number(amount),
             category: CATEGORY_ENUM_MAP[category] || category,
             type,
             description,
-            createdAt: formatDateTime(date),
+            date: formatDateTime(date),
             });
 
-            router.back();
+            setShowSuccessModal(true);
 
         } catch (error) {
             console.log(error);
@@ -79,6 +102,13 @@ export default function EditTransaction() {
         }
     };
     
+    const handleCancel = () => {
+            if (hasChanges) {
+                setShowExitModal(true);
+            } else {
+                router.back();
+            }
+        };
 
     return (
         <ScrollView style={styles.container}>
@@ -118,9 +148,15 @@ export default function EditTransaction() {
                     iconName="cash-outline"
                     placeholder="Amount"
                     value={amount}
-                    onChangeText={setAmount}
+                    onChangeText={(text) => {
+                        setAmount(text);
+                        setHasChanges(true);
+                        setAmountError("");
+                    }}
                     keyboardType="numeric"
                 />
+                {amountError ? <Text style={styles.errorText}>{amountError}</Text> : null}
+
 
                 <Text 
                     style={styles.name}
@@ -131,7 +167,11 @@ export default function EditTransaction() {
                 <CategoryPicker
                     type={type}
                     value={category}
-                    onChange={setCategory}
+                    onChange={(text) => {
+                        setCategory(text);
+                        setHasChanges(true);
+                        setCategoryError("");
+                    }}
                 />
 
                 <Text 
@@ -226,7 +266,7 @@ export default function EditTransaction() {
                     <ButtonSave
                         label="Cancel"
                         variant="secondary"
-                        onPress={() => router.back()}
+                        onPress={handleCancel}
                     />
 
                     <ButtonSave
@@ -236,6 +276,19 @@ export default function EditTransaction() {
                     />
                 </View>
             </View>
+            <SuccessModal
+                visible={showSuccessModal}
+                onDone={() => {
+                    setShowSuccessModal(false);
+                    router.back();
+                }}
+                />
+
+                <ConfirmExitModal
+                    visible={showExitModal}
+                    onCancel={() => setShowExitModal(false)}
+                    onConfirm={() => router.back()}
+            />
         </ScrollView>
         
     );

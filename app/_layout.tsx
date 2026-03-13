@@ -21,6 +21,7 @@ function RootLayoutNav() {
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
 
   // Xác định route ban đầu chỉ một lần
+
   useEffect(() => {
     if (authLoading || onboardingLoading || isFirstLaunch === null) return;
 

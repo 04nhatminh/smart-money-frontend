@@ -1,16 +1,17 @@
 import React, { useState } from "react";
-import { View, Text, Modal, FlatList, Pressable } from "react-native";
+import { View, Text, Pressable, ScrollView } from "react-native";
 import { router } from "expo-router";
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { InputField } from "../../src/components/InputField";
-import { ButtonSave } from "../../src/components/Button";
+import { ButtonSave } from "../../src/components/ButtonSave";
 import { transactionStyles as styles } from "../../src/styles/transactionStyles";
 import { CategoryPicker } from "../../src/components/transactions/CategoryPicker";
 import { TransactionAPI } from "../../src/api/transaction.api";
 import { CATEGORY_ENUM_MAP } from "../../src/constants/categories";
 import { formatDateTime, formatTime, formatDateToDDMMYYYY } from "../../src/utils/dateFormatter";
-
+import SuccessModal from "../../src/components/transactions/SuccessModal";
+import ConfirmExitModal from "../../src/components/transactions/ConfirmExitModal";
 
 export default function AddTransaction() {
 
@@ -21,9 +22,32 @@ export default function AddTransaction() {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [description, setDescription] = useState("");
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showExitModal, setShowExitModal] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    const [amountError, setAmountError] = useState("");
+    const [categoryError, setCategoryError] = useState("");
 
     const handleSave = async () => {
         try {
+
+            let valid = true;
+
+            if (!amount) {
+                setAmountError("Amount is required");
+                valid = false;
+            } else if (isNaN(Number(amount))) {
+                setAmountError("Amount must be a number");
+                valid = false;
+            }
+
+            if (!category) {
+                setCategoryError("Please select a category");
+                valid = false;
+            }
+
+            if (!valid) return;
 
             await TransactionAPI.create({
             amount: Number(amount),
@@ -33,16 +57,23 @@ export default function AddTransaction() {
             date: formatDateTime(date),
             });
 
-            router.back();
+            setShowSuccessModal(true);
 
         } catch (error) {
             console.log(error);
         }
     };
     
+    const handleCancel = () => {
+        if (hasChanges) {
+            setShowExitModal(true);
+        } else {
+            router.back();
+        }
+    };
 
     return (
-        <View style={styles.container}>
+        <ScrollView style={styles.container}>
             {/* Type Selector */}
             <View style={styles.typeRow}>
                 <Pressable
@@ -79,9 +110,14 @@ export default function AddTransaction() {
                     iconName="cash-outline"
                     placeholder="Amount"
                     value={amount}
-                    onChangeText={setAmount}
+                    onChangeText={(text) => {
+                        setAmount(text);
+                        setHasChanges(true);
+                        setAmountError("");
+                    }}
                     keyboardType="numeric"
                 />
+                {amountError ? <Text style={styles.errorText}>{amountError}</Text> : null}
 
                 <Text 
                     style={styles.name}
@@ -92,8 +128,15 @@ export default function AddTransaction() {
                 <CategoryPicker
                     type={type}
                     value={category}
-                    onChange={setCategory}
+                    onChange={(value) => {
+                        setCategory(value);
+                        setHasChanges(true);
+                        setCategoryError("");
+                    }}
                 />
+                {categoryError ? (
+                    <Text style={styles.errorText}>{categoryError}</Text>
+                    ) : null}
 
                 <Text 
                     style={styles.name}
@@ -179,7 +222,10 @@ export default function AddTransaction() {
                     iconName="document-text-outline"
                     placeholder="Description"
                     value={description}
-                    onChangeText={setDescription}
+                    onChangeText={(text) => {
+                        setDescription(text);
+                        setHasChanges(true);
+                    }}
                 />
 
                 <View style={styles.buttonRow}>
@@ -187,7 +233,7 @@ export default function AddTransaction() {
                     <ButtonSave
                         label="Cancel"
                         variant="secondary"
-                        onPress={() => router.back()}
+                        onPress={handleCancel}
                     />
 
                     <ButtonSave
@@ -197,7 +243,20 @@ export default function AddTransaction() {
                     />
                 </View>
             </View>
-        </View>
+            <SuccessModal
+                visible={showSuccessModal}
+                onDone={() => {
+                    setShowSuccessModal(false);
+                    router.back();
+                }}
+                />
+
+                <ConfirmExitModal
+                    visible={showExitModal}
+                    onCancel={() => setShowExitModal(false)}
+                    onConfirm={() => router.back()}
+                />
+        </ScrollView>
         
     );
 }

@@ -53,7 +53,7 @@ export const InputField: React.FC<InputFieldProps> = ({
                     ref={inputRef}
                     placeholder={placeholder}
                     placeholderTextColor="#E5E5EA"
-                    style={styles.input}
+                    style={[styles.input, customStyle]}
                     value={value}
                     onChangeText={onChangeText}
                     onFocus={() => setIsFocused(true)}

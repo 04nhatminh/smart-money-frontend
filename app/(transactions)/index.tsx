@@ -53,7 +53,13 @@ export default function TransactionList() {
         data={transactions}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={styles.item}>
+          <Pressable
+            onPress={() => router.push({
+              pathname: "/transactionDetail",
+              params: { id: item.id }
+            })}
+          >
+            <View style={styles.item}>
 
             <View style={styles.left}>
               <Text style={styles.category}>{item.category}</Text>
@@ -92,6 +98,7 @@ export default function TransactionList() {
             </View>
 
           </View>
+          </Pressable>
         )}
       />
 

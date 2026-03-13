@@ -24,12 +24,12 @@ export default function TransactionLayout() {
             }}
             />
 
-            {/* <Stack.Screen
+            <Stack.Screen
                 name="transactionDetail"
                 options={{  
                     title: "Transaction Detail"
             }}
-            /> */}
+            />
             
         </Stack>
     );

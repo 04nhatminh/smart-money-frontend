@@ -5,11 +5,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 interface ButtonProps {
     label: string;
-    onPress: () => void;
+    onPress?: () => void;
     loading?: boolean;
     disabled?: boolean;
     loadingText?: string;
-    variant?: 'primary' | 'secondary';
+    variant?: 'primary' | 'secondary' | 'danger';
+    customStyle?: object;
 }
 
 export const ButtonSave: React.FC<ButtonProps> = ({
@@ -19,14 +20,17 @@ export const ButtonSave: React.FC<ButtonProps> = ({
     disabled = false,
     loadingText = 'Loading...',
     variant = 'primary',
+    customStyle = {},
 }) => {
 
     const isPrimary = variant === 'primary';
+    const isSecondary = variant === 'secondary';
 
     return (
         <Pressable
             style={({ pressed }) => [
                 styles.btnWrapper,
+                customStyle,
                 pressed && styles.btnPressed,
                 (loading || disabled) && styles.disabledBtn,
             ]}
@@ -49,9 +53,13 @@ export const ButtonSave: React.FC<ButtonProps> = ({
                     <Text style={styles.btnText}>{label}</Text>
                 )}
             </LinearGradient>
-            ) : ( 
+            ) : isSecondary ? ( 
                 <View style={styles.secondaryBtn}>
                     <Text style={styles.secondaryText}>{label}</Text>
+                </View>
+            ) : (
+                <View style={styles.dangerBtn}>
+                    <Text style={styles.dangerText}>{label}</Text>
                 </View>
             )}
         </Pressable>
@@ -100,4 +108,19 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         fontSize: 15,
     },
+
+    dangerBtn: {
+        height: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FEE2E2',
+        borderRadius: 25,
+    },
+
+    dangerText: {
+        color: '#B91C1C',
+        fontWeight: '600',
+        fontSize: 15,
+    },
+
 });
