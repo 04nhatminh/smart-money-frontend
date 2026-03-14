@@ -12,6 +12,15 @@ export default {
     continue_with_google: "Tiếp tục với Google",
     continue_with_facebook: "Tiếp tục với Facebook",
     home: "Trang chủ",
+    save: "Lưu",
+    cancel: "Hủy",
+    delete: "Xóa",
+    edit: "Chỉnh sửa",
+    confirm: "Xác nhận",
+    back: "Quay lại",
+    loading: "Đang tải...",
+    continue: "Tiếp tục",
+    done: "Hoàn tất"
   },
   auth: {
     welcome: "Tham gia Smart Money ngay hôm nay!",
@@ -64,4 +73,40 @@ export default {
     offline: "Không có kết nối Internet",
     unknown: "Có lỗi xảy ra",
   },
+  transaction: {
+    addTitle: "Thêm giao dịch",
+    editTitle: "Chỉnh sửa giao dịch",
+    amount: "Số tiền",
+    category: "Danh mục",
+    date: "Ngày",
+    time: "Thời gian",
+    description: "Mô tả",
+    type: "Loại",
+    expense: "Chi tiêu",
+    income: "Thu nhập",
+    saveSuccess: "Thêm giao dịch thành công",
+    confirmExit: "Giao dịch chưa được lưu. Bạn có chắc muốn thoát?",
+    amountRequired: "Vui lòng nhập số tiền",
+    amountNumber: "Số tiền phải là số",
+    amountNumberPositive: "Số tiền phải là số dương",
+    categoryRequired: "Vui lòng chọn danh mục",
+    noDescription: "Không có mô tả"
+  },
+  category: {
+    choose: "Chọn danh mục",
+    food: "Ăn uống",
+    transportation: "Di chuyển",
+    clothing: "Quần áo",
+    utilities: "Tiện ích",
+    entertainment: "Giải trí",
+    health: "Sức khỏe",
+    education: "Giáo dục",
+    shopping: "Mua sắm",
+    other: "Khác",
+
+    salary: "Lương",
+    bonus: "Thưởng",
+    investment: "Đầu tư",
+    gift: "Quà tặng"
+  }
 };

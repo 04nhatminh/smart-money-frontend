@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { router } from "expo-router";
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { t } from "../../src/i18n";
 
 import { InputField } from "../../src/components/InputField";
 import { ButtonSave } from "../../src/components/ButtonSave";
@@ -12,6 +13,7 @@ import { CATEGORY_ENUM_MAP } from "../../src/constants/categories";
 import { formatDateTime, formatTime, formatDateToDDMMYYYY } from "../../src/utils/dateFormatter";
 import SuccessModal from "../../src/components/transactions/SuccessModal";
 import ConfirmExitModal from "../../src/components/transactions/ConfirmExitModal";
+import { useLanguage } from "../../src/i18n/LanguageProvider";
 
 export default function AddTransaction() {
 
@@ -29,21 +31,27 @@ export default function AddTransaction() {
     const [amountError, setAmountError] = useState("");
     const [categoryError, setCategoryError] = useState("");
 
+    const { lang } = useLanguage();
+
     const handleSave = async () => {
         try {
 
             let valid = true;
 
             if (!amount) {
-                setAmountError("Amount is required");
+                setAmountError(t("transaction.amountRequired"));
                 valid = false;
             } else if (isNaN(Number(amount))) {
-                setAmountError("Amount must be a number");
+                setAmountError(t("transaction.amountNumber"));
+                valid = false;
+            }
+            else if (Number(amount) <= 0) {
+                setAmountError(t("transaction.amountNumberPositive"));
                 valid = false;
             }
 
             if (!category) {
-                setCategoryError("Please select a category");
+                setCategoryError(t("transaction.categoryRequired"));
                 valid = false;
             }
 
@@ -83,7 +91,7 @@ export default function AddTransaction() {
                     ]}
                     onPress={() => setType("EXPENSE")}
                 >
-                    <Text style={styles.typeText}>Expense</Text>
+                    <Text style={styles.typeText}>{t("transaction.expense")}</Text>
                 </Pressable>
 
                 <Pressable
@@ -93,7 +101,7 @@ export default function AddTransaction() {
                     ]}
                     onPress={() => setType("INCOME")}
                 >
-                    <Text style={styles.typeText}>Income</Text>
+                    <Text style={styles.typeText}>{t("transaction.income")}</Text>
                 </Pressable>
 
             </View>
@@ -103,12 +111,12 @@ export default function AddTransaction() {
                 <Text 
                     style={styles.name}
                 >
-                    Amount
+                    {t("transaction.amount")}
                 </Text>
 
                 <InputField
                     iconName="cash-outline"
-                    placeholder="Amount"
+                    placeholder={t("transaction.amount")}
                     value={amount}
                     onChangeText={(text) => {
                         setAmount(text);
@@ -122,7 +130,7 @@ export default function AddTransaction() {
                 <Text 
                     style={styles.name}
                 >
-                    Category
+                    {t("transaction.category")}
                 </Text>
 
                 <CategoryPicker
@@ -141,7 +149,7 @@ export default function AddTransaction() {
                 <Text 
                     style={styles.name}
                 >
-                    Date
+                    {t("transaction.date")}
                 </Text>
 
                 <View style={styles.row}>
@@ -215,12 +223,12 @@ export default function AddTransaction() {
                 <Text 
                     style={styles.name}
                 >
-                    Description
+                    {t("transaction.description")}
                 </Text>
 
                 <InputField
                     iconName="document-text-outline"
-                    placeholder="Description"
+                    placeholder={t("transaction.description")}
                     value={description}
                     onChangeText={(text) => {
                         setDescription(text);
@@ -231,13 +239,13 @@ export default function AddTransaction() {
                 <View style={styles.buttonRow}>
                     
                     <ButtonSave
-                        label="Cancel"
+                        label={t("common.cancel")}
                         variant="secondary"
                         onPress={handleCancel}
                     />
 
                     <ButtonSave
-                        label="Save"
+                        label={t("common.save")}
                         variant="primary"
                         onPress={handleSave}
                     />

@@ -117,6 +117,7 @@ export const transactionStyles = StyleSheet.create({
   },
 
   category: {
+    flexDirection: "row",
     fontSize: 16,
     color: "#666",
     marginTop: 4,

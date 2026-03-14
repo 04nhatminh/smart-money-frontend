@@ -1,5 +1,6 @@
 import React from "react";
 import { Modal, View, Text, Pressable, StyleSheet, Image } from "react-native";
+import { t } from "../../i18n";
 
 interface Props {
     visible: boolean;
@@ -18,15 +19,15 @@ export default function SuccessModal({ visible, onDone }: Props) {
                     />
 
                     <Text style={styles.title}>
-                        Add transaction successfully!
+                        {t("transaction.saveSuccess")}
                     </Text>
 
                     <Text style={styles.desc}>
-                        Your transaction has been recorded.
+                        {t("transaction.saveSuccessDesc")}
                     </Text>
 
                     <Pressable style={styles.doneBtn} onPress={onDone}>
-                        <Text style={styles.doneText}>Done</Text>
+                        <Text style={styles.doneText}>{t("common.done")}</Text>
                     </Pressable>
 
                 </View>

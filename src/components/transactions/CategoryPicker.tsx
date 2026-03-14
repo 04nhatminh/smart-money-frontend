@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { t } from "../../i18n";
 import {
   View,
   Text,
@@ -49,7 +50,7 @@ export const CategoryPicker: React.FC<Props> = ({
             !value && styles.placeholder,
           ]}
         >
-          {value || "Choose category"}
+          {value ? t(`category.${value}`) : t("category.choose")}
         </Text>
 
         <Ionicons
@@ -90,7 +91,7 @@ export const CategoryPicker: React.FC<Props> = ({
                     color="#3629B7"
                   />
 
-                  <Text style={styles.itemText}>{item}</Text>
+                  <Text style={styles.itemText}>{t(`category.${item}`)}</Text>
                 </Pressable>
               )}
             />

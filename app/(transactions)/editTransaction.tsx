@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { t } from "../../src/i18n";
 
 import { InputField } from "../../src/components/InputField";
 import { ButtonSave } from "../../src/components/ButtonSave";
@@ -76,6 +77,9 @@ export default function EditTransaction() {
             } else if (isNaN(Number(amount))) {
                 setAmountError("Amount must be a number");
                 valid = false;
+            } else if (Number(amount) <= 0) {
+                setAmountError("Amount must be a positive number");
+                valid = false;
             }
 
             if (!category) {
@@ -101,6 +105,14 @@ export default function EditTransaction() {
             setLoading(false);
         }
     };
+
+    if (loading) {
+        return (
+            <View style={styles.container}>
+                <Text>{t("common.loading")}</Text>
+            </View>
+        );
+    }
     
     const handleCancel = () => {
             if (hasChanges) {
@@ -121,7 +133,7 @@ export default function EditTransaction() {
                     ]}
                     onPress={() => setType("EXPENSE")}
                 >
-                    <Text style={styles.typeText}>Expense</Text>
+                    <Text style={styles.typeText}>{t("transaction.expense")}</Text>
                 </Pressable>
 
                 <Pressable
@@ -131,7 +143,7 @@ export default function EditTransaction() {
                     ]}
                     onPress={() => setType("INCOME")}
                 >
-                    <Text style={styles.typeText}>Income</Text>
+                    <Text style={styles.typeText}>{t("transaction.income")}</Text>
                 </Pressable>
 
             </View>
@@ -141,12 +153,12 @@ export default function EditTransaction() {
                 <Text 
                     style={styles.name}
                 >
-                    Amount
+                    {t("transaction.amount")}
                 </Text>
 
                 <InputField
                     iconName="cash-outline"
-                    placeholder="Amount"
+                    placeholder={t("transaction.amount")}
                     value={amount}
                     onChangeText={(text) => {
                         setAmount(text);
@@ -161,7 +173,7 @@ export default function EditTransaction() {
                 <Text 
                     style={styles.name}
                 >
-                    Category
+                    {t("transaction.category")}
                 </Text>
 
                 <CategoryPicker
@@ -174,10 +186,14 @@ export default function EditTransaction() {
                     }}
                 />
 
+                {categoryError ? (
+                    <Text style={styles.errorText}>{categoryError}</Text>
+                ) : null}
+
                 <Text 
                     style={styles.name}
                 >
-                    Date
+                    {t("transaction.date")}
                 </Text>
 
                 <View style={styles.row}>
@@ -251,12 +267,12 @@ export default function EditTransaction() {
                 <Text 
                     style={styles.name}
                 >
-                    Description
+                    {t("transaction.description")}
                 </Text>
 
                 <InputField
                     iconName="document-text-outline"
-                    placeholder="Description"
+                    placeholder={t("transaction.description")}
                     value={description}
                     onChangeText={setDescription}
                 />
@@ -264,13 +280,13 @@ export default function EditTransaction() {
                 <View style={styles.buttonRow}>
                     
                     <ButtonSave
-                        label="Cancel"
+                        label={t("common.cancel")}
                         variant="secondary"
                         onPress={handleCancel}
                     />
 
                     <ButtonSave
-                        label="Save"
+                        label={t("common.save")}
                         variant="primary"
                         onPress={handleUpdate}
                     />

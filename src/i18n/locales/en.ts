@@ -12,6 +12,15 @@ export default {
     continue_with_google: "Continue with Google",
     continue_with_facebook: "Continue with Facebook",
     home: "Home",
+    save: "Save",
+    cancel: "Cancel",
+    delete: "Delete",
+    edit: "Edit",
+    confirm: "Confirm",
+    back: "Back",
+    loading: "Loading...",
+    continue: "Continue",
+    done: "Done"
   },
   auth: {
     welcome: "Join Smart Money Today!",
@@ -64,4 +73,42 @@ export default {
     offline: "No internet connection",
     unknown: "Something went wrong",
   },
+  transaction: {
+    addTitle: "Add Transaction",
+    editTitle: "Edit Transaction",
+    amount: "Amount",
+    category: "Category",
+    date: "Date",
+    time: "Time",
+    description: "Description",
+    type: "Type",
+    expense: "Expense",
+    income: "Income",
+    saveSuccess: "Transaction added successfully",
+    saveSuccessDesc: "Your transaction has been saved successfully.",
+    confirmExit: "The transaction isn't saved.",
+    confirmExitDesc: "Are you sure you want to exit?",
+    amountRequired: "Amount is required",
+    amountNumber: "Amount must be a number",
+    amountNumberPositive: "Amount must be a positive number",
+    categoryRequired: "Please select a category",
+    noDescription: "No description"
+  },
+  category: {
+    choose: "Choose category",
+    food: "Food",
+    transportation: "Transportation",
+    clothing: "Clothing",
+    utilities: "Utilities",
+    entertainment: "Entertainment",
+    health: "Health",
+    education: "Education",
+    shopping: "Shopping",
+    other: "Other",
+
+    salary: "Salary",
+    bonus: "Bonus",
+    investment: "Investment",
+    gift: "Gift"
+  }
 };

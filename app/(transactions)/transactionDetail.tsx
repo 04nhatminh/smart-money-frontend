@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { CATEGORY_ICONS } from "../../src/constants/categories";
+import { CATEGORY_DISPLAY_MAP, CATEGORY_ICONS } from "../../src/constants/categories";
 import { Ionicons } from "@expo/vector-icons";
+import { t } from "../../src/i18n";
 
 import { TransactionAPI } from "../../src/api/transaction.api";
 import { Transaction } from "../../src/types/transaction.types"
@@ -32,7 +33,7 @@ export default function TransactionDetail() {
     if (!transaction) {
         return (
             <View style={styles.container}>
-                <Text>Loading...</Text>
+                <Text>{t("common.loading")}</Text>
             </View>
         );
     }   
@@ -55,29 +56,31 @@ export default function TransactionDetail() {
                 ]}>
                     {isExpense ? "-" : "+"}{transaction.amount.toLocaleString()} đ
                 </Text>
-
-                <Text style={styles.category}>
+                
+                <View style={styles.category}>
                     <Ionicons
                         name={CATEGORY_ICONS[transaction.category] || "pricetag-outline"}
                         size={20}
+                        style={{ marginRight: 5 }}
                     />
-                    {transaction.category}
-                </Text>
+                    <Text >
+                        {t(`category.${CATEGORY_DISPLAY_MAP[transaction.category]}`)}
+                    </Text>
+                </View>
             </View>
 
             {/* Details Card */}
             <View style={styles.card}>
-                <Row label="Description" value={transaction.description || "No description"} />
-                <Row label="Date" value={new Date(transaction.date).toLocaleString()} />
-                <Row label="Type" value={transaction.type} />
-                <Row label="Description" value={transaction.description || "No description"} />
+                <Row label="Date" value={transaction.date} />
+                <Row label="Type" value={t(`transaction.${transaction.type.toLowerCase()}`)} />
+                <Row label="Description" value={transaction.description || t("transaction.noDescription")} />
             </View>
 
             {/* Actions */}
             <View style={styles.actions}>
 
                 <ButtonSave
-                    label="Edit"
+                    label={t("common.edit")}
                     variant="secondary"
                     onPress={() => router.push({
                         pathname: "/editTransaction",
@@ -87,7 +90,7 @@ export default function TransactionDetail() {
                 />
 
                 <ButtonSave
-                    label="Delete"
+                    label={t("common.delete")}
                     variant="danger"
                     onPress={() => {
                         // Handle delete action

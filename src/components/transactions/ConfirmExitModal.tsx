@@ -1,6 +1,7 @@
 import React from "react";
-import { Modal, View, Text, StyleSheet, Pressable, Image } from "react-native";
+import { Modal, View, Text, StyleSheet, Image } from "react-native";
 import { ButtonSave } from "../ButtonSave";
+import { t } from "../../i18n";
 
 interface Props {
     visible: boolean;
@@ -20,22 +21,22 @@ export default function ConfirmExitModal({ visible, onCancel, onConfirm }: Props
                     />
 
                     <Text style={styles.title}>
-                        The transaction isn't saved!
+                        {t("transaction.confirmExit")}
                     </Text>
 
                     <Text style={styles.desc}>
-                        Are you sure you want to exit?
+                        {t("transaction.confirmExitDesc")}
                     </Text>
 
                     <View style={styles.buttons}>
                         <ButtonSave
-                            label="Cancel"
+                            label={t("common.cancel")}
                             variant="secondary"
                             onPress={onCancel}
                         />
 
                         <ButtonSave
-                            label="Continue"
+                            label={t("common.continue")}
                             variant="danger"
                             onPress={onConfirm}
                         />
