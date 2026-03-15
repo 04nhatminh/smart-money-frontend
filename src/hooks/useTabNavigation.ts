@@ -50,7 +50,6 @@ export const useTabNavigation = (onCameraOpen?: () => void, onVoiceOpen?: () => 
     onHome: navigateToHome,
     onStats: navigateToStats,
     onTransaction: navigateToTransaction,
-    onAdd: handleCameraOpen,
     onWallet: navigateToWallet,
     onProfile: navigateToProfile,
     onAddByCamera: handleCameraOpen,
