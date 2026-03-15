@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -53,6 +53,18 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       dateRange: "all_time",
     }
   );
+
+  useEffect(() => {
+    if (initialFilters) {
+      setFilters(initialFilters);
+    } else {
+      setFilters({
+        type: "all",
+        categories: [],
+        dateRange: "all_time",
+      });
+    }
+  }, [initialFilters]);
 
   const handleTypeChange = (type: "all" | "expense" | "income") => {
     setFilters({ ...filters, type });
