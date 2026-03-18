@@ -13,17 +13,21 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomBar } from "../../src/components/BottomBar";
-import { CameraModal } from "../../src/components/camera/CameraModal";
-import { Receipt } from "../../src/components/camera/ReceiptPreview";
+import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
 import { useTabNavigation } from "../../src/hooks/useTabNavigation";
 import { useThemeMode } from "../../src/theme/ThemeProvider";
 import { t } from "../../src/i18n";
-import transactionApi, {
+import transactionApi from "../../src/api/transaction.api";
+import {
   CreateTransactionRequest,
   GetTransactionsParams,
-} from "../../src/api/transaction.api";
-import { FilterModal, TransactionFilter } from "../../src/components/transaction/FilterModal";
-import { TransactionItem, Transaction } from "../../src/components/transaction/TransactionItem";
+  Receipt
+} from "../../src/types/transaction.types";
+import { FilterModal } from "../../src/components/transactions/FilterModal";
+import { TransactionItem } from "../../src/components/transactions/TransactionItem";
+import { TransactionFilter, TransactionResponse } from "../../src/types/transaction.types";
+import { CATEGORY_ENUM_MAP } from "../../src/constants/categories";
+import { formatDateTime, parseDDMMYYYYHHMM } from "../../src/utils/dateFormatter";
 
 const parseReceiptDate = (input: string): string => {
   // Input format: "28/02/2026"
@@ -38,13 +42,14 @@ const parseReceiptDate = (input: string): string => {
 
   // Fallback: return today's date
   const now = new Date();
-  const day = String(now.getDate()).padStart(2, "0");
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const year = now.getFullYear();
-  const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
+  // const day = String(now.getDate()).padStart(2, "0");
+  // const month = String(now.getMonth() + 1).padStart(2, "0");
+  // const year = now.getFullYear();
+  // const hours = String(now.getHours()).padStart(2, "0");
+  // const minutes = String(now.getMinutes()).padStart(2, "0");
 
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+  //return `${day}/${month}/${year} ${hours}:${minutes}`;
+  return formatDateTime(now);
 };
 
 const mapReceiptToPayload = (receipt: Receipt): CreateTransactionRequest => {
@@ -62,58 +67,9 @@ const mapReceiptToPayload = (receipt: Receipt): CreateTransactionRequest => {
   return payload;
 };
 
-// Mock data for demonstration
-const MOCK_TRANSACTIONS: Transaction[] = [
-  {
-    id: "1",
-    name: "Buy items",
-    category: "food",
-    amount: 200000,
-    type: "EXPENSE",
-    date: "2026-03-14",
-    verified: false,
-  },
-  {
-    id: "2",
-    name: "Salary Jan",
-    category: "other",
-    amount: 12000000,
-    type: "INCOME",
-    date: "2026-03-13",
-    verified: true,
-  },
-  {
-    id: "3",
-    name: "Taxi ride",
-    category: "transportation",
-    amount: 150000,
-    type: "EXPENSE",
-    date: "2026-03-14",
-    verified: true,
-  },
-  {
-    id: "4",
-    name: "Dinner",
-    category: "food",
-    amount: 350000,
-    type: "EXPENSE",
-    date: "2026-03-12",
-    verified: false,
-  },
-  {
-    id: "5",
-    name: "Freelance work",
-    category: "other",
-    amount: 5000000,
-    type: "INCOME",
-    date: "2026-03-10",
-    verified: true,
-  },
-];
-
 interface TransactionSection {
   title: string;
-  data: Transaction[];
+  data: TransactionResponse[];
 }
 
 export default function TransactionListScreen() {
@@ -128,7 +84,7 @@ export default function TransactionListScreen() {
     categories: [],
     dateRange: "all_time",
   });
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize] = useState(30);
 
@@ -154,17 +110,7 @@ export default function TransactionListScreen() {
 
       // Add category filter (convert first category if exists)
       if (filters.categories.length > 0) {
-        const categoryMap: Record<string, string> = {
-          food: "FOOD",
-          transportation: "TRANSPORTATION",
-          clothing: "CLOTHING",
-          utilities: "UTILITIES",
-          entertainment: "ENTERTAINMENT",
-          health: "HEALTH",
-          education: "EDUCATION",
-          other: "OTHER",
-        };
-        params.category = categoryMap[filters.categories[0]];
+        params.category = CATEGORY_ENUM_MAP[filters.categories[0]];
       }
 
       // Add date range filters (skip if all_time)
@@ -175,32 +121,32 @@ export default function TransactionListScreen() {
         const endOfDay = new Date(today);
         endOfDay.setHours(23, 59, 59, 999);
 
-        const formatDate = (date: Date) => {
-          const day = String(date.getDate()).padStart(2, "0");
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const year = date.getFullYear();
-          const hours = String(date.getHours()).padStart(2, "0");
-          const minutes = String(date.getMinutes()).padStart(2, "0");
-          return `${day}/${month}/${year} ${hours}:${minutes}`;
-        };
+        // const formatDate = (date: Date) => {
+        //   const day = String(date.getDate()).padStart(2, "0");
+        //   const month = String(date.getMonth() + 1).padStart(2, "0");
+        //   const year = date.getFullYear();
+        //   const hours = String(date.getHours()).padStart(2, "0");
+        //   const minutes = String(date.getMinutes()).padStart(2, "0");
+        //   return `${day}/${month}/${year} ${hours}:${minutes}`;
+        // };
 
         if (filters.dateRange === "yesterday") {
           const yesterday = new Date(startOfDay);
           yesterday.setDate(yesterday.getDate() - 1);
           const yesterdayEnd = new Date(yesterday);
           yesterdayEnd.setHours(23, 59, 59, 999);
-          params.startDate = formatDate(yesterday);
-          params.endDate = formatDate(yesterdayEnd);
+          params.startDate = formatDateTime(yesterday);
+          params.endDate = formatDateTime(yesterdayEnd);
         } else if (filters.dateRange === "this_week") {
           const startOfWeek = new Date(startOfDay);
           startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
-          params.startDate = formatDate(startOfWeek);
-          params.endDate = formatDate(endOfDay);
+          params.startDate = formatDateTime(startOfWeek);
+          params.endDate = formatDateTime(endOfDay);
         } else if (filters.dateRange === "this_month") {
           const startOfMonth = new Date(startOfDay);
           startOfMonth.setDate(1);
-          params.startDate = formatDate(startOfMonth);
-          params.endDate = formatDate(endOfDay);
+          params.startDate = formatDateTime(startOfMonth);
+          params.endDate = formatDateTime(endOfDay);
         } else if (filters.dateRange === "custom") {
           if (filters.customStartDate) {
             params.startDate = `${filters.customStartDate} 00:00`;
@@ -210,26 +156,28 @@ export default function TransactionListScreen() {
           }
         } else if (filters.dateRange === "today") {
           // Today filter
-          params.startDate = formatDate(startOfDay);
-          params.endDate = formatDate(endOfDay);
+          params.startDate = formatDateTime(startOfDay);
+          params.endDate = formatDateTime(endOfDay);
         }
       }
 
       const result = await transactionApi.getTransactions(params);
 
+      console.log("📥 API Response for getTransactions:", result);
+
       if (result.success && result.data) {
+        const apiTransactions = result.data.transactions || [];
+
         // Map API response to Transaction type
-        const mappedTransactions: Transaction[] = result.data.transactions.map(
-          (tx) => ({
-            id: tx.id,
-            name: tx.description,
-            category: tx.category.toLowerCase(),
-            amount: tx.amount,
-            type: tx.type,
-            date: tx.date.split(" ")[0], // Extract date part only
-            verified: true, // Assume API transactions are verified
-          })
-        );
+        const mappedTransactions = apiTransactions.map((item) => ({
+          id: item.id,
+          amount: item.amount,
+          type: item.type,
+          category: item.category,
+          description: item.description,
+          date: item.date,
+        }));
+        console.log("✅ Mapped transactions:", mappedTransactions);
         setTransactions(mappedTransactions);
       } else {
         console.error("Failed to fetch transactions:", result.message);
@@ -243,6 +191,8 @@ export default function TransactionListScreen() {
     }
   };
 
+  console.log("📥 Fetched transactions:", transactions);
+
   const handleCreateTransaction = async (receipt: Receipt) => {
     console.log("🚀 handleCreateTransaction called");
     setIsCreatingTransaction(true);
@@ -254,7 +204,7 @@ export default function TransactionListScreen() {
         JSON.stringify(payload, null, 2)
       );
 
-      const result = await transactionApi.createTransaction(payload);
+      const result = await transactionApi.create(payload);
       console.log("📥 API Response:", result);
 
       if (!result.success) {
@@ -282,7 +232,8 @@ export default function TransactionListScreen() {
     }
     return transactions.filter((transaction) => {
       const query = searchQuery.toLowerCase();
-      return transaction.name.toLowerCase().includes(query);
+      console.log(transaction.description);
+      return transaction.description?.toLowerCase().includes(query);
     });
   }, [transactions, searchQuery]);
 
@@ -296,10 +247,10 @@ export default function TransactionListScreen() {
 
     const sections: TransactionSection[] = [];
 
-    const grouped: Record<string, Transaction[]> = {};
+    const grouped: Record<string, TransactionResponse[]> = {};
 
     filteredTransactions.forEach((transaction) => {
-      const transactionDate = new Date(transaction.date);
+      const transactionDate = parseDDMMYYYYHHMM(transaction.date);
       transactionDate.setHours(0, 0, 0, 0);
 
       let key = "other";

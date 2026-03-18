@@ -8,12 +8,11 @@ import { InputField } from "../../src/components/InputField";
 import { ButtonSave } from "../../src/components/ButtonSave";
 import { transactionStyles as styles } from "../../src/styles/transactionStyles";
 import { CategoryPicker } from "../../src/components/transactions/CategoryPicker";
-import { TransactionAPI } from "../../src/api/transaction.api";
+import TransactionAPI from "../../src/api/transaction.api";
 import { CATEGORY_ENUM_MAP } from "../../src/constants/categories";
 import { formatDateTime, formatTime, formatDateToDDMMYYYY } from "../../src/utils/dateFormatter";
 import SuccessModal from "../../src/components/transactions/SuccessModal";
 import ConfirmExitModal from "../../src/components/transactions/ConfirmExitModal";
-import { useLanguage } from "../../src/i18n/LanguageProvider";
 
 export default function AddTransaction() {
 
@@ -30,8 +29,6 @@ export default function AddTransaction() {
 
     const [amountError, setAmountError] = useState("");
     const [categoryError, setCategoryError] = useState("");
-
-    const { lang } = useLanguage();
 
     const handleSave = async () => {
         try {

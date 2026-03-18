@@ -14,7 +14,6 @@ export const INCOME_CATEGORIES = [
   "bonus",
   "investment",
   "gift",
-  "other",
 ];
 
 export const CATEGORY_ICONS: Record<string, any> = {
@@ -30,6 +29,17 @@ export const CATEGORY_ICONS: Record<string, any> = {
   investment: "trending-up-outline",
   gift: "gift-outline",
   other: "ellipsis-horizontal-outline",
+};
+
+export const CATEGORY_ICONS_LIST: Record<string, { icon: string; color: string }> = {
+  food: { icon: "fast-food", color: "#FF6B6B" },
+  transportation: { icon: "car", color: "#4ECDC4" },
+  clothing: { icon: "shirt", color: "#FFB84D" },
+  utilities: { icon: "flash", color: "#A78BFA" },
+  entertainment: { icon: "game-controller", color: "#F97316" },
+  health: { icon: "heart", color: "#EC4899" },
+  education: { icon: "book", color: "#3B82F6" },
+  other: { icon: "ellipsis-horizontal", color: "#6B7280" },
 };
 
 export const CATEGORY_ENUM_MAP: Record<string, string> = {

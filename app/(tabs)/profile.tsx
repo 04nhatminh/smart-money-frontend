@@ -14,12 +14,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomBar } from "../../src/components/BottomBar";
-import { CameraModal } from "../../src/components/camera/CameraModal";
-import { Receipt } from "../../src/components/camera/ReceiptPreview";
+import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
 import { useTabNavigation } from "../../src/hooks/useTabNavigation";
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { UserResponse } from '../../src/types/auth.types';
+import { Receipt } from '../../src/types/transaction.types';
 import { RefreshControl } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useLanguage } from "../../src/i18n/LanguageProvider";
@@ -165,7 +165,7 @@ const ProfileScreen: React.FC = () => {
       };
       console.log("📤 Creating transaction with payload:", JSON.stringify(payload, null, 2));
       
-      const result = await transactionApi.createTransaction(payload);
+      const result = await transactionApi.create(payload);
       console.log("📥 API Response:", result);
 
       if (!result.success) {

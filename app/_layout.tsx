@@ -55,10 +55,10 @@ function RootLayoutNav() {
 
     const currentPath = segments.join('/');
     const shouldRedirect = 
-      // (initialRoute === "/(intro)/intro" && !currentPath.includes('intro')) ||
-      // (initialRoute === "/(auth)/auth" && !currentPath.includes('auth') && !currentPath.includes('tabs')) ||
-      // (initialRoute === "/(tabs)" && !currentPath.includes('tabs')) ||
-      (initialRoute === "/(transactions)/addTransaction" && !currentPath.includes('transactions'));
+      (initialRoute === "/(intro)/intro" && !currentPath.includes('intro')) ||
+      (initialRoute === "/(auth)/auth" && !currentPath.includes('auth') && !currentPath.includes('tabs')) ||
+      (initialRoute === "/(tabs)" && !currentPath.includes('tabs'));
+      // || (initialRoute === "/(transactions)/addTransaction" && !currentPath.includes('transactions'));
 
     if (shouldRedirect) {
       router.replace(initialRoute);

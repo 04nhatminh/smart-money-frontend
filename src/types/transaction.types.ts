@@ -1,15 +1,24 @@
 export type TransactionType = "EXPENSE" | "INCOME";
 
-export interface Transaction {
-  id: string;
+export interface TransactionRequest {
   amount: number;
   category: string;
   type: TransactionType;
   description?: string;
   date: string;
-  createdAt: string;
-  updatedAt?: string;
+}
 
+export interface TransactionResponse {
+  id: string;
+  userId?: string;
+  amount: number;
+  type: TransactionType;
+  category: string;
+  description?: string;
+  date: string;
+  createdAt?: string;
+  updatedAt?: string;
+  verified?: boolean;
 }
 
 export interface CreateTransactionRequest {
@@ -37,20 +46,44 @@ export interface TransactionQuery {
   endDate?: string;
 }
 export interface TransactionListResponse {
-  success: boolean;
-  message: string;
-  data: {
-    count: number;
-    page: number;
-    size: number;
-    totalElements: number;
-    totalPages: number;
-    transactions: Transaction[];
-  };
+  count: number;
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  transactions: TransactionResponse[];
 }
 
-export interface TransactionResponse {
-    success: boolean;
-    message: string;
-    data: Transaction;
-  }
+export interface GetTransactionsParams {
+  minAmount?: number;
+  maxAmount?: number;
+  startDate?: string;
+  endDate?: string;
+  category?: string;
+  type?: TransactionType;
+  page?: number;
+  size?: number;
+}
+
+export interface TransactionDateRange {
+  dateRange: "all_time" | "today" | "yesterday" | "this_week" | "this_month" | "custom";
+}
+
+export interface TransactionFilter {
+  type: "all" | "expense" | "income";
+  categories: string[];
+  dateRange: TransactionDateRange["dateRange"];
+  customStartDate?: string;
+  customEndDate?: string;
+}
+
+export interface Receipt {
+  type: "Expense" | "Income";
+  transactionName: string;
+  amount: number;
+  category: string;
+  date: string;
+  description: string;
+}
+
+

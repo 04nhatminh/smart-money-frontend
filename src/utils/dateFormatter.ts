@@ -17,3 +17,21 @@ export const formatDateTime = (date: Date) => {
 
   return `${formatDateToDDMMYYYY(date)} ${formatTime(date)}`;
 };
+
+export const parseDDMMYYYYHHMM = (input: string): Date => {
+  const match = input.match(
+    /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?$/
+  );
+
+  if (!match) return new Date(NaN);
+
+  const [, day, month, year, hours = "00", minutes = "00"] = match;
+
+  return new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hours),
+    Number(minutes)
+  );
+};
