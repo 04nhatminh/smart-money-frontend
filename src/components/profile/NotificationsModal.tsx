@@ -15,71 +15,71 @@ import { t } from '../../i18n';
 
 interface NotificationsModalProps {
   visible: boolean;
-  initialValue?: boolean;          // Trạng thái ban đầu của toggle
-  onClose: () => void;             // Đóng modal
-  onToggle?: (enabled: boolean) => void; // Callback khi toggle thay đổi
+  enabled: boolean;              // ✅ state thật
+  loading?: boolean;             // ✅ loading
+  onClose: () => void;
+  onToggle: (enabled: boolean) => void;
 }
 
 export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   visible,
-  initialValue = false,
+  enabled,
+  loading = false,
   onClose,
   onToggle,
 }) => {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(initialValue);
-
-  // Đồng bộ với initialValue khi modal mở
-  useEffect(() => {
-    if (visible) {
-      setNotificationsEnabled(initialValue);
-    }
-  }, [visible, initialValue]);
 
   const handleToggle = (value: boolean) => {
-    setNotificationsEnabled(value);
-    onToggle?.(value); // Gửi trạng thái mới ra ngoài ngay lập tức
-  };
-
-  const handleClose = () => {
-    onClose();
+    if (!loading) {
+      onToggle(value);
+    }
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <BlurView intensity={90} style={styles.blurContainer}>
         <View style={styles.modalOverlay}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.modalContent}
           >
-            {/* Header với tiêu đề và nút đóng */}
+            {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>{t('notification.notifications')}</Text>
-              <TouchableOpacity onPress={handleClose}>
+              <TouchableOpacity onPress={onClose}>
                 <Ionicons name="close" size={28} color="#3629B7" />
               </TouchableOpacity>
             </View>
 
-            {/* Nội dung chính */}
+            {/* Content */}
             <View style={styles.content}>
               <Ionicons name="notifications-outline" size={48} color="#3629B7" style={styles.icon} />
+
               <Text style={styles.description}>
                 {t('notification.notification_description')}
               </Text>
 
-              {/* Nút toggle */}
               <View style={styles.toggleContainer}>
                 <Text style={styles.toggleLabel}>
-                  {notificationsEnabled ? t('notification.on') : t('notification.off')}
+                  {enabled ? t('notification.on') : t('notification.off')}
                 </Text>
+
                 <Switch
-                  value={notificationsEnabled}
+                  value={enabled}
                   onValueChange={handleToggle}
+                  disabled={loading} // ✅ disable khi đang call API
                   trackColor={{ false: '#E0E0E0', true: '#3629B7' }}
                   thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
                   ios_backgroundColor="#E0E0E0"
                 />
               </View>
+
+              {/* Loading indicator */}
+              {loading && (
+                <Text style={{ marginTop: 10, color: '#999' }}>
+                  {t('common.loading')}
+                </Text>
+              )}
             </View>
           </KeyboardAvoidingView>
         </View>

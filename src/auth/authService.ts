@@ -157,7 +157,8 @@ class AuthService {
           const refreshed = await this.refreshTokenIfNeeded();
           if (refreshed) {
             // Retry original request with new token
-            originalRequest.headers.Authorization = `Bearer ${this.getToken()}`;
+            const token = await this.getToken();
+            originalRequest.headers.Authorization = `Bearer ${token}`;
             return import('../api/http').then(({ http }) => http(originalRequest));
           }
         } catch (refreshError) {
@@ -402,6 +403,45 @@ class AuthService {
       await userStorage.setUser(response.data);
     }
     return response;
+  }
+
+  //Enable Notification
+  async enableNotification(): Promise<CheckResponse<string>> {
+    try {
+      const response = await AuthApi.enableNotification();
+      return response;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Enable notification failed',
+      };
+    }
+  }
+
+  //Disable Notification
+  async disableNotification(): Promise<CheckResponse<string>> {
+    try {
+      const response = await AuthApi.disableNotification();
+      return response;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Disable notification failed',
+      };
+    }
+  }
+
+  async getNotificationStatus(): Promise<CheckResponse<boolean>> {
+    try {
+      const response = await AuthApi.getNotificationStatus();
+      return response;
+    } catch (error: any) {
+      return {
+        data: false,
+        success: false,
+        message: error.message || 'Get notification status failed',
+      };
+    }
   }
 }
 

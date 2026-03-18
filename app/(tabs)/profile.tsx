@@ -47,6 +47,8 @@ const ProfileScreen: React.FC = () => {
   const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
   const [resetPasswordModalVisible, setResetPasswordModalVisible] = useState(false);
   const [notificationsModalVisible, setNotificationsModalVisible] = useState(false);
+  const [notificationEnabled, setNotificationEnabled] = useState<boolean>(false);
+  const [loadingNotification, setLoadingNotification] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
@@ -60,7 +62,7 @@ const ProfileScreen: React.FC = () => {
     try {
       setLoading(true);
       const userData = await userStorage.getUser();
-      setUser(userData);
+    setUser(userData);
     } catch (error) {
       console.error('Error loading user data:', error);
       Alert.alert(t('common.error'), t('profile.profile_load_error'));
@@ -83,6 +85,12 @@ const ProfileScreen: React.FC = () => {
     }
     setLoading(false);
   }, [currentUser]);
+
+  useEffect(() => {
+    if (notificationsModalVisible) {
+      loadNotificationStatus();
+    }
+  }, [notificationsModalVisible]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -166,6 +174,53 @@ const ProfileScreen: React.FC = () => {
       Alert.alert(t('common.error'), t('profile.avatar_error'));
     } finally {
       setIsUpdatingAvatar(false);
+    }
+  };
+
+  const loadNotificationStatus = async () => {
+    try {
+      setLoadingNotification(true);
+
+      const reponse = await authService.getNotificationStatus();
+
+      if(reponse.success) {
+        setNotificationEnabled(reponse.data??false);
+      }
+
+    } catch (error) {
+      console.error("Load notification error:", error);
+    } finally {
+      setLoadingNotification(false);
+    }
+  };
+
+  const handleToggleNotification = async (enabled: boolean) => {
+    try {
+      setLoadingNotification(true);
+
+      let res;
+
+      if (enabled) {
+        res = await authService.enableNotification();
+      } else {
+        res = await authService.disableNotification();
+      }
+
+      if (res.success) {
+        setNotificationEnabled(enabled);
+
+        // update user local nếu bạn muốn sync
+        setUser(prev => prev ? { ...prev, active: enabled } : prev);
+
+      } else {
+        Alert.alert(t('common.error'), res.message);
+      }
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert(t('common.error'), "Update notification failed");
+    } finally {
+      setLoadingNotification(false);
     }
   };
 
@@ -288,10 +343,10 @@ const ProfileScreen: React.FC = () => {
       <NotificationsModal
         visible={notificationsModalVisible}
         onClose={() => setNotificationsModalVisible(false)}
-        onToggle={(enabled: any) => {
-          setUser(prev => prev ? { ...prev, active: enabled } : prev);
-        }}
-      />  
+        enabled={notificationEnabled}
+        loading={loadingNotification}
+        onToggle={handleToggleNotification}
+      />
 
       <PrivacyAndSecurityModal
         visible={privacyModalVisible}

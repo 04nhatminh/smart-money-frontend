@@ -45,6 +45,19 @@ class AuthApi {
     
     return formData;
   }
+  
+
+  private async getAuthHeader() {
+    const token = await tokenStorage.getAccessToken();
+
+    if (!token) {
+      throw new Error("No token found");
+    }
+
+    return {
+      Authorization: `Bearer ${token}`
+    };
+  }
 
 
   // Register new user
@@ -293,6 +306,62 @@ class AuthApi {
       return error.response?.data || {
         success: false,
         message: error.message || 'Failed to reset password',
+      };
+    }
+  }
+
+  async enableNotification(): Promise<CheckResponse<string>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.patch(
+        '/api/v1/auth/notification/enable',
+        null,
+        { headers }
+      );
+
+      return res.data;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || 'Enable notification failed',
+      };
+    }
+  }
+
+  async disableNotification(): Promise<CheckResponse<string>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.patch(
+        '/api/v1/auth/notification/disable',
+        null,
+        { headers }
+      );
+
+      return res.data;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || 'Disable notification failed',
+      };
+    }
+  }
+
+  async getNotificationStatus(): Promise<CheckResponse<boolean>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.get(
+        '/api/v1/auth/notification',
+        { headers }
+      );
+
+      return res.data;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || 'Get notification status failed',
       };
     }
   }
