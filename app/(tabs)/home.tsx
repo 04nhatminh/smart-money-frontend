@@ -10,15 +10,20 @@ import {
   TouchableOpacity,
   FlatList,
   StatusBar,
-  RefreshControl
+  RefreshControl,
+  Alert
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { userStorage } from "../../src/storage/userStorage";
 import { UserResponse } from "../../src/types/auth.types";
 import { BottomBar } from "../../src/components/BottomBar";
-import { CameraModal } from "../../src/components/camera/CameraModal";
+import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
+import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceInputModal";
+import { TransactionRequest, Receipt } from "../../src/types/transaction.types";
 import { useTabNavigation } from "../../src/hooks/useTabNavigation";
 import { useRouter } from "expo-router";
+import transactionApi from "../../src/api/transaction.api";
+import { router } from "expo-router";
 
 // Mock data for categories
 const categories = [
@@ -44,9 +49,10 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [cameraVisible, setCameraVisible] = useState(false);
+  const [voiceVisible, setVoiceVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const navigation = useTabNavigation(() => setCameraVisible(true));
+  const navigation = useTabNavigation(() => setCameraVisible(true), () => setVoiceVisible(true));
 
   useEffect(() => {
     loadUserData();
@@ -67,6 +73,89 @@ export default function HomePage() {
     setRefreshing(true);
     await loadUserData();
     setRefreshing(false);
+  };
+
+  const parseReceiptDate = (input: string): string => {
+    // Input format: "28/02/2026"
+    // Expected backend format: "dd/MM/yyyy HH:mm"
+    const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(input.trim());
+    if (ddmmyyyy) {
+      const [, day, month, year] = ddmmyyyy;
+      return `${day}/${month}/${year} 00:00`;
+    }
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${d}/${m}/${y} ${h}:${min}`;
+  };
+
+  const handleCreateTransaction = async (receipt: Receipt) => {
+    console.log("🚀 home.handleCreateTransaction called");
+    try {
+      const transactionType = receipt.type === "Income" ? "INCOME" as const : "EXPENSE" as const;
+      const payload = {
+        amount: receipt.amount,
+        type: transactionType,
+        category: receipt.category.toUpperCase(),
+        description: receipt.description?.trim() || receipt.transactionName,
+        date: parseReceiptDate(receipt.date),
+      };
+      console.log("📤 Creating transaction with payload:", JSON.stringify(payload, null, 2));
+      
+      const result = await transactionApi.create(payload);
+      console.log("📥 API Response:", result);
+
+      if (!result.success) {
+        const errorMsg = result.message || "Tao giao dich that bai";
+        console.error("❌ Transaction creation failed:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("✅ Transaction created successfully:", result.data);
+      Alert.alert("Success", "Transaction created successfully");
+      setCameraVisible(false);
+    } catch (error: any) {
+      const message = error?.message || "Failed to create transaction";
+      console.error("❌ Error in handleCreateTransaction:", error);
+      Alert.alert("Error", message);
+      throw error;
+    }
+  };
+
+  const handleCreateVoiceTransaction = async (transaction: TransactionRequest) => {
+    console.log("🚀 home.handleCreateVoiceTransaction called");
+    try {
+      const transactionType = transaction.type === "INCOME" ? "INCOME" as const : "EXPENSE" as const;
+      const payload = {
+        amount: transaction.amount,
+        type: transactionType,
+        category: transaction.category.toUpperCase(),
+        description: transaction.description?.trim(),
+        date: parseReceiptDate(transaction.date),
+      };
+      console.log("📤 Creating voice transaction with payload:", JSON.stringify(payload, null, 2));
+      
+      const result = await transactionApi.create(payload);
+      console.log("📥 API Response:", result);
+
+      if (!result.success) {
+        const errorMsg = result.message || "Tao giao dich that bai";
+        console.error("❌ Voice transaction creation failed:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("✅ Voice transaction created successfully:", result.data);
+      Alert.alert("Success", "Voice transaction created successfully");
+      setVoiceVisible(false);
+    } catch (error: any) {
+      const message = error?.message || "Failed to create voice transaction";
+      console.error("❌ Error in handleCreateVoiceTransaction:", error);
+      Alert.alert("Error", message);
+      throw error;
+    }
   };
 
   const renderCategoryItem = ({ item }: { item: typeof categories[0] }) => (
@@ -104,7 +193,7 @@ export default function HomePage() {
   }
 
   const handleTransactionsListPress = () => {
-    router.push("/(transactions)");
+    router.push("/(tabs)/transaction");
   };
 
   return (
@@ -253,20 +342,27 @@ export default function HomePage() {
 
       <BottomBar
         active={navigation.activeTab}
-        onHome={navigation.navigateToHome}
-        onStats={navigation.navigateToStats}
-        onAdd={navigation.handleAddTransaction}
-        onWallet={navigation.navigateToWallet}
-        onProfile={navigation.navigateToProfile}
+        onHome={() => router.push('(tabs)/home')}
+        onStats={() => router.push('(tabs)/stats')}
+        onAdd={() => setCameraVisible(true)}
+        onWallet={() => router.push('(tabs)/wallet')}
+        onProfile={() => router.push('(tabs)/profile')}
+        onAddByForm={() => console.log("Form input triggered")}
+        onAddByCamera={() => setCameraVisible(true)}
+        onAddByVoice={() => setVoiceVisible(true)}
+        onTransaction={() => {router.push('(tabs)/transaction')}}
       />
 
       <CameraModal
         visible={cameraVisible}
         onClose={() => setCameraVisible(false)}
-        onCaptureBill={(uri: string) => {
-          console.log("Bill captured:", uri);
-          setCameraVisible(false);
-        }}
+        onCaptureBill={handleCreateTransaction}
+      />
+
+      <VoiceInputModal
+        visible={voiceVisible}
+        onClose={() => setVoiceVisible(false)}
+        onCaptureVoice={handleCreateVoiceTransaction}
       />
     </SafeAreaView>
   );

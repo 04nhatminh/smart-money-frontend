@@ -18,6 +18,11 @@ export const SubmitButton: React.FC<SubmitButtonProps> = ({
     disabled = false,
     loadingText = 'Loading...',
 }) => {
+    const handlePress = () => {
+        console.log("🔘 SubmitButton pressed:", label);
+        onPress();
+    };
+
     return (
         <Pressable
             style={({ pressed }) => [
@@ -25,7 +30,7 @@ export const SubmitButton: React.FC<SubmitButtonProps> = ({
                 pressed && styles.btnPressed,
                 (loading || disabled) && styles.disabledBtn,
             ]}
-            onPress={onPress}
+            onPress={handlePress}
             disabled={loading || disabled}
         >
             <LinearGradient
@@ -56,6 +61,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 4,
         elevation: 3,
+        width: '100%',
     },
     btn: {
         height: 48,

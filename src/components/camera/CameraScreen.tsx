@@ -11,6 +11,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as MediaLibrary from "expo-media-library";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeMode } from "../../theme/ThemeProvider";
+import { t } from "../../i18n";
 
 type Props = {
   onCapture: (uri: string) => void;
@@ -26,7 +27,7 @@ export function CameraScreen({ onCapture, onClose }: Props) {
   if (!permission) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
-        <Text style={{ color: theme.text }}>Loading...</Text>
+        <Text style={{ color: theme.text }}>{t("camera.loading")}</Text>
       </SafeAreaView>
     );
   }
@@ -37,13 +38,13 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         <View style={styles.permissionContainer}>
           <Ionicons name="camera-outline" size={48} color={theme.primary} />
           <Text style={[styles.permissionText, { color: theme.text }]}>
-            Cần cấp quyền camera
+            {t("camera.permission_required")}
           </Text>
           <Pressable
             style={[styles.permissionBtn, { backgroundColor: theme.primary }]}
             onPress={requestPermission}
           >
-            <Text style={styles.permissionBtnText}>Cấp quyền</Text>
+            <Text style={styles.permissionBtnText}>{t("camera.grant_permission")}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -60,7 +61,7 @@ export function CameraScreen({ onCapture, onClose }: Props) {
 
         onCapture(photo.uri);
       } catch (error) {
-        Alert.alert("Error", "Failed to capture photo");
+        Alert.alert(t("camera.error_capturing"), t("camera.error_capture_failed"));
         console.error(error);
       } finally {
         setIsRecording(false);
@@ -84,7 +85,7 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         onCapture(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to pick image");
+      Alert.alert(t("camera.error_capturing"), t("camera.error_pick_failed"));
       console.error(error);
     }
   };
@@ -98,12 +99,17 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         flash="auto"
       />
 
+      {/* Receipt Guide Frame - Overlay */}
+      <View style={styles.frameGuideContainer}>
+        <View style={styles.frameGuide} />
+      </View>
+
       {/* Header - Overlay */}
       <View style={[styles.header, { position: "absolute", top: 0, left: 0, right: 0 }]}>
         <Pressable onPress={onClose} style={styles.closeBtn}>
           <Ionicons name="close" size={24} color="#FFFFFF" />
         </Pressable>
-        <Text style={styles.headerTitle}>Chụp hóa đơn</Text>
+        <Text style={styles.headerTitle}>{t("camera.capture_receipt")}</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -191,6 +197,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 24,
     paddingBottom: 32,
+    paddingTop: 24,
     backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   galleryBtn: {
@@ -214,5 +221,25 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: "#FFFFFF",
+  },
+  frameGuideContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+    paddingBottom: 40,
+  },
+  frameGuide: {
+    width: "80%",
+    aspectRatio: 1 / 1.4,
+    borderWidth: 3,
+    borderColor: "rgba(255, 255, 255, 0.7)",
+    borderStyle: "dashed",
+    borderRadius: 12,
   },
 });
