@@ -22,6 +22,7 @@ export default {
     continue: "Tiếp tục",
     done: "Hoàn tất",
     reset: "Đặt lại",
+    close: "Đóng",
   },
   auth: {
     welcome: "Tham gia Smart Money ngay hôm nay!",
@@ -96,6 +97,7 @@ export default {
     transactions: "Giao Dịch",
     all_transactions: "Tất cả Giao Dịch",
     search_transactions: "Tìm kiếm giao dịch",
+    transactionDetail: "Chi tiết giao dịch",
     filter: "Bộ lọc",
     all_time: "Tất cả thời gian",
     today: "Hôm nay",
@@ -127,6 +129,7 @@ export default {
     verified: "Đã xác minh",
     unverified: "Chưa xác minh",
     see_more: "Xem thêm",
+    choose: "Chọn danh mục",
   },
   camera: {
     scan_receipt: "Quét Hóa Đơn",

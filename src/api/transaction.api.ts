@@ -2,7 +2,7 @@ import http from "./http";
 import { tokenStorage } from "../storage/tokenStorage";
 import {
   TransactionResponse,
-  CreateTransactionRequest,
+  TransactionRequest,
   UpdateTransactionRequest,
   TransactionQuery,
   TransactionListResponse,
@@ -103,7 +103,7 @@ class TransactionApi {
   }
 
   async create(
-    data: CreateTransactionRequest
+    data: TransactionRequest
   ): Promise<ApiResponse<TransactionResponse>> {
     try {
       const fullUrl = `${http.defaults.baseURL}/api/v1/transactions`;

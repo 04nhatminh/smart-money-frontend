@@ -22,6 +22,7 @@ export default {
     continue: "Continue",
     done: "Done",
     reset: "Reset",
+    close: "Close",
   },
   auth: {
     welcome: "Join Smart Money Today!",
@@ -98,6 +99,7 @@ export default {
     transactions: "Transactions",
     all_transactions: "All Transactions",
     search_transactions: "Search transactions",
+    transactionDetail: "Transaction Detail",
     filter: "Filter",
     all_time: "All Time",
     today: "Today",
@@ -129,6 +131,7 @@ export default {
     verified: "Verified",
     unverified: "Unverified",
     see_more: "See more",
+    choose: "Choose category",
   },
   
   camera: {

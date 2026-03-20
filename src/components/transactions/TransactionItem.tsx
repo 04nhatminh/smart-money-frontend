@@ -2,11 +2,11 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeMode } from "../../theme/ThemeProvider";
-import { Transaction } from "../../types/transaction.types";
+import { TransactionResponse } from "../../types/transaction.types";
 import { CATEGORY_ICONS_LIST } from "../../constants/categories";
 
 interface TransactionItemProps {
-  transaction: Transaction;
+  transaction: TransactionResponse;
   onPress?: () => void;
 }
 

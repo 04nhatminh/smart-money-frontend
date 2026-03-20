@@ -35,3 +35,21 @@ export const parseDDMMYYYYHHMM = (input: string): Date => {
     Number(minutes)
   );
 };
+
+export const parseDateStringtoString = (input: string): string => {
+  const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(input.trim());
+
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
+    return `${day}/${month}/${year} 00:00`;
+  }
+
+  const now = new Date();
+  const d = String(now.getDate()).padStart(2, "0");
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const y = now.getFullYear();
+  const h = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+
+  return `${d}/${m}/${y} ${h}:${min}`;
+};

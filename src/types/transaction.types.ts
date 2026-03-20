@@ -21,14 +21,6 @@ export interface TransactionResponse {
   verified?: boolean;
 }
 
-export interface CreateTransactionRequest {
-  amount: number;
-  category: string;
-  type: TransactionType;
-  description?: string;
-  date: string;
-}
-
 export interface UpdateTransactionRequest {
   name?: string;
   amount?: number;

@@ -110,13 +110,13 @@ export function BottomBar({
         </Pressable>
 
         <Pressable 
-          style={[styles.item, active === 'stats' && styles.activeItem]} 
+          style={[styles.item, active === 'transaction' && styles.activeItem]} 
           onPress={actualHandlers.onTransaction}
         >
           <Ionicons
-            name={active === 'stats' ? "stats-chart" : "stats-chart-outline"}
+            name={active === 'transaction' ? "stats-chart" : "stats-chart-outline"}
             size={22}
-            color={iconColor("stats")}
+            color={iconColor("transaction")}
           />
         </Pressable>
 
@@ -304,23 +304,16 @@ const styles = StyleSheet.create({
   },
 
   menuOptionTop: {
-    top: -200,
-    bottom: 0,
-    left: 0,
-    right: 0,
+    top: -120,
   },
 
   menuOptionLeft: {
-    top: -140,
-    bottom: 0,
-    left: -120,
-    right: 0,
+    top: -90,
+    left: -80,
   },
 
   menuOptionRight: {
-    top: -140,
-    bottom: 0,
-    left: 0,
-    right: -120,
+    top: -90,
+    right: -80,
   },
 });

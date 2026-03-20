@@ -12,14 +12,18 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BottomBar } from "../../src/components/BottomBar";
+import AppBottomBar from "../../src/components/AppBottomBar";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
-import { useTabNavigation } from "../../src/hooks/useTabNavigation";
+import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceInputModal";
+import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
+import { TransactionDetailModal } from "../../src/components/transactions/TransactionDetailModal";
+import { EditTransactionModal } from "../../src/components/transactions/EditTransactionModal";
+import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { useThemeMode } from "../../src/theme/ThemeProvider";
 import { t } from "../../src/i18n";
 import transactionApi from "../../src/api/transaction.api";
 import {
-  CreateTransactionRequest,
+  TransactionRequest,
   GetTransactionsParams,
   Receipt
 } from "../../src/types/transaction.types";
@@ -29,44 +33,6 @@ import { TransactionFilter, TransactionResponse } from "../../src/types/transact
 import { CATEGORY_ENUM_MAP } from "../../src/constants/categories";
 import { formatDateTime, parseDDMMYYYYHHMM } from "../../src/utils/dateFormatter";
 
-const parseReceiptDate = (input: string): string => {
-  // Input format: "28/02/2026"
-  // Expected backend format: "dd/MM/yyyy HH:mm"
-  const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(input.trim());
-
-  if (ddmmyyyy) {
-    const [, day, month, year] = ddmmyyyy;
-    // Format as "dd/MM/yyyy HH:mm" with 00:00 as default time
-    return `${day}/${month}/${year} 00:00`;
-  }
-
-  // Fallback: return today's date
-  const now = new Date();
-  // const day = String(now.getDate()).padStart(2, "0");
-  // const month = String(now.getMonth() + 1).padStart(2, "0");
-  // const year = now.getFullYear();
-  // const hours = String(now.getHours()).padStart(2, "0");
-  // const minutes = String(now.getMinutes()).padStart(2, "0");
-
-  //return `${day}/${month}/${year} ${hours}:${minutes}`;
-  return formatDateTime(now);
-};
-
-const mapReceiptToPayload = (receipt: Receipt): CreateTransactionRequest => {
-  console.log("🔄 mapReceiptToPayload called with:", receipt);
-  const transactionType =
-    receipt.type === "Income" ? ("INCOME" as const) : ("EXPENSE" as const);
-  const payload: CreateTransactionRequest = {
-    amount: receipt.amount,
-    type: transactionType,
-    category: receipt.category.toUpperCase(),
-    description: receipt.description?.trim() || receipt.transactionName,
-    date: parseReceiptDate(receipt.date),
-  };
-  console.log("✅ Payload mapped:", payload);
-  return payload;
-};
-
 interface TransactionSection {
   title: string;
   data: TransactionResponse[];
@@ -75,8 +41,14 @@ interface TransactionSection {
 export default function TransactionListScreen() {
   const { theme } = useThemeMode();
   const [cameraVisible, setCameraVisible] = useState(false);
+  const [voiceVisible, setVoiceVisible] = useState(false);
+  const [manualVisible, setManualVisible] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
+
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [editVisible, setEditVisible] = useState(false);
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
+
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<TransactionFilter>({
@@ -88,7 +60,7 @@ export default function TransactionListScreen() {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize] = useState(30);
 
-  const navigation = useTabNavigation(() => setCameraVisible(true));
+  const { createFromReceipt, createFromVoice } = useCreateTransaction();
 
   // Fetch transactions whenever filters change
   useEffect(() => {
@@ -193,35 +165,23 @@ export default function TransactionListScreen() {
 
   console.log("📥 Fetched transactions:", transactions);
 
-  const handleCreateTransaction = async (receipt: Receipt) => {
-    console.log("🚀 handleCreateTransaction called");
-    setIsCreatingTransaction(true);
-
+  const handleCreateReceiptTransaction = async (receipt: Receipt) => {
     try {
-      const payload = mapReceiptToPayload(receipt);
-      console.log(
-        "📤 Creating transaction with payload:",
-        JSON.stringify(payload, null, 2)
-      );
+      await createFromReceipt(receipt);
+      setCameraVisible(false);
+    }
+    catch (error) {
+      console.error("Error creating transaction from receipt:", error);
+    }
+  };
 
-      const result = await transactionApi.create(payload);
-      console.log("📥 API Response:", result);
-
-      if (!result.success) {
-        const errorMsg = result.message || "Tao giao dich that bai";
-        console.error("❌ Transaction creation failed:", errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      console.log("✅ Transaction created successfully:", result.data);
-      Alert.alert("Success", "Transaction created successfully");
-    } catch (error: any) {
-      const message = error?.message || "Failed to create transaction";
-      console.error("❌ Error in handleCreateTransaction:", error);
-      Alert.alert("Error", message);
-      throw error;
-    } finally {
-      setIsCreatingTransaction(false);
+  const handleCreateVoiceTransaction = async (transaction: TransactionRequest) => {
+    try {
+      await createFromVoice(transaction);
+      setVoiceVisible(false);
+    }
+    catch (error) {
+      console.error("Error creating transaction from voice:", error);
     }
   };
 
@@ -391,7 +351,13 @@ export default function TransactionListScreen() {
           sections={groupedTransactions}
           keyExtractor={(item, index) => `${item.id}-${index}`}
           renderItem={({ item }) => (
-            <TransactionItem transaction={item} onPress={() => {}} />
+            <TransactionItem
+              transaction={item}
+              onPress={() => {
+                setSelectedTransactionId(item.id);
+                setDetailVisible(true);
+              }}
+            />
           )}
           renderSectionHeader={({ section: { title } }) => (
             <Text
@@ -410,7 +376,11 @@ export default function TransactionListScreen() {
       )}
 
       {/* Bottom Bar */}
-      <BottomBar active="transaction" handlers={navigation} />
+      <AppBottomBar
+        onCameraOpen={() => setCameraVisible(true)}
+        onVoiceOpen={() => setVoiceVisible(true)}
+        onFormOpen={() => setManualVisible(true)}
+      />
 
       {/* Filter Modal */}
       <FilterModal
@@ -424,7 +394,49 @@ export default function TransactionListScreen() {
       <CameraModal
         visible={cameraVisible}
         onClose={() => setCameraVisible(false)}
-        onCaptureBill={handleCreateTransaction}
+        onCaptureBill={handleCreateReceiptTransaction}
+      />
+
+      {/* Voice Modal */}
+      <VoiceInputModal
+        visible={voiceVisible}
+        onClose={() => setVoiceVisible(false)}
+        onCaptureVoice={handleCreateVoiceTransaction}
+      />
+
+      {/* Manual Entry Modal */}
+      <AddTransactionModal
+        visible={manualVisible}
+        onClose={() => setManualVisible(false)}
+      />
+      <TransactionDetailModal
+        visible={detailVisible}
+        transactionId={selectedTransactionId}
+        onClose={() => {
+          setDetailVisible(false);
+          setSelectedTransactionId(null);
+        }}
+        onEdit={(transaction) => {
+          setDetailVisible(false);
+          setEditVisible(true);
+          setSelectedTransactionId(transaction.id);
+          console.log("edit transaction", transaction.id);
+        }}
+        onDeleted={() => {
+          setDetailVisible(false);
+          setSelectedTransactionId(null);
+        }}
+      />
+
+      <EditTransactionModal
+        visible={editVisible}
+        transactionId={selectedTransactionId}
+        onClose={() => {
+          setEditVisible(false);
+        }}
+        onSaved={() => {
+          setEditVisible(false);
+        }}
       />
     </SafeAreaView>
   );

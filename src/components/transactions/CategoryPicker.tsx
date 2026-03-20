@@ -50,7 +50,7 @@ export const CategoryPicker: React.FC<Props> = ({
             !value && styles.placeholder,
           ]}
         >
-          {value ? t(`category.${value}`) : t("category.choose")}
+          {value ? t(`transaction.${value}`) : t("transaction.choose")}
         </Text>
 
         <Ionicons
@@ -91,7 +91,7 @@ export const CategoryPicker: React.FC<Props> = ({
                     color="#3629B7"
                   />
 
-                  <Text style={styles.itemText}>{t(`category.${item}`)}</Text>
+                  <Text style={styles.itemText}>{t(`transaction.${item}`)}</Text>
                 </Pressable>
               )}
             />
