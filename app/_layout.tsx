@@ -21,6 +21,7 @@ function RootLayoutNav() {
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
 
   // Xác định route ban đầu chỉ một lần
+
   useEffect(() => {
     if (authLoading || onboardingLoading || isFirstLaunch === null) return;
 
@@ -31,7 +32,9 @@ function RootLayoutNav() {
         return "/(auth)/auth";
       } else {
         return "/(tabs)";
+        //return "/(transactions)/addTransaction";
       }
+      
     };
 
     const route = determineInitialRoute();
@@ -55,6 +58,7 @@ function RootLayoutNav() {
       (initialRoute === "/(intro)/intro" && !currentPath.includes('intro')) ||
       (initialRoute === "/(auth)/auth" && !currentPath.includes('auth') && !currentPath.includes('tabs')) ||
       (initialRoute === "/(tabs)" && !currentPath.includes('tabs'));
+      // || (initialRoute === "/(transactions)/addTransaction" && !currentPath.includes('transactions'));
 
     if (shouldRedirect) {
       router.replace(initialRoute);
@@ -75,6 +79,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(intro)" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(transactions)" />
     </Stack>
   );
 }

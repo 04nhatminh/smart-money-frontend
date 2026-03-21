@@ -3,36 +3,41 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-interface SubmitButtonProps {
+interface ButtonProps {
     label: string;
-    onPress: () => void;
+    onPress?: () => void;
     loading?: boolean;
     disabled?: boolean;
     loadingText?: string;
+    variant?: 'primary' | 'secondary' | 'danger';
+    customStyle?: object;
 }
 
-export const SubmitButton: React.FC<SubmitButtonProps> = ({
+export const ButtonSave: React.FC<ButtonProps> = ({
     label,
     onPress,
     loading = false,
     disabled = false,
     loadingText = 'Loading...',
+    variant = 'primary',
+    customStyle = {},
 }) => {
-    const handlePress = () => {
-        console.log("🔘 SubmitButton pressed:", label);
-        onPress();
-    };
+
+    const isPrimary = variant === 'primary';
+    const isSecondary = variant === 'secondary';
 
     return (
         <Pressable
             style={({ pressed }) => [
                 styles.btnWrapper,
+                customStyle,
                 pressed && styles.btnPressed,
                 (loading || disabled) && styles.disabledBtn,
             ]}
-            onPress={handlePress}
+            onPress={onPress}
             disabled={loading || disabled}
         >
+            {isPrimary ? (
             <LinearGradient
                 colors={['#3629B7', '#5655B9']}
                 start={{ x: 0, y: 0 }}
@@ -48,20 +53,24 @@ export const SubmitButton: React.FC<SubmitButtonProps> = ({
                     <Text style={styles.btnText}>{label}</Text>
                 )}
             </LinearGradient>
+            ) : isSecondary ? ( 
+                <View style={styles.secondaryBtn}>
+                    <Text style={styles.secondaryText}>{label}</Text>
+                </View>
+            ) : (
+                <View style={styles.dangerBtn}>
+                    <Text style={styles.dangerText}>{label}</Text>
+                </View>
+            )}
         </Pressable>
     );
 };
 
 const styles = StyleSheet.create({
     btnWrapper: {
+        flex: 1,
         borderRadius: 25,
         overflow: 'hidden',
-        shadowColor: '#3629B7',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 3,
-        width: '100%',
     },
     btn: {
         height: 48,
@@ -85,4 +94,33 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 6,
     },
+
+    secondaryBtn: {
+        height: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#E9E9EF',
+        borderRadius: 25,
+    },
+
+    secondaryText: {
+        color: '#1F2937',
+        fontWeight: '600',
+        fontSize: 15,
+    },
+
+    dangerBtn: {
+        height: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FEE2E2',
+        borderRadius: 25,
+    },
+
+    dangerText: {
+        color: '#B91C1C',
+        fontWeight: '600',
+        fontSize: 15,
+    },
+
 });

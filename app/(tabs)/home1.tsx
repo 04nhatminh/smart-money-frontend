@@ -22,7 +22,7 @@ import { CameraModal } from "../../src/components/transactions/camera/CameraModa
 import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceInputModal";
 import { TransactionRequest, Receipt } from "../../src/types/transaction.types";
 import { useRouter } from "expo-router";
-import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
+import transactionApi from "../../src/api/transaction.api";
 
 // Mock data for categories
 const categories = [
@@ -52,8 +52,6 @@ export default function HomePage() {
   const [manualVisible, setManualVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const { createFromReceipt, createFromVoice } = useCreateTransaction();
-
   useEffect(() => {
     loadUserData();
   }, []);
@@ -75,14 +73,87 @@ export default function HomePage() {
     setRefreshing(false);
   };
 
-  const handleCreateReceiptTransaction = async (receipt: Receipt) => {
-    const success = await createFromReceipt(receipt);
-    if (success) setCameraVisible(false);
+  const parseReceiptDate = (input: string): string => {
+    // Input format: "28/02/2026"
+    // Expected backend format: "dd/MM/yyyy HH:mm"
+    const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(input.trim());
+    if (ddmmyyyy) {
+      const [, day, month, year] = ddmmyyyy;
+      return `${day}/${month}/${year} 00:00`;
+    }
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${d}/${m}/${y} ${h}:${min}`;
+  };
+
+  const handleCreateTransaction = async (receipt: Receipt) => {
+    console.log("🚀 home.handleCreateTransaction called");
+    try {
+      const transactionType = receipt.type === "Income" ? "INCOME" as const : "EXPENSE" as const;
+      const payload = {
+        amount: receipt.amount,
+        type: transactionType,
+        category: receipt.category.toUpperCase(),
+        description: receipt.description?.trim() || receipt.transactionName,
+        date: parseReceiptDate(receipt.date),
+      };
+      console.log("📤 Creating transaction with payload:", JSON.stringify(payload, null, 2));
+      
+      const result = await transactionApi.create(payload);
+      console.log("📥 API Response:", result);
+
+      if (!result.success) {
+        const errorMsg = result.message || "Tao giao dich that bai";
+        console.error("❌ Transaction creation failed:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("✅ Transaction created successfully:", result.data);
+      Alert.alert("Success", "Transaction created successfully");
+      setCameraVisible(false);
+    } catch (error: any) {
+      const message = error?.message || "Failed to create transaction";
+      console.error("❌ Error in handleCreateTransaction:", error);
+      Alert.alert("Error", message);
+      throw error;
+    }
   };
 
   const handleCreateVoiceTransaction = async (transaction: TransactionRequest) => {
-    const success = await createFromVoice(transaction);
-    if (success) setVoiceVisible(false);
+    console.log("🚀 home.handleCreateVoiceTransaction called");
+    try {
+      const transactionType = transaction.type === "INCOME" ? "INCOME" as const : "EXPENSE" as const;
+      const payload = {
+        amount: transaction.amount,
+        type: transactionType,
+        category: transaction.category.toUpperCase(),
+        description: transaction.description?.trim(),
+        date: parseReceiptDate(transaction.date),
+      };
+      console.log("📤 Creating voice transaction with payload:", JSON.stringify(payload, null, 2));
+      
+      const result = await transactionApi.create(payload);
+      console.log("📥 API Response:", result);
+
+      if (!result.success) {
+        const errorMsg = result.message || "Tao giao dich that bai";
+        console.error("❌ Voice transaction creation failed:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("✅ Voice transaction created successfully:", result.data);
+      Alert.alert("Success", "Voice transaction created successfully");
+      setVoiceVisible(false);
+    } catch (error: any) {
+      const message = error?.message || "Failed to create voice transaction";
+      console.error("❌ Error in handleCreateVoiceTransaction:", error);
+      Alert.alert("Error", message);
+      throw error;
+    }
   };
 
   const renderCategoryItem = ({ item }: { item: typeof categories[0] }) => (
@@ -276,7 +347,7 @@ export default function HomePage() {
       <CameraModal
         visible={cameraVisible}
         onClose={() => setCameraVisible(false)}
-        onCaptureBill={handleCreateReceiptTransaction}
+        onCaptureBill={handleCreateTransaction}
       />
 
       <VoiceInputModal
@@ -288,7 +359,10 @@ export default function HomePage() {
       <AddTransactionModal
         visible={manualVisible}
         onClose={() => setManualVisible(false)}
-      />  
+        onSaved={() => {
+          console.log("manual transaction saved");
+        }}
+      />
     </SafeAreaView>
   );
 }

@@ -1,47 +1,76 @@
-import { useRouter, usePathname } from 'expo-router';
-import { useCallback } from 'react';
+import { useRouter, usePathname } from "expo-router";
+import { useCallback, useMemo } from "react";
 
-type TabKey = 'home' | 'stats' | 'wallet' | 'profile';
+export type TabKey = "home" | "stats" | "transaction" | "wallet" | "profile";
 
-export const useTabNavigation = (onCameraOpen?: () => void) => {
+interface UseTabNavigationOptions {
+  onCameraOpen?: () => void;
+  onVoiceOpen?: () => void;
+  onFormOpen?: () => void;
+}
+
+export const useTabNavigation = ({
+  onCameraOpen,
+  onVoiceOpen,
+  onFormOpen,
+}: UseTabNavigationOptions = {}) => {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Determine current active tab
-  const getActiveTab = useCallback((): TabKey => {
-    if (pathname.includes('profile')) return 'profile';
-    if (pathname.includes('stats')) return 'stats';
-    if (pathname.includes('wallet')) return 'wallet';
-    return 'home';
+  const activeTab = useMemo<TabKey>(() => {
+    if (pathname.includes("profile")) return "profile";
+    if (pathname.includes("transaction")) return "transaction";
+    if (pathname.includes("stats")) return "stats";
+    if (pathname.includes("wallet")) return "wallet";
+    return "home";
   }, [pathname]);
 
-  // Navigation handlers
-  const navigateToHome = useCallback(() => {
-    router.replace('/(tabs)/home');
+  const onHome = useCallback(() => {
+    router.replace("/(tabs)/home");
   }, [router]);
 
-  const navigateToStats = useCallback(() => {
-    router.navigate('/(tabs)/stats');
+  const onStats = useCallback(() => {
+    router.navigate("/(tabs)/stats");
   }, [router]);
 
-  const navigateToWallet = useCallback(() => {
-    router.navigate('/(tabs)/wallet');
+  const onTransaction = useCallback(() => {
+    router.navigate("/(tabs)/transaction");
   }, [router]);
 
-  const navigateToProfile = useCallback(() => {
-    router.navigate('/(tabs)/profile');
+  const onWallet = useCallback(() => {
+    router.navigate("/(tabs)/wallet");
   }, [router]);
 
-  const handleCameraOpen = useCallback(() => {
+  const onProfile = useCallback(() => {
+    router.navigate("/(tabs)/profile");
+  }, [router]);
+
+  const onAdd = useCallback(() => {
     onCameraOpen?.();
   }, [onCameraOpen]);
 
+  const onAddByCamera = useCallback(() => {
+    onCameraOpen?.();
+  }, [onCameraOpen]);
+
+  const onAddByVoice = useCallback(() => {
+    onVoiceOpen?.();
+  }, [onVoiceOpen]);
+
+  const onAddByForm = useCallback(() => {
+    onFormOpen?.();
+  }, [onFormOpen]);
+
   return {
-    activeTab: getActiveTab(),
-    navigateToHome,
-    navigateToStats,
-    navigateToWallet,
-    navigateToProfile,
-    handleCameraOpen,
+    activeTab,
+    onHome,
+    onStats,
+    onTransaction,
+    onWallet,
+    onProfile,
+    onAdd,
+    onAddByCamera,
+    onAddByVoice,
+    onAddByForm,
   };
 };
