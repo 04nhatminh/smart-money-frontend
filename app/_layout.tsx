@@ -53,6 +53,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(intro)" />
+      <Stack.Screen name="(transactions)" />
     </Stack>
   );
 }

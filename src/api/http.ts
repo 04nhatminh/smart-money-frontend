@@ -10,6 +10,8 @@ import { API_CONFIG } from '../config/api';
 
 
 // Create axios instance with default config
+console.log("📡 HTTP Config - baseURL:", API_CONFIG.BASE_URL, "timeout:", API_CONFIG.TIMEOUT);
+
 const http: AxiosInstance = axios.create({
   baseURL: API_CONFIG.BASE_URL,
   timeout: API_CONFIG.TIMEOUT,

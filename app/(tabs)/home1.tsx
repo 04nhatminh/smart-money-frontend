@@ -15,20 +15,14 @@ import {
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { userStorage } from "../../src/storage/userStorage";
-import {notificationStorage} from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
-import { useTabNavigation } from "../../src/hooks/useTabNavigation";
-import notificationService from "../../src/notification/notificationService";
-import { Notification } from "../../src/types/notification.type";
-import {NotificationListModal} from "../../src/components/notification/NotificationListModal"
-import { connectWebSocket, disconnectWebSocket } from "../../src/services/websocket";
 import AppBottomBar from "../../src/components/AppBottomBar";
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
 import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceInputModal";
 import { TransactionRequest, Receipt } from "../../src/types/transaction.types";
 import { useRouter } from "expo-router";
-import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
+import transactionApi from "../../src/api/transaction.api";
 
 // Mock data for categories
 const categories = [
@@ -57,23 +51,9 @@ export default function HomePage() {
   const [voiceVisible, setVoiceVisible] = useState(false);
   const [manualVisible, setManualVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const { createFromReceipt, createFromVoice } = useCreateTransaction();
-
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [showNotification, setShowNotification] = useState(false);
-  const [loadingNotification, setLoadingNotification] = useState(false);
 
   useEffect(() => {
     loadUserData();
-
-    const initUnread = async () => {
-    const saved = await notificationStorage.getUnreadCount();
-    setUnreadCount(saved);
-  };
-
-  initUnread();
   }, []);
 
   const loadUserData = async () => {
@@ -87,66 +67,93 @@ export default function HomePage() {
     }
   };
 
-  useEffect(() => {
-    if (!user?.id) return;
-
-    connectWebSocket(user.id, (newNotification: Notification) => {
-      console.log("🔥 New notification:", newNotification);
-
-      setNotifications((prev) => {
-        // tránh duplicate
-        if (prev.find((n) => n.id === newNotification.id)) return prev;
-        return [newNotification, ...prev];
-      });
-
-      setUnreadCount((prev) => {
-        const newCount = showNotification ? prev : prev + 1;
-
-        // 🔥 lưu xuống storage
-        notificationStorage.setUnreadCount(newCount);
-
-        return newCount;
-      });
-    });
-
-    return () => {
-      disconnectWebSocket();
-    };
-  }, [user?.id]);
-
-  const loadNotifications = async () => {
-    try {
-      setLoadingNotification(true);
-      const data = await notificationService.getNotifications();
-      setNotifications(data);
-    } catch (err) {
-      console.log("Load notification error:", err);
-    } finally {
-      setLoadingNotification(false);
-    }
-  };
-
-  const handleToggleNotification = async () => {
-    setShowNotification(true);
-    setUnreadCount(0);
-    await notificationStorage.setUnreadCount(0);
-    await loadNotifications();
-  };
-
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadUserData();
     setRefreshing(false);
   };
 
-  const handleCreateReceiptTransaction = async (receipt: Receipt) => {
-    const success = await createFromReceipt(receipt);
-    if (success) setCameraVisible(false);
+  const parseReceiptDate = (input: string): string => {
+    // Input format: "28/02/2026"
+    // Expected backend format: "dd/MM/yyyy HH:mm"
+    const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(input.trim());
+    if (ddmmyyyy) {
+      const [, day, month, year] = ddmmyyyy;
+      return `${day}/${month}/${year} 00:00`;
+    }
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${d}/${m}/${y} ${h}:${min}`;
+  };
+
+  const handleCreateTransaction = async (receipt: Receipt) => {
+    console.log("🚀 home.handleCreateTransaction called");
+    try {
+      const transactionType = receipt.type === "Income" ? "INCOME" as const : "EXPENSE" as const;
+      const payload = {
+        amount: receipt.amount,
+        type: transactionType,
+        category: receipt.category.toUpperCase(),
+        description: receipt.description?.trim() || receipt.transactionName,
+        date: parseReceiptDate(receipt.date),
+      };
+      console.log("📤 Creating transaction with payload:", JSON.stringify(payload, null, 2));
+      
+      const result = await transactionApi.create(payload);
+      console.log("📥 API Response:", result);
+
+      if (!result.success) {
+        const errorMsg = result.message || "Tao giao dich that bai";
+        console.error("❌ Transaction creation failed:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("✅ Transaction created successfully:", result.data);
+      Alert.alert("Success", "Transaction created successfully");
+      setCameraVisible(false);
+    } catch (error: any) {
+      const message = error?.message || "Failed to create transaction";
+      console.error("❌ Error in handleCreateTransaction:", error);
+      Alert.alert("Error", message);
+      throw error;
+    }
   };
 
   const handleCreateVoiceTransaction = async (transaction: TransactionRequest) => {
-    const success = await createFromVoice(transaction);
-    if (success) setVoiceVisible(false);
+    console.log("🚀 home.handleCreateVoiceTransaction called");
+    try {
+      const transactionType = transaction.type === "INCOME" ? "INCOME" as const : "EXPENSE" as const;
+      const payload = {
+        amount: transaction.amount,
+        type: transactionType,
+        category: transaction.category.toUpperCase(),
+        description: transaction.description?.trim(),
+        date: parseReceiptDate(transaction.date),
+      };
+      console.log("📤 Creating voice transaction with payload:", JSON.stringify(payload, null, 2));
+      
+      const result = await transactionApi.create(payload);
+      console.log("📥 API Response:", result);
+
+      if (!result.success) {
+        const errorMsg = result.message || "Tao giao dich that bai";
+        console.error("❌ Voice transaction creation failed:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("✅ Voice transaction created successfully:", result.data);
+      Alert.alert("Success", "Voice transaction created successfully");
+      setVoiceVisible(false);
+    } catch (error: any) {
+      const message = error?.message || "Failed to create voice transaction";
+      console.error("❌ Error in handleCreateVoiceTransaction:", error);
+      Alert.alert("Error", message);
+      throw error;
+    }
   };
 
   const renderCategoryItem = ({ item }: { item: typeof categories[0] }) => (
@@ -223,19 +230,10 @@ export default function HomePage() {
                 <Text style={styles.userName}>{user?.fullName || 'User'}</Text>
               </View>
             </View>
-            <TouchableOpacity 
-              style={styles.notificationBtn}
-              onPress={handleToggleNotification}
-            >
+            
+            <TouchableOpacity style={styles.notificationBtn}>
               <Ionicons name="notifications-outline" size={24} color="#333" />
-
-              {unreadCount > 0 && (
-                <View style={styles.notificationBadge}>
-                  <Text style={styles.badgeText}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </Text>
-                </View>
-              )}
+              <View style={styles.notificationBadge} />
             </TouchableOpacity>
           </View>
 
@@ -339,16 +337,6 @@ export default function HomePage() {
           </View>
         </View>
       </ScrollView>
-      <NotificationListModal
-        visible={showNotification}
-        onClose={() => setShowNotification(false)}
-        notifications={notifications}
-        loading={loadingNotification}
-        onResetUnread={() => {
-          setUnreadCount(0);
-          notificationStorage.setUnreadCount(0); // nếu bạn dùng AsyncStorage
-        }}
-      />
 
       <AppBottomBar
         onCameraOpen={() => setCameraVisible(true)}
@@ -359,7 +347,7 @@ export default function HomePage() {
       <CameraModal
         visible={cameraVisible}
         onClose={() => setCameraVisible(false)}
-        onCaptureBill={handleCreateReceiptTransaction}
+        onCaptureBill={handleCreateTransaction}
       />
 
       <VoiceInputModal
@@ -371,7 +359,10 @@ export default function HomePage() {
       <AddTransactionModal
         visible={manualVisible}
         onClose={() => setManualVisible(false)}
-      />  
+        onSaved={() => {
+          console.log("manual transaction saved");
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -400,7 +391,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 20,
     paddingBottom: 10,
-    marginTop: 16
   },
   userInfo: {
     flexDirection: 'row',
@@ -449,7 +439,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
-
+  notificationBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF4444',
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -601,67 +599,4 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-
-  notificationDropdown: {
-  position: "absolute",
-  top: 80,
-  right: 20,
-  width: 280,
-  backgroundColor: "#fff",
-  borderRadius: 12,
-  padding: 12,
-  shadowColor: "#000",
-  shadowOpacity: 0.1,
-  shadowRadius: 10,
-  elevation: 5,
-  zIndex: 100,
-},
-
-notificationTitle: {
-  fontSize: 16,
-  fontWeight: "700",
-  marginBottom: 10,
-},
-
-notificationItem: {
-  paddingVertical: 10,
-  borderBottomWidth: 1,
-  borderBottomColor: "#eee",
-},
-
-notificationBadge: {
-  position: 'absolute',
-  top: 8,
-  right: 8,
-  minWidth: 18,
-  height: 18,
-  borderRadius: 9,
-  backgroundColor: '#FF4444',
-  justifyContent: 'center',
-  alignItems: 'center',
-  paddingHorizontal: 4,
-},
-
-badgeText: {
-  color: '#fff',
-  fontSize: 10,
-  fontWeight: '700',
-},
-
-notificationContent: {
-  fontSize: 14,
-  color: "#333",
-},
-
-notificationTime: {
-  fontSize: 11,
-  color: "#999",
-  marginTop: 4,
-},
-
-notificationEmpty: {
-  textAlign: "center",
-  color: "#999",
-  paddingVertical: 10,
-},
 });

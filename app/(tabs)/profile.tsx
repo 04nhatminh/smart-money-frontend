@@ -12,9 +12,10 @@ import {
   Modal
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Receipt } from "../../src/types/transaction.types";
 import { LinearGradient } from 'expo-linear-gradient';
-import { BottomBar } from "../../src/components/BottomBar";
-import { CameraModal } from "../../src/components/camera/CameraModal";
+import AppBottomBar from "../../src/components/AppBottomBar";
+import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
 import { useTabNavigation } from "../../src/hooks/useTabNavigation";
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -35,6 +36,7 @@ import { ResetPasswordModal } from "../../src/components/profile/ResetPasswordMo
 import { NotificationsModal } from "../../src/components/profile/NotificationsModal";
 import { PrivacyAndSecurityModal } from "../../src/components/profile/PrivacyAndSecurityModal";
 import { ProfileActions } from "../../src/components/profile/ProfileActions";
+import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 
 const ProfileScreen: React.FC = () => {
   const router = useRouter();
@@ -43,7 +45,10 @@ const ProfileScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cameraVisible, setCameraVisible] = useState(false);
+  const [voiceVisible, setVoiceVisible] = useState(false);
+  const [manualVisible, setManualVisible] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const { createFromReceipt, createFromVoice } = useCreateTransaction();
   const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
   const [resetPasswordModalVisible, setResetPasswordModalVisible] = useState(false);
   const [notificationsModalVisible, setNotificationsModalVisible] = useState(false);
@@ -53,7 +58,10 @@ const ProfileScreen: React.FC = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
 
-  const navigation = useTabNavigation(() => setCameraVisible(true));
+
+  const navigation = useTabNavigation({
+    onCameraOpen: () => setCameraVisible(true),
+  });
   const { lang, setLang } = useLanguage();
   const { mode, toggleMode } = useThemeMode();
 
@@ -124,9 +132,9 @@ const ProfileScreen: React.FC = () => {
     );
   };
 
-  const handleCaptureBill = (uri: string) => {
-    console.log("Bill captured:", uri);
-    setCameraVisible(false);
+  const handleCreateReceiptTransaction = async (receipt: Receipt) => {
+    const success = await createFromReceipt(receipt);
+    if (success) setCameraVisible(false);
   };
 
   // Xử lý đổi avatar – gọi authService trực tiếp để tránh global loading state
@@ -298,21 +306,16 @@ const ProfileScreen: React.FC = () => {
         <ProfileActions userId={user.id} onLogout={handleLogout} />
       </ScrollView>
 
-      <BottomBar
-        active={navigation.activeTab}
-        handlers={{
-          onHome: navigation.navigateToHome,
-          onStats: navigation.navigateToStats,
-          onAdd: navigation.handleCameraOpen,
-          onWallet: navigation.navigateToWallet,
-          onProfile: navigation.navigateToProfile,
-        }}
+      <AppBottomBar
+        onCameraOpen={() => setCameraVisible(true)}
+        onVoiceOpen={() => setVoiceVisible(true)}
+        onFormOpen={() => setManualVisible(true)}
       />
 
       <CameraModal
         visible={cameraVisible}
         onClose={() => setCameraVisible(false)}
-        onCaptureBill={handleCaptureBill}
+        onCaptureBill={handleCreateReceiptTransaction}
       />
 
       <SettingsModal
