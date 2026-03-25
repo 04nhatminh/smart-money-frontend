@@ -153,6 +153,7 @@ export default {
   },
   notification: {
     notifications: "Thông báo",
+    no_notifications: "Không có thông báo nào",
     notifications_description: "Thông báo giúp bạn dễ dàng theo dõi chi tiêu hơn",
     on: "Bật",
     off: "Tắt",

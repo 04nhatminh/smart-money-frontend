@@ -151,6 +151,7 @@ export default {
   },
   notification: {
     notifications: "Notifications",
+    no_notifications: "No Notification",
     notification_description: "Notifications help you stay on top of your spending",
     on: "On",
     off: "Off",

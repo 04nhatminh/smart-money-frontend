@@ -1,0 +1,57 @@
+import notificationApi from "../api/notification.api";
+import { Notification, CreateNotificationRequest } from "../types/notification.type";
+
+class NotificationService {
+
+  // ==============================
+  // Get all notifications
+  // ==============================
+  async getNotifications(): Promise<Notification[]> {
+    const res = await notificationApi.getNotifications();
+
+    if (!res.success) {
+      throw new Error(res.message || "Failed to fetch notifications");
+    }
+
+    return res.data || [];
+  }
+
+  // ==============================
+  // Create notification
+  // ==============================
+  async createNotification(
+    data: CreateNotificationRequest
+  ): Promise<Notification> {
+    const res = await notificationApi.createNotification(data);
+
+    if (!res.success) {
+      throw new Error(res.message || "Failed to create notification");
+    }
+
+    return res.data;
+  }
+
+  // ==============================
+  // Mark as read
+  // ==============================
+  async markAsRead(id: string): Promise<void> {
+    const res = await notificationApi.markAsRead(id);
+
+    if (!res.success) {
+      throw new Error(res.message || "Failed to mark notification as read");
+    }
+  }
+
+  // ==============================
+  // Delete notification
+  // ==============================
+  async deleteNotification(id: string): Promise<void> {
+    const res = await notificationApi.deleteNotification(id);
+
+    if (!res.success) {
+      throw new Error(res.message || "Failed to delete notification");
+    }
+  }
+}
+
+export default new NotificationService();
