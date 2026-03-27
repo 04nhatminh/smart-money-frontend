@@ -82,15 +82,7 @@ export default function AuthScreen() {
             const res = await login(email, password);
             
             if (res.success) {
-                console.log('✅ Login successful, updating auth status...');
-                // Update auth context state
-                await checkAuthStatus();
-                
-                // Small delay to ensure state is updated
-                setTimeout(() => {
-                    console.log('🚀 Redirecting to home...');
-                    router.replace('/(tabs)');
-                }, 100);
+                console.log('✅ Login successful');
             } else {
                 console.log('❌ Login failed:', res.message);
                 setError(res.message || t("auth.login_failed"));
@@ -381,16 +373,8 @@ export default function AuthScreen() {
             console.log('🔄 Social login successful, updating auth status...');
             // Update auth context state
             await checkAuthStatus();
-            
-            // Small delay to ensure state is updated
-            setTimeout(() => {
-                console.log('🚀 Redirecting to home...');
-                router.replace('/(tabs)');
-            }, 100);
         } catch (error) {
             console.error("❌ Error updating auth status:", error);
-            // Force redirect even if there's an error
-            router.replace('/(tabs)');
         }
     };
 

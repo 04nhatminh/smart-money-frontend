@@ -13,6 +13,7 @@ export default {
     continue_with_facebook: "Tiếp tục với Facebook",
     home: "Trang chủ",
     save: "Lưu",
+    saving: "Đang lưu...",
     cancel: "Hủy",
     delete: "Xóa",
     edit: "Chỉnh sửa",
@@ -23,6 +24,9 @@ export default {
     done: "Hoàn tất",
     reset: "Đặt lại",
     close: "Đóng",
+    create: "Tạo",
+    update: "Cập nhật",
+    yes: "Có",
   },
   auth: {
     welcome: "Tham gia Smart Money ngay hôm nay!",
@@ -87,7 +91,8 @@ export default {
     expense: "Chi tiêu",
     income: "Thu nhập",
     saveSuccess: "Thêm giao dịch thành công",
-    confirmExit: "Giao dịch chưa được lưu. Bạn có chắc muốn thoát?",
+    confirmExit: "Giao dịch chưa được lưu",
+    confirmExitDesc: "Mọi thay đổi sẽ bị mất nếu bạn thoát bây giờ.",
     amountRequired: "Vui lòng nhập số tiền",
     amountNumber: "Số tiền phải là số",
     amountNumberPositive: "Số tiền phải là số dương",
@@ -153,4 +158,8 @@ export default {
     error_capture_failed: "Không thể chụp ảnh",
     error_pick_failed: "Không thể chọn ảnh",
   },
+  project:{
+    confirmExit: "Dự án chưa được lưu.",
+    confirmExitDesc: "Bạn có chắc chắn muốn thoát?",
+  }
 };

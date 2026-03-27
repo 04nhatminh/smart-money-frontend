@@ -52,6 +52,10 @@ export const CATEGORY_ENUM_MAP: Record<string, string> = {
   education: "EDUCATION",
   shopping: "SHOPPING",
   other: "OTHER",
+  salary: "SALARY",
+  bonus: "BONUS",
+  investment: "INVESTMENT",
+  gift: "GIFT",
 };
 
 export const CATEGORY_DISPLAY_MAP = Object.entries(CATEGORY_ENUM_MAP).reduce(

@@ -120,7 +120,7 @@ export default function HomePage() {
   }
 
   const handleTransactionsListPress = () => {
-    router.push("/(tabs)/transaction");
+    router.push("/(transactions)/list");
   };
 
   return (
