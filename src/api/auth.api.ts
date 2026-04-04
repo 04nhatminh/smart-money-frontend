@@ -16,12 +16,63 @@ import {
   SendResetPasswordResponseData
 } from '../types/auth.types';
 import { tokenStorage } from '../storage/tokenStorage';
+import { Asset } from 'expo-asset';
 
 class AuthApi {
+  // Convert RegisterRequest to FormData for multipart upload
+  private async toFormData(data: RegisterRequest): Promise<FormData> {
+    const formData = new FormData();
+    
+    formData.append('username', data.username);
+    formData.append('fullName', data.fullName);
+    formData.append('email', data.email);
+    formData.append('password', data.password);
+    formData.append('phone', data.phone);
+    formData.append('dateOfBirth', data.dateOfBirth?.toString() || '');
+    
+    if (data.avatar) {
+      formData.append('avatar', data.avatar);
+    } else {
+      const asset = Asset.fromModule(require('../../assets/avatar-default.png'));
+      await asset.downloadAsync();
+
+      formData.append('avatar', {
+        uri: asset.localUri || asset.uri,
+        name: 'default-avatar.png',
+        type: 'image/png'
+      } as any);
+    }
+    
+    return formData;
+  }
+  
+
+  private async getAuthHeader() {
+    const token = await tokenStorage.getAccessToken();
+
+    if (!token) {
+      throw new Error("No token found");
+    }
+
+    return {
+      Authorization: `Bearer ${token}`
+    };
+  }
+
+
   // Register new user
   async register(data: RegisterRequest): Promise<CheckResponse<void>> {
     try {
-      const res = await http.post('/api/v1/auth/register', data);
+      const formData = await this.toFormData(data);
+
+      const res = await http.post('/api/v1/auth/register', formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
       return res.data;
     } catch (error: any) {
       return error.response?.data || {
@@ -159,8 +210,20 @@ class AuthApi {
     }
   }
 
+  // Convert UpdateUserRequest to FormData for multipart upload
+  private toUpdateFormData(data: UpdateUserRequest): FormData {
+    const formData = new FormData();
+    
+    if (data.fullname) formData.append('fullname', data.fullname);
+    if (data.phone) formData.append('phone', data.phone);
+    if (data.dateOfBirth) formData.append('dateOfBirth', data.dateOfBirth.toString());
+    if (data.avatar) formData.append('avatar', data.avatar);
+    
+    return formData;
+  }
+
   // Update user profile
-  async updateUser(data: UpdateUserRequest): Promise<CheckResponse<UserResponse>> {
+  async updateUser(data: UpdateUserRequest | FormData): Promise<CheckResponse<UserResponse>> {
     try {
       const token = await tokenStorage.getAccessToken();
       if (!token) {
@@ -170,20 +233,33 @@ class AuthApi {
         };
       }
 
-      const res = await http.put('/api/v1/auth/me', data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const isFormData = data instanceof FormData;
+      
+      // If data is not FormData, convert it to FormData
+      let requestData = isFormData ? data : this.toUpdateFormData(data as UpdateUserRequest);
+
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type':'multipart/form-data'
+      };
+
+
+      // Don't set Content-Type for FormData - let axios auto-detect and handle it with boundary
+      // If data is FormData, axios will automatically set Content-Type: multipart/form-data with proper boundary
+
+      const res = await http.put('/api/v1/auth/me', requestData, { headers });
+
       return res.data;
+
     } catch (error: any) {
+      console.log("UPDATE USER ERROR:", error);
+
       return error.response?.data || {
         success: false,
         message: error.message || 'Failed to update user',
       };
     }
   }
-
   // Forgot password - request OTP
   async forgotPassword(data: SendResetPasswordOtpRequest): Promise<CheckResponse<void>> {
     try {
@@ -230,6 +306,62 @@ class AuthApi {
       return error.response?.data || {
         success: false,
         message: error.message || 'Failed to reset password',
+      };
+    }
+  }
+
+  async enableNotification(): Promise<CheckResponse<string>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.patch(
+        '/api/v1/auth/notification/enable',
+        null,
+        { headers }
+      );
+
+      return res.data;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || 'Enable notification failed',
+      };
+    }
+  }
+
+  async disableNotification(): Promise<CheckResponse<string>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.patch(
+        '/api/v1/auth/notification/disable',
+        null,
+        { headers }
+      );
+
+      return res.data;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || 'Disable notification failed',
+      };
+    }
+  }
+
+  async getNotificationStatus(): Promise<CheckResponse<boolean>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.get(
+        '/api/v1/auth/notification',
+        { headers }
+      );
+
+      return res.data;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || 'Get notification status failed',
       };
     }
   }

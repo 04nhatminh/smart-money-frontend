@@ -2,7 +2,7 @@
 export interface RegisterRequest {
   username: string;
   fullName: string;
-  avatar: string;
+  avatar?: File;
   password: string;
   dateOfBirth: Date | string;
   phone: string;
@@ -54,13 +54,10 @@ export interface SendResetPasswordResponse extends ApiResponse<SendResetPassword
 export interface VerifyResetPasswordResponse extends ApiResponse<{}> {}
 
 export interface UpdateUserRequest {
-  username?: string;
   fullname?: string;
-  avatar?: string;
-  dateofBirth?: Date | string;
+  avatar?: File;
+  dateOfBirth?: Date | string;
   phone?: string;
-  email?: string;
-  gender?: string;
 }
 
 export interface SendResetPasswordOtpRequest {
@@ -110,4 +107,22 @@ export interface UserState {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
+}
+
+// Helper function to convert RegisterRequest to FormData for multipart file upload
+export function createFormDataFromRegisterRequest(data: RegisterRequest): FormData {
+  const formData = new FormData();
+  
+  formData.append('username', data.username);
+  formData.append('fullName', data.fullName);
+  formData.append('email', data.email);
+  formData.append('password', data.password);
+  formData.append('phone', data.phone);
+  formData.append('dateOfBirth', data.dateOfBirth?.toString() || '');
+  
+  if (data.avatar) {
+    formData.append('avatar', data.avatar);
+  }
+  
+  return formData;
 }

@@ -1,9 +1,8 @@
-// src/providers/AuthProvider.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { tokenStorage } from "../storage/tokenStorage";
 import { userStorage } from "../storage/userStorage";
 import authService from "../auth/authService";
-import { UserResponse } from "../types/auth.types";
+import { UserResponse, UpdateUserRequest } from "../types/auth.types";
 
 type AuthContextType = {
   isLoading: boolean;
@@ -13,6 +12,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUser: (data: UpdateUserRequest | FormData) => Promise<any>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -105,6 +105,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateUser = async (data: UpdateUserRequest | FormData) => {
+    try {
+      setIsLoading(true);
+      const response = await authService.updateProfile(data);
+      
+      if (response.success && response.data) {
+        await userStorage.setUser(response.data);
+        setUser(response.data);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("Update user error:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider 
       value={{ 
@@ -114,7 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         checkAuthStatus, 
         login,
         logout,
-        refreshUser
+        refreshUser,
+        updateUser
       }}
     >
       {children}

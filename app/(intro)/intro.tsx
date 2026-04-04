@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width, height } = Dimensions.get('window');
 import { router } from 'expo-router';
 import { useOnboarding } from '../../src/context/OnboardingContext';
+import { useAuth } from '../../src/context/AuthContext';
 
 const videos = [
   require('../../assets/intro1.mp4'),
@@ -39,6 +40,7 @@ const Intro: React.FC = () => {
   const buttonScaleAnim = useRef(new Animated.Value(1)).current;
   const dotAnimations = useRef([...Array(4)].map(() => new Animated.Value(0))).current;
   const { completeOnboarding } = useOnboarding();
+  const { isSignedIn } = useAuth();
 
   useEffect(() => {
     const gifInterval = setInterval(() => {
@@ -96,7 +98,13 @@ const Intro: React.FC = () => {
 
   const handleGetStarted = async () => {
     await completeOnboarding();
-    router.replace("/(auth)/auth");
+
+
+    if (isSignedIn) {
+      router.replace("/(tabs)");
+    } else {
+      router.replace("/(auth)/auth");
+    }
   };
 
   return (

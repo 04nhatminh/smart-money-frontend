@@ -3,24 +3,26 @@ import { View, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface InputFieldProps {
-    iconName: any;
     placeholder: string;
     value: string;
     onChangeText: (text: string) => void;
+    iconName?: any;
     keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
     secureTextEntry?: boolean;
     autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+    editable?: boolean;
     customStyle?: any;
 }
 
 export const InputField: React.FC<InputFieldProps> = ({
-    iconName,
     placeholder,
     value,
     onChangeText,
+    iconName,
     keyboardType = 'default',
     secureTextEntry = false,
     autoCapitalize = 'none',
+    editable = true,
     customStyle = {},
 }) => {
     const inputRef = useRef<TextInput>(null);
@@ -33,21 +35,25 @@ export const InputField: React.FC<InputFieldProps> = ({
         <View style={[styles.field, customStyle]}>
             <Pressable
                 onPressIn={() => {
-                    setIsFocused(true);
-                    inputRef.current?.focus();
+                    if (editable) {
+                        setIsFocused(true);
+                        inputRef.current?.focus();
+                    }
                 }}
                 style={[
                     styles.inputRow,
                     isFocused && styles.inputRowFocused,
+                    !editable && styles.inputRowDisabled,
                 ]}
             >
                 {/* Left Icon */}
-                <Ionicons
-                    name={iconName}
-                    size={18}
-                    color={isFocused ? '#CBCBCBa' : '#E5E5EA'}
-                />
-
+                {iconName && (
+                    <Ionicons
+                        name={iconName}
+                        size={18}
+                        color={isFocused ? '#3629B7' : '#A8A3D7'}
+                    />
+                )}
                 {/* Input */}
                 <TextInput
                     ref={inputRef}
@@ -56,11 +62,12 @@ export const InputField: React.FC<InputFieldProps> = ({
                     style={[styles.input, customStyle]}
                     value={value}
                     onChangeText={onChangeText}
-                    onFocus={() => setIsFocused(true)}
+                    onFocus={() => editable && setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     keyboardType={keyboardType}
                     secureTextEntry={isPassword ? hidePassword : false}
                     autoCapitalize={autoCapitalize}
+                    editable={editable}
                 />
 
                 {/* Eye icon nếu là password */}
@@ -100,11 +107,18 @@ const styles = StyleSheet.create({
     inputRowFocused: {
         borderColor: '#CBCBCB',
     },
+    inputRowDisabled: {
+        backgroundColor: '#F2F1F9',
+        opacity: 0.6,
+    },
     input: {
         flex: 1,
         color: '#1F2937',
         fontSize: 14,
         paddingVertical: 8,
+    },
+    inputFull: {
+        marginHorizontal: 0,
     },
     eyeButton: {
         paddingLeft: 4,
