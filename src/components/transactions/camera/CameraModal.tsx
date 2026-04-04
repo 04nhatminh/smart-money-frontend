@@ -4,6 +4,8 @@ import { CameraScreen } from "./CameraScreen";
 import { CameraPreview } from "./CameraPreview";
 import { ReceiptPreview } from "./ReceiptPreview";
 import { Receipt } from "../../../types/transaction.types";
+import { CloudinaryAPI } from "../../../api/cloudinary.api";
+import { InputAssetAPI } from "../../../api/inputasset.api";
 
 type Props = {
   visible: boolean;
@@ -19,7 +21,8 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const handleCapture = (uri: string) => {
+
+  const handleCapture = async (uri: string) => {
     setPhotoUri(uri);
     setSubmitError(null);
     setStep("preview");
@@ -27,10 +30,12 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
 
   const handleRetake = () => {
     setPhotoUri("");
+    setSubmitError(null);
     setStep("camera");
   };
 
   const handlePreviewConfirm = (uri: string) => {
+    setSubmitError(null);
     setStep("receipt");
   };
 
@@ -40,12 +45,25 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
     setSubmitError(null);
 
     try {
-      console.log("📤 Calling onCaptureBill...");
+      if (!photoUri) {
+        throw new Error("Photo URI is missing");
+      }
+
+      const uploaded = await CloudinaryAPI.uploadFile(photoUri, "image");
+
+      const uploadResult = await InputAssetAPI.send({
+        type: "IMAGE",
+        value: uploaded.imageUrl,
+      });
+
+      console.log("Receipt upload result:", uploadResult);
+
       await onCaptureBill(receipt);
       setPhotoUri("");
       setStep("camera");
       onClose();
     } catch (error: any) {
+      console.error("Error in handleReceiptConfirm:", error);
       setSubmitError(error?.message || "Failed to create transaction");
     } finally {
       setIsSubmitting(false);

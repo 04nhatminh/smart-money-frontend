@@ -186,6 +186,7 @@ export function AddTransactionModal({
           >
             <View
               style={{
+                marginTop: 20,
                 paddingHorizontal: 16,
                 paddingTop: 12,
                 paddingBottom: 8,
@@ -194,7 +195,7 @@ export function AddTransactionModal({
                 alignItems: "center",
               }}
             >
-              <Text style={{ fontSize: 20, fontWeight: "700" }}>
+              <Text style={{ fontSize: 25, fontWeight: "700" }}>
                 {t("transaction.addTitle")}
               </Text>
 

@@ -8,7 +8,7 @@ import {
   Text,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import * as MediaLibrary from "expo-media-library";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeMode } from "../../../theme/ThemeProvider";
 import { t } from "../../../i18n";
@@ -40,18 +40,28 @@ export function CameraScreen({ onCapture, onClose }: Props) {
           <Text style={[styles.permissionText, { color: theme.text }]}>
             {t("camera.permission_required")}
           </Text>
-          <Pressable
-            style={[styles.permissionBtn, { backgroundColor: theme.primary }]}
-            onPress={requestPermission}
-          >
-            <Text style={styles.permissionBtnText}>{t("camera.grant_permission")}</Text>
-          </Pressable>
+          <View style={styles.permissionActions}>
+            <Pressable
+              style={[styles.permissionBtn, { backgroundColor: theme.primary }]}
+              onPress={requestPermission}
+            >
+              <Text style={styles.permissionBtnText}>{t("camera.grant_permission")}</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.permissionBtn, { backgroundColor: theme.card }]}
+              onPress={handlePickFromLibrary}
+            >
+              <Text style={[styles.permissionBtnText, { color: theme.text }]}>
+                {t("camera.upload_again")}
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     );
   }
 
-  const handleTakePicture = async () => {
+  async function handleTakePicture() {
     if (cameraRef.current) {
       try {
         setIsRecording(true);
@@ -67,28 +77,24 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         setIsRecording(false);
       }
     }
-  };
+  }
 
-  const handlePickFromLibrary = async () => {
+  async function handlePickFromLibrary() {
     try {
-      if (!permission?.granted) {
-        await requestPermission();
-        return;
-      }
-
-      const result = await MediaLibrary.getAssetsAsync({
-        mediaType: "photo",
-        first: 1,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        allowsEditing: false,
       });
 
-      if (result.assets.length > 0) {
+      if (!result.canceled && result.assets.length > 0) {
         onCapture(result.assets[0].uri);
       }
     } catch (error) {
       Alert.alert(t("camera.error_capturing"), t("camera.error_pick_failed"));
       console.error(error);
     }
-  };
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -168,6 +174,12 @@ const styles = StyleSheet.create({
   permissionBtnText: {
     color: "#FFFFFF",
     fontWeight: "700",
+  },
+  permissionActions: {
+    gap: 12,
+    alignItems: "stretch",
+    width: "100%",
+    paddingHorizontal: 24,
   },
   header: {
     zIndex: 10,

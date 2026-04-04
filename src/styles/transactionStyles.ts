@@ -180,6 +180,48 @@ export const transactionStyles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginBottom: 6
-  }
+  },
+
+  summaryCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+
+  iconBox: {
+    width: 45,
+    height: 45,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 15,
+    marginLeft: 4,
+  },
+  summaryTextWrap: {
+    flex: 1,
+  },
+
+  titleDetail: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#5B5BD6",
+    marginRight: 8,
+  },
+
+  amountDetail: {
+    fontSize: 22,
+    fontWeight: "700",
+    flexShrink: 0,
+  },
 
 });
