@@ -21,6 +21,30 @@ class NotificationApi {
   }
 
   // ==============================
+  // Save push token
+  // ==============================
+  async savePushToken(
+    data: { pushToken: string; deviceId?: string; platform?: string }
+  ): Promise<CheckResponse<void>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.post(
+        "/api/v1/push-tokens",
+        data,
+        { headers }
+      );
+
+      return res.data;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || "Save push token failed",
+      };
+    }
+  }
+
+  // ==============================
   // Create notification
   // ==============================
   async createNotification(

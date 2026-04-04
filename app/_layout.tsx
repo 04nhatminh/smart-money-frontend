@@ -7,6 +7,7 @@ import { ThemeProvider } from "../src/theme/ThemeProvider";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { OnboardingProvider, useOnboarding } from "../src/context/OnboardingContext";
 import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from 'expo-notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -16,6 +17,17 @@ function RootLayoutNav() {
 
   const router = useRouter();
 
+  useEffect(() => {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  }, []);
+  
   useEffect(() => {
     if (authLoading || onboardingLoading || isFirstLaunch === null) return;
 

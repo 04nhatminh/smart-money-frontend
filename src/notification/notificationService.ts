@@ -3,9 +3,27 @@ import { Notification, CreateNotificationRequest } from "../types/notification.t
 
 class NotificationService {
 
+
+
+  // ==============================
+  //  Save push token
+  // ==============================
+  async savePushTokenToServer(token: string, userId: string): Promise<void> {
+    const data = { pushToken: token, deviceId: undefined, platform: undefined };
+    const res = await notificationApi.savePushToken(data);
+    if (!res.success) {
+      throw new Error(res.message || "Failed to save push token");
+    } else {
+      console.log("Push token saved successfully");
+    }
+  }
+
   // ==============================
   // Get all notifications
   // ==============================
+
+
+
   async getNotifications(): Promise<Notification[]> {
     const res = await notificationApi.getNotifications();
 

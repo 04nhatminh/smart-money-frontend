@@ -1,3 +1,9 @@
+export interface SavePushTokenRequest {
+  pushToken: string;
+  deviceId?: string;
+  platform?: string;
+}
+
 // ==============================
 // Notification Entity
 // ==============================

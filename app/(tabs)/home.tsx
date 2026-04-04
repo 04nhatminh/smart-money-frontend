@@ -17,9 +17,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { userStorage } from "../../src/storage/userStorage";
 import {notificationStorage} from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
-import { useTabNavigation } from "../../src/hooks/useTabNavigation";
 import notificationService from "../../src/notification/notificationService";
 import { Notification } from "../../src/types/notification.type";
+import { handleIncomingNotification, setNotificationScreenActive } from "../../src/notification/notificationHandler";
+import {registerForPushNotificationsAsync} from "../../src/notification/registerForPushNotificationsAsync";
 import {NotificationListModal} from "../../src/components/notification/NotificationListModal"
 import { connectWebSocket, disconnectWebSocket } from "../../src/services/websocket";
 import AppBottomBar from "../../src/components/AppBottomBar";
@@ -89,23 +90,25 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user?.id) return;
+  
+      const initPush = async () => {
+        const token = await registerForPushNotificationsAsync();
+        console.log("🔥 PUSH TOKEN:", token);
+
+        if (token && user?.id) {
+          await notificationService.savePushTokenToServer(token, user.id);
+        }
+      };
+
+      initPush();
 
     connectWebSocket(user.id, (newNotification: Notification) => {
       console.log("🔥 New notification:", newNotification);
 
-      setNotifications((prev) => {
-        // tránh duplicate
-        if (prev.find((n) => n.id === newNotification.id)) return prev;
-        return [newNotification, ...prev];
-      });
-
-      setUnreadCount((prev) => {
-        const newCount = showNotification ? prev : prev + 1;
-
-        // 🔥 lưu xuống storage
-        notificationStorage.setUnreadCount(newCount);
-
-        return newCount;
+      handleIncomingNotification(newNotification, {
+        existingList: notifications,
+        setList: setNotifications,
+        setUnread: setUnreadCount,
       });
     });
 
@@ -128,6 +131,7 @@ export default function HomePage() {
 
   const handleToggleNotification = async () => {
     setShowNotification(true);
+    setNotificationScreenActive(true);
     setUnreadCount(0);
     await notificationStorage.setUnreadCount(0);
     await loadNotifications();
@@ -341,7 +345,10 @@ export default function HomePage() {
       </ScrollView>
       <NotificationListModal
         visible={showNotification}
-        onClose={() => setShowNotification(false)}
+        onClose={() => {
+          setNotificationScreenActive(false);
+          setShowNotification(false);
+        } }
         notifications={notifications}
         loading={loadingNotification}
         onResetUnread={() => {
