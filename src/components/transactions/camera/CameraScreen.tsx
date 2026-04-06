@@ -6,9 +6,10 @@ import {
   SafeAreaView,
   Alert,
   Text,
+  ActivityIndicator,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import * as MediaLibrary from "expo-media-library";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeMode } from "../../../theme/ThemeProvider";
 import { t } from "../../../i18n";
@@ -21,18 +22,27 @@ type Props = {
 export function CameraScreen({ onCapture, onClose }: Props) {
   const { theme } = useThemeMode();
   const cameraRef = useRef<CameraView>(null);
-  const [permission, requestPermission] = useCameraPermissions();
-  const [isRecording, setIsRecording] = useState(false);
 
-  if (!permission) {
+  // Camera permission
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+
+  // Image picker permission (🔥 FIX)
+  const [imagePickerPermission, requestImagePickerPermission] =
+    ImagePicker.useMediaLibraryPermissions();
+
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // ================= CAMERA PERMISSION =================
+  if (!cameraPermission) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator />
         <Text style={{ color: theme.text }}>{t("camera.loading")}</Text>
       </SafeAreaView>
     );
   }
 
-  if (!permission.granted) {
+  if (!cameraPermission.granted) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
         <View style={styles.permissionContainer}>
@@ -42,54 +52,82 @@ export function CameraScreen({ onCapture, onClose }: Props) {
           </Text>
           <Pressable
             style={[styles.permissionBtn, { backgroundColor: theme.primary }]}
-            onPress={requestPermission}
+            onPress={requestCameraPermission}
           >
-            <Text style={styles.permissionBtnText}>{t("camera.grant_permission")}</Text>
+            <Text style={styles.permissionBtnText}>
+              {t("camera.grant_permission")}
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>
     );
   }
 
+  // ================= TAKE PHOTO =================
   const handleTakePicture = async () => {
-    if (cameraRef.current) {
-      try {
-        setIsRecording(true);
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
-        });
+    if (!cameraRef.current) return;
 
-        onCapture(photo.uri);
-      } catch (error) {
-        Alert.alert(t("camera.error_capturing"), t("camera.error_capture_failed"));
-        console.error(error);
-      } finally {
-        setIsRecording(false);
-      }
+    try {
+      setIsProcessing(true);
+
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+      });
+
+      onCapture(photo.uri);
+    } catch (error) {
+      Alert.alert(
+        t("camera.error_capturing"),
+        t("camera.error_capture_failed")
+      );
+      console.error(error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
+  // ================= PICK FROM GALLERY =================
   const handlePickFromLibrary = async () => {
     try {
-      if (!permission?.granted) {
-        await requestPermission();
-        return;
+      setIsProcessing(true);
+
+      // 🔥 FIX: xin permission riêng cho ImagePicker
+      let permission = imagePickerPermission;
+
+      if (!permission || !permission.granted) {
+        const res = await requestImagePickerPermission();
+        permission = res;
+
+        if (!res.granted) {
+          Alert.alert(
+            "Permission required",
+            "Please allow photo library access"
+          );
+          return;
+        }
       }
 
-      const result = await MediaLibrary.getAssetsAsync({
-        mediaType: "photo",
-        first: 1,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 1,
       });
 
-      if (result.assets.length > 0) {
+      if (!result.canceled && result.assets.length > 0) {
         onCapture(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert(t("camera.error_capturing"), t("camera.error_pick_failed"));
+      Alert.alert(
+        t("camera.error_capturing"),
+        t("camera.error_pick_failed")
+      );
       console.error(error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
+  // ================= UI =================
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       <CameraView
@@ -99,23 +137,31 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         flash="auto"
       />
 
-      {/* Receipt Guide Frame - Overlay */}
+      {/* Loading overlay */}
+      {isProcessing && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      )}
+
+      {/* Frame guide */}
       <View style={styles.frameGuideContainer}>
         <View style={styles.frameGuide} />
       </View>
 
-      {/* Header - Overlay */}
-      <View style={[styles.header, { position: "absolute", top: 0, left: 0, right: 0 }]}>
+      {/* Header */}
+      <View style={styles.header}>
         <Pressable onPress={onClose} style={styles.closeBtn}>
           <Ionicons name="close" size={24} color="#FFFFFF" />
         </Pressable>
-        <Text style={styles.headerTitle}>{t("camera.capture_receipt")}</Text>
+        <Text style={styles.headerTitle}>
+          {t("camera.capture_receipt")}
+        </Text>
         <View style={{ width: 44 }} />
       </View>
 
-      {/* Controls - Overlay */}
-      <View style={[styles.controls, { position: "absolute", bottom: 0, left: 0, right: 0 }]}>
-        {/* Gallery Button */}
+      {/* Controls */}
+      <View style={styles.controls}>
         <Pressable
           onPress={handlePickFromLibrary}
           style={[styles.galleryBtn, { backgroundColor: theme.card }]}
@@ -123,33 +169,40 @@ export function CameraScreen({ onCapture, onClose }: Props) {
           <Ionicons name="image-outline" size={24} color={theme.primary} />
         </Pressable>
 
-        {/* Capture Button */}
         <Pressable
           onPress={handleTakePicture}
-          disabled={isRecording}
+          disabled={isProcessing}
           style={[
             styles.captureBtn,
-            { opacity: isRecording ? 0.6 : 1 },
+            { opacity: isProcessing ? 0.6 : 1 },
           ]}
         >
           <View style={styles.captureBtnInner} />
         </Pressable>
 
-        {/* Spacer */}
         <View style={{ width: 56 }} />
       </View>
     </SafeAreaView>
   );
 }
 
+// ================= STYLES =================
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: "relative",
+  container: { flex: 1 },
+  camera: { flex: 1 },
+
+  loadingOverlay: {
+    position: "absolute",
+    zIndex: 20,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  camera: {
-    flex: 1,
-  },
+
   permissionContainer: {
     flex: 1,
     alignItems: "center",
@@ -169,37 +222,43 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
   },
+
   header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     zIndex: 10,
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    padding: 16,
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
+
+  controls: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 24,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+
   closeBtn: {
     width: 44,
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 22,
   },
+
   headerTitle: {
-    fontSize: 16,
+    color: "#fff",
     fontWeight: "700",
-    color: "#FFFFFF",
   },
-  controls: {
-    zIndex: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingBottom: 32,
-    paddingTop: 24,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-  },
+
   galleryBtn: {
     width: 56,
     height: 56,
@@ -207,38 +266,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   captureBtn: {
     width: 70,
     height: 70,
     borderRadius: 35,
     borderWidth: 4,
-    borderColor: "#FFFFFF",
+    borderColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
   },
+
   captureBtnInner: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#fff",
   },
+
   frameGuideContainer: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 5,
     alignItems: "center",
     justifyContent: "center",
     pointerEvents: "none",
-    paddingBottom: 40,
   },
+
   frameGuide: {
     width: "80%",
     aspectRatio: 1 / 1.4,
     borderWidth: 3,
-    borderColor: "rgba(255, 255, 255, 0.7)",
+    borderColor: "rgba(255,255,255,0.7)",
     borderStyle: "dashed",
     borderRadius: 12,
   },

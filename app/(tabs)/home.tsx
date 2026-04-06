@@ -102,15 +102,22 @@ export default function HomePage() {
 
       initPush();
 
-    connectWebSocket(user.id, (newNotification: Notification) => {
-      console.log("🔥 New notification:", newNotification);
+      connectWebSocket({
+        userId: user.id,
+        jobIds: ["job-1", "job-2"],
 
-      handleIncomingNotification(newNotification, {
-        existingList: notifications,
-        setList: setNotifications,
-        setUnread: setUnreadCount,
+        onNotification: (newNotification: Notification) => {
+          handleIncomingNotification(newNotification, {
+            existingList: notifications,
+            setList: setNotifications,
+            setUnread: setUnreadCount,
+          });
+        },
+
+        onResult: (jobId, data) => {
+          console.log("🔥 AI result:", jobId, data);
+        },
       });
-    });
 
     return () => {
       disconnectWebSocket();
@@ -144,8 +151,12 @@ export default function HomePage() {
   };
 
   const handleCreateReceiptTransaction = async (receipt: Receipt) => {
-    const success = await createFromReceipt(receipt);
-    if (success) setCameraVisible(false);
+    try {
+      await createFromReceipt(receipt); // ✅ chờ AI xong
+      setCameraVisible(false);         // ✅ đóng luôn
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleCreateVoiceTransaction = async (transaction: TransactionRequest) => {

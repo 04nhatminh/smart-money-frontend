@@ -1,15 +1,27 @@
 import SockJS from "sockjs-client";
-import { Client } from "@stomp/stompjs";
+import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
 
-let stompClient = null;
+let stompClient: Client | null = null;
 
-// 🔥 lấy base URL từ env
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+const WS_URL: string | null = BASE_URL ? `${BASE_URL}/ws` : null;
 
-// 👉 build WS endpoint từ base URL
-const WS_URL = BASE_URL ? `${BASE_URL}/ws` : null;
+// 🎯 Define type rõ ràng
+type ConnectParams = {
+  userId?: string;
+  jobIds?: string[];
+  onNotification?: (data: any) => void;
+  onResult?: (jobId: string, data: any) => void;
+  onConnected?: (stompClient: Client) => void;
+};
 
-export const connectWebSocket = (userId, onMessage) => {
+export const connectWebSocket = ({
+  userId,
+  jobIds = [],
+  onNotification,
+  onResult,
+  onConnected,
+}: ConnectParams): void => {
   if (!WS_URL) {
     console.error("❌ WS_URL is missing");
     return;
@@ -18,35 +30,62 @@ export const connectWebSocket = (userId, onMessage) => {
   const socket = new SockJS(WS_URL);
 
   stompClient = new Client({
-    webSocketFactory: () => socket,
+    webSocketFactory: () => socket as any,
     reconnectDelay: 5000,
-    debug: (str) => console.log("[WS]", str),
+    debug: (str: string) => console.log("[WS]", str),
   });
 
   stompClient.onConnect = () => {
     console.log("✅ Connected WebSocket");
 
-    stompClient.subscribe(
-      `/topic/notifications/${userId}`,
-      (message) => {
-        try {
-          const data = JSON.parse(message.body);
-          onMessage(data);
-        } catch (err) {
-          console.error("❌ Parse error", err);
+    // 🔔 Notification
+    if (userId) {
+      stompClient?.subscribe(
+        `/topic/notifications/${userId}`,
+        (message: IMessage) => {
+          try {
+            const data = JSON.parse(message.body);
+            onNotification?.(data);
+          } catch (err) {
+            console.error("❌ Notification parse error", err);
+          }
         }
-      }
-    );
+      );
+    }
+
+    // 🤖 Result
+    jobIds.forEach((jobId: string) => {
+      stompClient?.subscribe(
+        `/topic/ai/${jobId}`,
+        (message: IMessage) => {
+          try {
+            console.log("📨 Message received on /topic/ai/", jobId);
+            console.log("📨 Raw message body:", message.body);
+            const data = JSON.parse(message.body);
+            console.log("📨 Parsed data:", data);
+            onResult?.(jobId, data);
+          } catch (err) {
+            console.error("❌ Result parse error", err);
+          }
+        }
+      );
+      console.log("✅ Subscribed to /topic/ai/" + jobId);
+    });
+
+    // 👉 Call onConnected callback AFTER setup
+    if (stompClient) {
+      onConnected?.(stompClient);
+    }
   };
 
-  stompClient.onWebSocketError = (err) => {
+  stompClient.onWebSocketError = (err: Event) => {
     console.error("❌ WS error", err);
   };
 
   stompClient.activate();
 };
 
-export const disconnectWebSocket = () => {
+export const disconnectWebSocket = (): void => {
   if (stompClient) {
     stompClient.deactivate();
     stompClient = null;
