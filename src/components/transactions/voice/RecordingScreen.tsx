@@ -136,8 +136,6 @@ export function RecordingScreen({ onRecordingComplete, onCancel }: Props) {
     onCancel();
   };
 
-  const formattedTime = `${recordingTime}s`;
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* Header */}
@@ -281,7 +279,7 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F2F1F9",
     borderWidth: 1,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },
@@ -290,7 +288,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   cancelText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "600",
   },
 });

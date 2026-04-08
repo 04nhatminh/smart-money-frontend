@@ -78,21 +78,4 @@ export interface Receipt {
   description: string;
 }
 
-export interface UploadToCloudinaryResponse {
-  imageUrl: string;
-  publicId: string;
-}
-
-export interface SaveReceiptPayload {
-  imageUrl: string;
-  publicId: string;
-}
-
-export interface ReceiptResponse {
-  id: string;
-  imageUrl: string;
-  publicId: string;
-  createdAt: string;
-}
-
 

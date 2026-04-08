@@ -33,7 +33,7 @@ class AIAPI {
       const formData = new FormData();
 
       // 🔥 BE yêu cầu String → phải stringify
-      formData.append("data", JSON.stringify(data));
+      formData.append("data", typeof data === "string" ? data : JSON.stringify(data));
       formData.append("type", type);
 
       const res = await http.post(
@@ -119,6 +119,41 @@ class AIAPI {
       };
     }
   }
+
+  /**
+   * Submit voice from Cloudinary URL
+   */
+  async submitVoiceAudio(
+    audioUrl: string
+  ): Promise<CheckResponse<AIJobResponse>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const formData = new FormData();
+      formData.append("data", audioUrl);
+      formData.append("type", "voice");
+
+      const res = await http.post("/api/v1/ai", formData, {
+        headers: {
+          ...headers,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      return {
+        success: true,
+        message: "Submit voice audio success",
+        data: res.data,
+      };
+    } catch (error: any) {
+      console.error("❌ SUBMIT VOICE ERROR:", error);
+      return error.response?.data || {
+        success: false,
+        message: error.message || "Submit voice audio failed",
+      };
+    }
+  }
+
 
 }
 

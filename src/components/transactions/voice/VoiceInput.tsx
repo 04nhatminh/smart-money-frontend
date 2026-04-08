@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Pressable,
@@ -17,6 +17,7 @@ import { TransactionRequest } from "../../../types/transaction.types";
 
 type Props = {
   audioUri: string;
+  transaction: TransactionRequest | null;
   onCancel: () => void;
   onRetakeAudio: () => void;
   onConfirm: (transaction: TransactionRequest) => void;
@@ -35,6 +36,7 @@ const MOCK_VOICE_TRANSACTION: TransactionRequest = {
 
 export function VoiceInput({
   audioUri,
+  transaction: transactionProp,
   onCancel,
   onRetakeAudio,
   onConfirm,
@@ -44,6 +46,12 @@ export function VoiceInput({
   const { theme } = useThemeMode();
   const [transaction, setTransaction] = useState<TransactionRequest>(MOCK_VOICE_TRANSACTION);
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (transactionProp) {
+      setTransaction(transactionProp);
+    }
+  }, [transactionProp]);
 
   const handleConfirm = () => {
     console.log("🎤 VoiceInput.handleConfirm called");
@@ -56,52 +64,67 @@ export function VoiceInput({
       ...prev,
       [field]: field === 'amount' ? parseFloat(value) || 0 : value,
     }));
-  };
+  }
+
+  if (!transaction) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="hourglass-outline" size={48} color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.text }]}>
+            AI is processing your recording...
+          </Text>
+          <Text style={[styles.loadingSubtext, { color: theme.subtext }]}>
+            Please wait a moment
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Text style={[styles.title, { color: theme.text }]}>Voice Input</Text>
-        <Pressable 
-          onPress={() => setIsEditing(!isEditing)}
-          style={styles.editButton}
-        >
-          <Ionicons 
-            name={isEditing ? "checkmark-done" : "create"} 
-            size={20} 
-            color={theme.primary}
-          />
-          <Text style={{ color: theme.primary, fontSize: 12, fontWeight: '600', marginLeft: 4 }}>
-            {isEditing ? "Done" : "Edit"}
-          </Text>
-        </Pressable>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}>
         {/* Microphone Section */}
-        <View style={[styles.microphoneSection, { backgroundColor: theme.card }]}>
+        
           <Pressable 
-            style={styles.retakeButton}
+            style={[styles.micCard, { backgroundColor: theme.card }]}
             onPress={onRetakeAudio}
           >
-            <Ionicons name="arrow-back" size={24} color={theme.primary} />
+            <Ionicons name="mic-circle-outline" size={64} color={theme.primary}
+            />
+            <Text style={[styles.micTitle, { color: theme.text }]}>
+              Tap the microphone and speak
+            </Text>
           </Pressable>
           
-          <Ionicons name="mic" size={64} color={theme.primary} />
-          <Text style={[styles.microphonePrompt, { color: theme.text }]}>
-            Recording completed
-          </Text>
-          <Text style={[styles.microphoneSubtext, { color: theme.subtext }]}>
-            Confirm details below or retake recording
-          </Text>
-        </View>
-
         {/* Transaction Details */}
-        <View style={[styles.detailsSection, { backgroundColor: theme.card }]}>
+        <View style={[styles.detailsCard, { backgroundColor: theme.card }]}>
           {/* Type */}
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: theme.subtext }]}>
+          <View style={styles.detailsHeader}>
+            <View />
+            <Pressable
+              onPress={() => setIsEditing((prev) => !prev)}
+              style={styles.editButton}
+            >
+              <Ionicons
+                name={isEditing ? "checkmark-done" : "create-outline"}
+                size={22}
+                color={theme.text}
+              />
+            </Pressable>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: theme.subtext }]}>
               Type:
             </Text>
             {isEditing ? (
@@ -111,15 +134,24 @@ export function VoiceInput({
                     key={type}
                     onPress={() => updateTransaction('type', type)}
                     style={[
-                      styles.typeOption,
-                      transaction.type === type && {
-                        backgroundColor: type === "EXPENSE" ? "#ef4444" : "#10b981",
-                      }
+                      styles.typeChip,
+                      {
+                        backgroundColor: 
+                          transaction.type === type ? 
+                             type === "EXPENSE" ? "#FCA5A5" : "#86EFAC" :  "#F3F4F6" 
+                      },
                     ]}
                   >
                     <Text style={[
-                      styles.typeOptionText,
-                      transaction.type === type && styles.typeOptionTextActive
+                      styles.typeChipText,
+                      {
+                          color:
+                            transaction.type === type
+                              ? type === "EXPENSE"
+                                ? "#991B1B"
+                                : "#166534"
+                              : "#6B7280",
+                        },
                     ]}>
                       {type}
                     </Text>
@@ -127,98 +159,107 @@ export function VoiceInput({
                 ))}
               </View>
             ) : (
-              <Text
+              <View
                 style={[
-                  styles.detailValue,
+                  styles.badge,
                   {
-                    color:
-                      transaction.type === "EXPENSE"
-                        ? "#ef4444"
-                        : "#10b981",
                     backgroundColor:
                       transaction.type === "EXPENSE"
-                        ? "#ef444415"
-                        : "#10b98115",
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 6,
-                  },
+                        ? "#FCA5A5"
+                        : "#86EFAC",
+                  }
                 ]}
               >
-                {transaction.type}
-              </Text>
+                <Text
+                  style={[
+                    styles.badgeText,
+                    {
+                      color:
+                        transaction.type === "EXPENSE"
+                          ? "#FF383C"
+                          : "#166534",
+                  },
+                  ]}
+                >
+                  {transaction.type}
+                </Text>
+              </View>
             )}
           </View>
 
           {/* Amount */}
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: theme.subtext }]}>
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: theme.subtext }]}>
               Amount:
             </Text>
             {isEditing ? (
               <TextInput
-                style={[styles.editInput, { color: theme.text, borderColor: theme.border }]}
+                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
                 value={String(transaction.amount)}
                 onChangeText={(text) => updateTransaction('amount', text)}
-                placeholder="0.000"
+                placeholder="0"
                 placeholderTextColor={theme.subtext}
                 keyboardType="decimal-pad"
               />
             ) : (
-              <Text style={[styles.detailValue, { color: theme.text }]}>
-                {transaction.amount.toFixed(0)} VND
+              <Text style={[styles.value, { color: theme.text }]}>
+                {(transaction.amount || 0).toFixed(0)} VND
               </Text>
             )}
           </View>
 
           {/* Category */}
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: theme.subtext }]}>
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: theme.subtext }]}>
               Category:
             </Text>
             {isEditing ? (
               <TextInput
-                style={[styles.editInput, { color: theme.text, borderColor: theme.border }]}
+                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
                 value={transaction.category}
                 onChangeText={(text) => updateTransaction('category', text)}
                 placeholder="Category"
                 placeholderTextColor={theme.subtext}
               />
             ) : (
-              <Text style={[styles.detailValue, { color: theme.text }]}>
+              <Text style={[styles.value, { color: theme.text }]}>
                 {transaction.category}
               </Text>
             )}
           </View>
 
           {/* Date */}
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: theme.subtext }]}>
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: theme.subtext }]}>
               Date:
             </Text>
             {isEditing ? (
               <TextInput
-                style={[styles.editInput, { color: theme.text, borderColor: theme.border }]}
+                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
                 value={transaction.date}
                 onChangeText={(text) => updateTransaction('date', text)}
-                placeholder="dd/MM/yyyy"
+                placeholder="dd/MM/yyyy HH:mm"
                 placeholderTextColor={theme.subtext}
               />
             ) : (
-              <Text style={[styles.detailValue, { color: theme.text }]}>
+              <Text style={[styles.value, { color: theme.text }]}>
                 {transaction.date}
               </Text>
             )}
           </View>
 
           {/* Description */}
-          <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
-            <Text style={[styles.detailLabel, { color: theme.subtext }]}>
+          <View style={[styles.row, { borderBottomWidth: 0 }]}>
+            <Text style={[styles.label, { color: theme.subtext }]}>
               Description:
             </Text>
             {isEditing ? (
               <TextInput
-                style={[styles.editInput, { color: theme.text, borderColor: theme.border }]}
+                style={[
+                  styles.input,
+                  styles.multilineInput,
+                  { color: theme.text, borderColor: theme.border }
+                ]}
                 value={transaction.description}
                 onChangeText={(text) => updateTransaction('description', text)}
                 placeholder="Description"
@@ -227,7 +268,10 @@ export function VoiceInput({
                 numberOfLines={2}
               />
             ) : (
-              <Text style={[styles.detailValue, { color: theme.text }]}>
+              <Text style={[
+                  styles.value,
+                  styles.descriptionValue,
+                  { color: theme.text }]}>
                 {transaction.description}
               </Text>
             )}
@@ -248,14 +292,20 @@ export function VoiceInput({
           loadingText="Creating..."
         />
 
-        <ActionButton 
-          label="Cancel"
+        <Pressable
           onPress={onCancel}
-          variant="secondary"
-          color={theme.text}
-          borderColor={theme.border}
-          disabled={isSubmitting}
-        />
+          style={{
+            height: 48,
+            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: theme.border,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#F2F1F9",
+          }}
+        >
+          <Text style={{ color: theme.text, fontWeight: "600" }}>Retake</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -265,131 +315,140 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "space-between",
-    flexDirection: "row",
-    borderBottomWidth: 1,
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 16,
+  },
+  loadingSubtext: {
+    fontSize: 13,
+    marginTop: 8,
+  },
+  header: {
+    marginTop: 40,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   title: {
     fontSize: 18,
     fontWeight: "700",
-    flex: 1,
-    textAlign: "center",
-  },
-  editButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: "rgba(54, 41, 183, 0.1)",
   },
   content: {
     flex: 1,
-    paddingHorizontal: 16,
   },
-  microphoneSection: {
-    marginTop: 16,
-    marginBottom: 16,
-    paddingVertical: 32,
+  contentContainer: {
     paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingBottom: 16,
+  },
+  micCard: {
+    borderRadius: 16,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  retakeButton: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: "rgba(54, 41, 183, 0.1)",
-  },
-  microphonePrompt: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 16,
-    textAlign: "center",
-  },
-  microphoneSubtext: {
-    fontSize: 12,
-    marginTop: 8,
-    textAlign: "center",
-  },
-  detailsSection: {
-    borderRadius: 12,
-    padding: 16,
     marginBottom: 16,
-    shadowColor: '#000000',
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  detailRow: {
+  micTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 14,
+    textAlign: "center",
+  },
+  detailsCard: {
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  detailsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(200, 200, 200, 0.2)",
+    marginBottom: 6,
   },
-  detailLabel: {
-    fontSize: 12,
+  editButton: {
+    padding: 4,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 8,
+  },
+  lastRow: {
+    paddingBottom: 4,
+  },
+  label: {
+    width: 110,
+    fontSize: 13,
     fontWeight: "500",
-    flex: 1,
   },
-  detailValue: {
-    fontSize: 14,
+  value: {
+    flex: 1,
+    fontSize: 15,
     fontWeight: "600",
   },
-  editInput: {
+  descriptionValue: {
+    lineHeight: 20,
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  input: {
     flex: 1,
-    marginLeft: 12,
+    minHeight: 36,
+    borderWidth: 1,
+    borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderWidth: 1,
-    borderRadius: 6,
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
+  },
+  multilineInput: {
+    minHeight: 64,
+    textAlignVertical: "top",
   },
   typeSelector: {
     flexDirection: "row",
     gap: 8,
-    marginLeft: 12,
+    flexWrap: "wrap",
+    flex: 1,
   },
-  typeOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#ccc",
+  typeChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
   },
-  typeOptionText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#666",
-  },
-  typeOptionTextActive: {
-    color: "#FFFFFF",
+  typeChipText: {
+    fontSize: 11,
+    fontWeight: "700",
   },
   actions: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingTop: 12,
     paddingBottom: 24,
-    paddingTop: 20,
     gap: 12,
-    flexDirection: "column",
-    width: "100%",
-    minHeight: 150,
   },
   errorText: {
     fontSize: 13,
