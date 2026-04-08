@@ -15,7 +15,14 @@ import {
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { userStorage } from "../../src/storage/userStorage";
+import {notificationStorage} from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
+import notificationService from "../../src/notification/notificationService";
+import { Notification } from "../../src/types/notification.type";
+import { handleIncomingNotification, setNotificationScreenActive } from "../../src/notification/notificationHandler";
+import {registerForPushNotificationsAsync} from "../../src/notification/registerForPushNotificationsAsync";
+import {NotificationListModal} from "../../src/components/notification/NotificationListModal"
+import { connectWebSocket, disconnectWebSocket } from "../../src/services/websocket";
 import AppBottomBar from "../../src/components/AppBottomBar";
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
@@ -51,11 +58,23 @@ export default function HomePage() {
   const [voiceVisible, setVoiceVisible] = useState(false);
   const [manualVisible, setManualVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const { createFromReceipt, createFromVoice } = useCreateTransaction();
 
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotification, setShowNotification] = useState(false);
+  const [loadingNotification, setLoadingNotification] = useState(false);
+
   useEffect(() => {
     loadUserData();
+
+    const initUnread = async () => {
+    const saved = await notificationStorage.getUnreadCount();
+    setUnreadCount(saved);
+  };
+
+  initUnread();
   }, []);
 
   const loadUserData = async () => {
@@ -69,6 +88,62 @@ export default function HomePage() {
     }
   };
 
+  useEffect(() => {
+    if (!user?.id) return;
+  
+      const initPush = async () => {
+        const token = await registerForPushNotificationsAsync();
+        console.log("🔥 PUSH TOKEN:", token);
+
+        if (token && user?.id) {
+          await notificationService.savePushTokenToServer(token, user.id);
+        }
+      };
+
+      initPush();
+
+      connectWebSocket({
+        userId: user.id,
+        jobIds: ["job-1", "job-2"],
+
+        onNotification: (newNotification: Notification) => {
+          handleIncomingNotification(newNotification, {
+            existingList: notifications,
+            setList: setNotifications,
+            setUnread: setUnreadCount,
+          });
+        },
+
+        onResult: (jobId, data) => {
+          console.log("🔥 AI result:", jobId, data);
+        },
+      });
+
+    return () => {
+      disconnectWebSocket();
+    };
+  }, [user?.id]);
+
+  const loadNotifications = async () => {
+    try {
+      setLoadingNotification(true);
+      const data = await notificationService.getNotifications();
+      setNotifications(data);
+    } catch (err) {
+      console.log("Load notification error:", err);
+    } finally {
+      setLoadingNotification(false);
+    }
+  };
+
+  const handleToggleNotification = async () => {
+    setShowNotification(true);
+    setNotificationScreenActive(true);
+    setUnreadCount(0);
+    await notificationStorage.setUnreadCount(0);
+    await loadNotifications();
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadUserData();
@@ -76,8 +151,12 @@ export default function HomePage() {
   };
 
   const handleCreateReceiptTransaction = async (receipt: Receipt) => {
-    const success = await createFromReceipt(receipt);
-    if (success) setCameraVisible(false);
+    try {
+      await createFromReceipt(receipt); // ✅ chờ AI xong
+      setCameraVisible(false);         // ✅ đóng luôn
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleCreateVoiceTransaction = async (transaction: TransactionRequest) => {
@@ -159,10 +238,19 @@ export default function HomePage() {
                 <Text style={styles.userName}>{user?.fullName || 'User'}</Text>
               </View>
             </View>
-            
-            <TouchableOpacity style={styles.notificationBtn}>
+            <TouchableOpacity 
+              style={styles.notificationBtn}
+              onPress={handleToggleNotification}
+            >
               <Ionicons name="notifications-outline" size={24} color="#333" />
-              <View style={styles.notificationBadge} />
+
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -266,6 +354,19 @@ export default function HomePage() {
           </View>
         </View>
       </ScrollView>
+      <NotificationListModal
+        visible={showNotification}
+        onClose={() => {
+          setNotificationScreenActive(false);
+          setShowNotification(false);
+        } }
+        notifications={notifications}
+        loading={loadingNotification}
+        onResetUnread={() => {
+          setUnreadCount(0);
+          notificationStorage.setUnreadCount(0); // nếu bạn dùng AsyncStorage
+        }}
+      />
 
       <AppBottomBar
         onCameraOpen={() => setCameraVisible(true)}
@@ -317,6 +418,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 20,
     paddingBottom: 10,
+    marginTop: 16
   },
   userInfo: {
     flexDirection: 'row',
@@ -365,15 +467,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
-  notificationBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF4444',
-  },
+
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -525,4 +619,67 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
+
+  notificationDropdown: {
+  position: "absolute",
+  top: 80,
+  right: 20,
+  width: 280,
+  backgroundColor: "#fff",
+  borderRadius: 12,
+  padding: 12,
+  shadowColor: "#000",
+  shadowOpacity: 0.1,
+  shadowRadius: 10,
+  elevation: 5,
+  zIndex: 100,
+},
+
+notificationTitle: {
+  fontSize: 16,
+  fontWeight: "700",
+  marginBottom: 10,
+},
+
+notificationItem: {
+  paddingVertical: 10,
+  borderBottomWidth: 1,
+  borderBottomColor: "#eee",
+},
+
+notificationBadge: {
+  position: 'absolute',
+  top: 8,
+  right: 8,
+  minWidth: 18,
+  height: 18,
+  borderRadius: 9,
+  backgroundColor: '#FF4444',
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingHorizontal: 4,
+},
+
+badgeText: {
+  color: '#fff',
+  fontSize: 10,
+  fontWeight: '700',
+},
+
+notificationContent: {
+  fontSize: 14,
+  color: "#333",
+},
+
+notificationTime: {
+  fontSize: 11,
+  color: "#999",
+  marginTop: 4,
+},
+
+notificationEmpty: {
+  textAlign: "center",
+  color: "#999",
+  paddingVertical: 10,
+},
 });

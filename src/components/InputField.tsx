@@ -10,19 +10,21 @@ interface InputFieldProps extends TextInputProps {
     keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
     secureTextEntry?: boolean;
     autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+    editable?: boolean;
     customStyle?: any;
     error?: string;
     rightText?: string;
 }
 
 export const InputField: React.FC<InputFieldProps> = ({
-    iconName,
     placeholder,
     value,
     onChangeText,
+    iconName,
     keyboardType = 'default',
     secureTextEntry = false,
     autoCapitalize = 'none',
+    editable = true,
     customStyle = {},
     error,
     rightText,
@@ -41,8 +43,10 @@ export const InputField: React.FC<InputFieldProps> = ({
         <View style={[styles.field, customStyle]}>
             <Pressable
                 onPressIn={() => {
-                    setIsFocused(true);
-                    inputRef.current?.focus();
+                    if (editable) {
+                        setIsFocused(true);
+                        inputRef.current?.focus();
+                    }
                 }}
                 style={[
                     styles.inputRow,
@@ -73,7 +77,7 @@ export const InputField: React.FC<InputFieldProps> = ({
                     ]}
                     value={value}
                     onChangeText={onChangeText}
-                    onFocus={() => setIsFocused(true)}
+                    onFocus={() => editable && setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     keyboardType={keyboardType}
                     secureTextEntry={isPassword ? hidePassword : false}
@@ -82,6 +86,7 @@ export const InputField: React.FC<InputFieldProps> = ({
                     numberOfLines={numberOfLines}
                     textAlignVertical={multiline ? 'top' : 'center'}
                     {...rest}
+                    editable={editable}
                 />
 
                 {showRightText && <Text style={styles.rightText}>{rightText}</Text>}
@@ -134,6 +139,10 @@ const styles = StyleSheet.create({
     inputRowError: {
         borderColor: '#EF4444',
     },
+    inputRowDisabled: {
+        backgroundColor: '#F2F1F9',
+        opacity: 0.6,
+    },
     input: {
         flex: 1,
         color: '#1F2937',
@@ -146,6 +155,9 @@ const styles = StyleSheet.create({
     },
     iconTop: {
         marginTop: 2,
+    },
+    inputFull: {
+        marginHorizontal: 0,
     },
     eyeButton: {
         paddingLeft: 4,

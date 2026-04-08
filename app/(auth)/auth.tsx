@@ -66,15 +66,20 @@ export default function AuthScreen() {
     const [newPassword, setNewPassword] = useState("");
     const [newConfirmPassword, setNewConfirmPassword] = useState("");
 
+    // Error states organized by functionality
+    const [signInError, setSignInError] = useState<string | null>(null);
+    const [signUpError, setSignUpError] = useState<string | null>(null);
+    const [otpError, setOtpError] = useState<string | null>(null);
+    const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+    
     // Common states
-    const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
     const { lang } = useLanguage();
 
     const handleSignIn = async () => {
-        setError(null);
+        setSignInError(null);
         setLoading(true);
         
         try {
@@ -85,40 +90,40 @@ export default function AuthScreen() {
                 console.log('✅ Login successful');
             } else {
                 console.log('❌ Login failed:', res.message);
-                setError(res.message || t("auth.login_failed"));
+                setSignInError(t("auth.login_failed"));
             }
         } catch (err: any) {
             console.error('💥 Login error:', err);
-            setError(err.message || t("auth.login_failed"));
+            setSignInError(t("auth.login_failed"));
         } finally {
             setLoading(false);
         }
     };
 
     const handleSignUp = async () => {
-        setError(null);
+        setSignUpError(null);
         setSuccess(null);
         
         // Validation
         if (!fullName.trim() || !signupEmail.trim() || !signupPassword.trim()) {
-            setError(t("auth.fill_required_fields"));
+            setSignUpError(t("auth.fill_required_fields"));
             return;
         }
         
         if (signupPassword !== confirmPassword) {
-            setError(t("auth.passwords_dont_match"));
+            setSignUpError(t("auth.passwords_dont_match"));
             return;
         }
         
         if (signupPassword.length < 6) {
-            setError(t("auth.password_too_short"));
+            setSignUpError(t("auth.password_too_short"));
             return;
         }
         
         // Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(signupEmail)) {
-            setError(t("auth.invalid_email"));
+            setSignUpError(t("auth.invalid_email"));
             return;
         }
         
@@ -135,7 +140,6 @@ export default function AuthScreen() {
                 confirmPassword: confirmPassword,
                 phone: phone.trim(),
                 dateOfBirth: formattedDate,
-                avatar: avatar.trim()
             };
             
             console.log('📝 Registering with data:', { ...registerData, password: '***' });
@@ -149,16 +153,16 @@ export default function AuthScreen() {
                 setSuccess(t("auth.verification_code_sent"));
             } else {
                 console.log('❌ Registration failed:', response.message);
-                setError(response.message || t("auth.registration_failed"));
+                setSignUpError(t("auth.registration_failed"));
                 
                 if (response.errors) {
                     const errorMessages = Object.values(response.errors).flat();
-                    setError(errorMessages.join(", "));
+                    setSignUpError(errorMessages.join(", "));
                 }
             }
         } catch (err: any) {
             console.error("💥 Registration error:", err);
-            setError(err.message || t("auth.registration_error"));
+            setSignUpError(t("auth.registration_error"));
         } finally {
             setLoading(false);
         }
@@ -185,12 +189,12 @@ export default function AuthScreen() {
                 setEmail(email);
             } else {
                 console.log('❌ OTP verification failed:', res.message);
-                setError(res.message || t("auth.verification_failed"));
+                setOtpError(res.message || t("auth.verification_failed"));
             }
             return res;
         } catch (error: any) {
             console.error('💥 OTP verification error:', error);
-            setError(error.message || t("auth.verification_failed"));
+            setOtpError(t("auth.verification_failed"));
             return { success: false, message: error.message };
         } finally {
             setLoading(false);
@@ -215,12 +219,12 @@ export default function AuthScreen() {
                 setSuccess(t("auth.email_verified"));
             } else {
                 console.log('❌ Reset password OTP verification failed:', res.message);
-                setError(res.message || t("auth.verification_failed"));
+                setOtpError(t("auth.verification_failed"));
             }
             return res;
         } catch (error: any) {
             console.error('💥 Reset password OTP error:', error);
-            setError(error.message || t("auth.verification_failed"));
+            setOtpError(t("auth.verification_failed"));
             return { success: false, message: error.message };
         } finally {
             setLoading(false);
@@ -248,13 +252,13 @@ export default function AuthScreen() {
                 setSuccess(t("auth.otp_resent"));
             } else {
                 console.log('❌ Failed to resend OTP:', res.message);
-                setError(res.message || t("auth.resend_failed"));
+                setOtpError(t("auth.resend_failed"));
             }
             
             return res;
         } catch (error: any) {
             console.error('💥 Resend OTP error:', error);
-            setError(error.message || t("auth.resend_failed"));
+            setOtpError(t("auth.resend_failed"));
             return { success: false, message: error.message };
         } finally {
             setLoading(false);
@@ -263,7 +267,7 @@ export default function AuthScreen() {
 
     const handleForgotPassword = async () => {
         if (!email.trim()) {
-            setError(t("auth.require_email"));
+            setSignInError(t("auth.require_email"));
             return;
         }
         
@@ -284,12 +288,12 @@ export default function AuthScreen() {
                 setSuccess(t("auth.reset_code_sent"));
             } else {
                 console.log('❌ Password reset request failed:', res.message);
-                setError(res.message || t("auth.reset_request_failed"));
+                setSignInError(t("auth.reset_request_failed"));
             }
             return res;
         } catch (error: any) {
             console.error('💥 Forgot password error:', error);
-            setError(error.message || t("auth.reset_request_failed"));
+            setSignInError(t("auth.reset_request_failed"));
             return { success: false, message: error.message };
         } finally {
             setLoading(false);
@@ -297,23 +301,23 @@ export default function AuthScreen() {
     };
 
     const handleResetPassword = async () => {
-        setError(null);
+        setResetPasswordError(null);
         setLoading(true);
         
         if (!otpEmail) {
-            setError("Email not found");
+            setResetPasswordError(t("auth.email_not_found"));
             setLoading(false);
             return;
         }
         
         if (newPassword !== newConfirmPassword) {
-            setError(t("auth.passwords_dont_match"));
+            setResetPasswordError(t("auth.passwords_dont_match"));
             setLoading(false);
             return;
         }
         
         if (newPassword.length < 6) {
-            setError(t("auth.password_too_short"));
+            setResetPasswordError(t("auth.password_too_short"));
             setLoading(false);
             return;
         }
@@ -340,16 +344,16 @@ export default function AuthScreen() {
                 await authService.clearAuthData();
             } else {
                 console.log('❌ Password reset failed:', res.message);
-                setError(res.message || t("auth.reset_failed"));
+                setResetPasswordError(t("auth.reset_failed"));
             }
         } catch (err: any) {
             console.error('💥 Reset password error:', err);
             const message = err.response?.data?.message;
 
             if (message?.includes('expired')) {
-                setError(t('auth.reset_token_expired'));
+                setResetPasswordError(t('auth.reset_token_expired'));
             } else {
-                setError(message ?? t('common.error'));
+                setResetPasswordError(t('common.error'));
             }
         } finally {
             setLoading(false);
@@ -388,16 +392,15 @@ export default function AuthScreen() {
         }
     };
 
-    // Clear error/success after 5 seconds
+    // Clear success message after 5 seconds
     React.useEffect(() => {
-        if (error || success) {
+        if (success) {
             const timer = setTimeout(() => {
-                setError(null);
                 setSuccess(null);
             }, 5000);
             return () => clearTimeout(timer);
         }
-    }, [error, success]);
+    }, [success]);
 
     return (
         <SafeAreaView style={styles.safe}>
@@ -445,7 +448,7 @@ export default function AuthScreen() {
                                 setPassword={setNewPassword}
                                 confirmPassword={newConfirmPassword}
                                 setConfirmPassword={setNewConfirmPassword}
-                                error={error}
+                                error={resetPasswordError}
                                 loading={loading}
                                 onResetPassword={handleResetPassword}
                             />
@@ -475,7 +478,7 @@ export default function AuthScreen() {
                                             setPassword={setPassword}
                                             rememberMe={rememberMe}
                                             setRememberMe={setRememberMe}
-                                            error={error}
+                                            error={signInError}
                                             loading={loading}
                                             onSignIn={handleSignIn}
                                             onForgotPassword={handleForgotPassword}
@@ -508,7 +511,7 @@ export default function AuthScreen() {
                                                 setPhone={setPhone}
                                                 dateOfBirth={dateOfBirth}
                                                 setDateOfBirth={setDateOfBirth}
-                                                error={error}
+                                                error={signUpError}
                                                 loading={loading}
                                                 onSignUp={handleSignUp}
                                             />
@@ -528,14 +531,11 @@ export default function AuthScreen() {
                             </>
                         )}
 
-                        {/* Success/Error Toast */}
-                        {(success || error) && (
-                            <View style={[
-                                styles.toast,
-                                success ? styles.successToast : styles.errorToast
-                            ]}>
+                        {/* Success Toast */}
+                        {success && (
+                            <View style={[styles.toast, styles.successToast]}>
                                 <Text style={styles.toastText}>
-                                    {success || error}
+                                    {success}
                                 </Text>
                             </View>
                         )}
