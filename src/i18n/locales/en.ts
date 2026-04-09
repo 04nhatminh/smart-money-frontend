@@ -15,6 +15,7 @@ export default {
     home: "Home",
     error: "Something went wrong. Please try again.",
     save: "Save",
+    saving: "Saving...",
     cancel: "Cancel",
     delete: "Delete",
     edit: "Edit",
@@ -24,6 +25,9 @@ export default {
     done: "Done",
     reset: "Reset",
     close: "Close",
+    create: "Create",
+    update: "Update",
+    yes: "Yes",
   },
   auth: {
     welcome: "Join Smart Money Today!",
@@ -265,4 +269,8 @@ export default {
     error_capture_failed: "Failed to capture photo",
     error_pick_failed: "Failed to pick image",
   },
+  project:{
+    confirmExit: "Project not saved.",
+    confirmExitDesc: "Are you sure you want to exit?",
+  }
 };

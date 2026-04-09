@@ -5,13 +5,14 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useThemeMode } from "../theme/ThemeProvider";
 
-type TabKey = "home" | "stats" | "transaction" | "wallet" | "profile";
+type TabKey = "home" | "stats" | "transaction" | "project" | "wallet" | "profile";
 
 type NavigationHandlers = {
   onHome: () => void;
   onStats: () => void;
   onAdd: () => void;
   onTransaction: () => void;
+  onProject: () => void;
   onWallet: () => void;
   onProfile: () => void;
 };
@@ -24,6 +25,7 @@ type Props = {
   onStats?: () => void;
   onAdd?: () => void;
   onTransaction?: () => void;
+  onProject?: () => void;
   onWallet?: () => void;
   onProfile?: () => void;
   // Add menu option handlers
@@ -41,6 +43,7 @@ export function BottomBar({
   onStats,
   onAdd,
   onTransaction,
+  onProject,
   onWallet,
   onProfile,
   onAddByForm,
@@ -56,6 +59,7 @@ export function BottomBar({
     onStats: onStats || (() => {}),
     onAdd: onAdd || (() => {}),
     onTransaction: onTransaction || (() => {}),
+    onProject: onProject || (() => {}),
     onWallet: onWallet || (() => {}),
     onProfile: onProfile || (() => {}),
   };
@@ -109,14 +113,14 @@ export function BottomBar({
           />
         </Pressable>
 
-        <Pressable 
-          style={[styles.item, active === 'transaction' && styles.activeItem]} 
-          onPress={actualHandlers.onTransaction}
+        <Pressable
+          style={[styles.item, active === "project" && styles.activeItem]}
+          onPress={actualHandlers.onProject}
         >
           <Ionicons
-            name={active === 'transaction' ? "stats-chart" : "stats-chart-outline"}
+            name={active === "project" ? "folder" : "folder-outline"}
             size={22}
-            color={iconColor("transaction")}
+            color={iconColor("project")}
           />
         </Pressable>
 

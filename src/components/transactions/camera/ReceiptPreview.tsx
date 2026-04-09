@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Pressable,
@@ -7,6 +7,7 @@ import {
   Text,
   ScrollView,
   TextInput,
+  Image
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AntDesign from '@expo/vector-icons/AntDesign';
@@ -18,6 +19,7 @@ import { Receipt } from "../../../types/transaction.types";
 
 type Props = {
   imageUri: string;
+  receipt?: Receipt | null; // 👈 thêm
   onCancel: () => void;
   onRetakePhoto: () => void;
   onConfirm: (receipt: Receipt) => void;
@@ -25,18 +27,9 @@ type Props = {
   errorMessage?: string | null;
 };
 
-// Mock receipt data (simulating OCR extraction from image)
-const MOCK_RECEIPT: Receipt = {
-  type: "Expense",
-  transactionName: "Breakfast",
-  amount: 40.0,
-  category: "Food",
-  date: "28/02/2026",
-  description: "Eat Pho",
-};
-
 export function ReceiptPreview({
   imageUri,
+  receipt: receiptProp,
   onCancel,
   onRetakePhoto,
   onConfirm,
@@ -44,21 +37,48 @@ export function ReceiptPreview({
   errorMessage,
 }: Props) {
   const { theme } = useThemeMode();
-  const [receipt, setReceipt] = useState<Receipt>(MOCK_RECEIPT);
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
+
+  useEffect(() => {
+    if (receiptProp) {
+      setReceipt(receiptProp);
+    }
+  }, [receiptProp]);
+
   const [isEditing, setIsEditing] = useState(false);
 
   const handleConfirm = () => {
-    console.log("📝 ReceiptPreview.handleConfirm called");
-    console.log("📊 Receipt data:", receipt);
-    onConfirm(receipt);
+    if (!receipt) return;
+
+    console.log("📝 Confirm:", receipt);
+    onConfirm(receipt); // ✅ FIX
   };
 
   const updateReceipt = (field: keyof Receipt, value: any) => {
-    setReceipt(prev => ({
-      ...prev,
-      [field]: field === 'amount' ? parseFloat(value) || 0 : value,
-    }));
+    setReceipt(prev => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        [field]:
+          field === "amount"
+            ? Number(value) || 0
+            : value,
+      };
+    });
   };
+
+  if (!receipt) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <Text style={{ color: theme.text }}>
+            🤖 AI đang xử lý hóa đơn...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -82,6 +102,14 @@ export function ReceiptPreview({
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Upload Receipt Section */}
+
+      {imageUri ? (
+        <Image
+          source={{ uri: imageUri }}
+          style={styles.receiptImage}
+          resizeMode="contain"
+        />
+      ) : (
         <Pressable 
           onPress={onRetakePhoto}
           style={[styles.uploadSection, { backgroundColor: theme.card }]}
@@ -94,7 +122,8 @@ export function ReceiptPreview({
             {t("camera.upload_image_or_capture")}
           </Text>
         </Pressable>
-
+      )}
+      
         {/* Receipt Details */}
         <View style={[styles.detailsSection, { backgroundColor: theme.card }]}>
           {/* Type */}
@@ -290,6 +319,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     flexDirection: "row",
     borderBottomWidth: 1,
+  },
+  receiptImage: {
+    width: "100%",
+    height: 200,
+    marginBottom: 16,
   },
   title: {
     fontSize: 18,

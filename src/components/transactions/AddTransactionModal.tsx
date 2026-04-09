@@ -21,8 +21,8 @@ import {
   formatTime,
   formatDateToDDMMYYYY,
 } from "../../utils/dateFormatter";
-import SuccessModal from "./SuccessModal";
-import ConfirmExitModal from "./ConfirmExitModal";
+import SuccessModal from "../SuccessModal";
+import ConfirmExitModal from "../ConfirmExitModal";
 import { useCreateTransaction } from "../../hooks/useCreateTransaction";
 
 interface AddTransactionModalProps {
@@ -186,6 +186,7 @@ export function AddTransactionModal({
           >
             <View
               style={{
+                marginTop: 20,
                 paddingHorizontal: 16,
                 paddingTop: 12,
                 paddingBottom: 8,
@@ -194,7 +195,7 @@ export function AddTransactionModal({
                 alignItems: "center",
               }}
             >
-              <Text style={{ fontSize: 20, fontWeight: "700" }}>
+              <Text style={{ fontSize: 25, fontWeight: "700" }}>
                 {t("transaction.addTitle")}
               </Text>
 
@@ -339,12 +340,20 @@ export function AddTransactionModal({
           onSaved?.();
           onClose();
         }}
+        title={t("transaction.saveSuccess")}
+        description={t("transaction.saveSuccessDesc")}
+        buttonText={t("common.done")}
+
       />
 
       <ConfirmExitModal
         visible={showExitModal}
         onCancel={() => setShowExitModal(false)}
         onConfirm={handleConfirmClose}
+        title={t("transaction.confirmExit")}
+        description={t("transaction.confirmExitDesc")}
+        cancelText={t("common.cancel")}
+        confirmText={t("common.continue")}
       />
     </>
   );

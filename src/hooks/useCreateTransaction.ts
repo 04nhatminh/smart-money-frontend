@@ -1,6 +1,10 @@
 import { Alert } from "react-native";
 import { Receipt, TransactionRequest } from "../types/transaction.types";
 import transactionApi from "../api/transaction.api";
+import AIAPI from "../api/ai.api";
+import authApi from "../api/auth.api";
+import { connectWebSocket } from "../services/websocket";
+import { Client } from "@stomp/stompjs";
 import { parseDateStringtoString } from "../utils/dateFormatter";
 
 export const createTransaction = async (payload: any) => {
@@ -53,14 +57,15 @@ export const useCreateTransaction = () => {
       throw error;
     }
   };
-  const createFromReceipt = async (receipt: Receipt) => {
+
+  const createFromReceipt = async (receipt: Receipt): Promise<boolean> => {
     try {
       const payload = mapReceiptToPayload(receipt);
+
       await createTransaction(payload);
-      Alert.alert("Success", "Transaction created successfully");
+
       return true;
-    } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to create transaction");
+    } catch (error) {
       throw error;
     }
   };

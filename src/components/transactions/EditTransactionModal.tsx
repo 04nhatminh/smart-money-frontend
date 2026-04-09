@@ -27,8 +27,9 @@ import {
   formatDateToDDMMYYYY,
   parseDDMMYYYYHHMM,
 } from "../../utils/dateFormatter";
-import SuccessModal from "./SuccessModal";
-import ConfirmExitModal from "./ConfirmExitModal";
+import SuccessModal from "../SuccessModal";
+import ConfirmExitModal from "../ConfirmExitModal";
+import { Ionicons } from "@expo/vector-icons";
 
 interface EditTransactionModalProps {
   visible: boolean;
@@ -241,21 +242,19 @@ export function EditTransactionModal({
             <View
               style={{
                 paddingHorizontal: 16,
-                paddingTop: 12,
+                padding: 30,
                 paddingBottom: 8,
                 flexDirection: "row",
                 justifyContent: "space-between",
                 alignItems: "center",
               }}
             >
-              <Text style={{ fontSize: 20, fontWeight: "700" }}>
-                {t("common.edit")}
+              <Text style={{ fontSize: 25, fontWeight: "700", marginBottom: 4 }}>
+                {t("transaction.editTitle")}
               </Text>
 
               <Pressable onPress={handleRequestClose}>
-                <Text style={{ fontSize: 16, fontWeight: "600" }}>
-                  {t("common.close")}
-                </Text>
+                <Ionicons name="close" size={24} color="#333" />
               </Pressable>
             </View>
 
@@ -415,12 +414,19 @@ export function EditTransactionModal({
           onSaved?.();
           onClose();
         }}
+        title={t("transaction.saveSuccess")}
+        description={t("transaction.saveSuccessDesc")}
+        buttonText={t("common.done")}
       />
 
       <ConfirmExitModal
         visible={showExitModal}
         onCancel={() => setShowExitModal(false)}
         onConfirm={handleConfirmClose}
+        title={t("transaction.confirmExit")}
+        description={t("transaction.confirmExitDesc")}
+        cancelText={t("common.cancel")}
+        confirmText={t("common.continue")}
       />
     </>
   );

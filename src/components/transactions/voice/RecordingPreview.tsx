@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { use, useState, useEffect } from "react";
 import {
   View,
   Pressable,
@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { Audio } from "expo-av";
 import { useThemeMode } from "../../../theme/ThemeProvider";
 import { SubmitButton } from "../../SubmitButton";
 import { ActionButton } from "../../ActionButton";
@@ -16,16 +17,103 @@ type Props = {
   audioUri: string;
   onRetake: () => void;
   onConfirm: () => void;
+  isSubmitting?: boolean;
 };
 
-export function RecordingPreview({ audioUri, onRetake, onConfirm }: Props) {
+export function RecordingPreview({ audioUri, onRetake, onConfirm, isSubmitting }: Props) {
   const { theme } = useThemeMode();
-  const [isPlaying, setIsPlaying] = useState(false);
 
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
-    // In real implementation: play/pause audio
+  const soundRef = React.useRef<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [position, setPosition] = useState(0);
+
+  useEffect(() => {
+    loadAudio();
+
+    return () => {
+      unloadAudio();
+    };
+  }, [audioUri]);
+
+  const loadAudio = async () => {
+    try {
+      if (!audioUri) return;
+
+      const { sound, status } = await Audio.Sound.createAsync(
+        { uri: audioUri },
+        { shouldPlay: false }
+      );
+
+      soundRef.current = sound;
+
+      if (status.isLoaded) {
+        setDuration(status.durationMillis || 0);
+      }
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) return;
+
+        setPosition(status.positionMillis || 0);
+        setIsPlaying(status.isPlaying);
+
+        if (status.didJustFinish) {
+          setIsPlaying(false);
+        }
+      }); 
+    } catch (error) {
+      console.error("Error loading audio:", error);
+    }
   };
+
+  const unloadAudio = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+    } catch (error) {
+      console.error("Error unloading audio:", error);
+    }
+  };
+
+  const handlePlayPause = async () => {
+    try {
+      if (!soundRef.current) return;
+
+      const status = await soundRef.current.getStatusAsync();
+      if (!status.isLoaded) return;
+
+      if (status.isPlaying) {
+        await soundRef.current.pauseAsync();
+        return;
+      }
+
+      const isAtEnd =
+        status.durationMillis != null &&
+        status.positionMillis >= status.durationMillis - 300;
+
+      if (status.didJustFinish || isAtEnd) {
+        await soundRef.current.setPositionAsync(0);
+      }
+
+      await soundRef.current.playAsync();
+    } catch (err) {
+      console.error("❌ Play error:", err);
+    }
+  };
+
+  // ⏱ format time mm:ss
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  };
+
+  const progressPercent =
+    duration > 0 ? (position / duration) * 100 : 0;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -70,13 +158,18 @@ export function RecordingPreview({ audioUri, onRetake, onConfirm }: Props) {
           {/* Playback Progress */}
           <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
             <View
-              style={[styles.progress, { backgroundColor: theme.primary }]}
+              style={[styles.progress, 
+                { 
+                  backgroundColor: theme.primary,
+                  width: `${progressPercent}%`,
+                }
+              ]}
             />
           </View>
-
-          <Text style={[styles.duration, { color: theme.subtext }]}>
-            0:45
-          </Text>
+            <Text style={[styles.duration, { color: theme.subtext }]}>
+              {formatTime(position)} / {formatTime(duration)}
+            </Text>
+          
         </View>
 
         {/* Instructions */}
@@ -92,13 +185,20 @@ export function RecordingPreview({ audioUri, onRetake, onConfirm }: Props) {
           onPress={onConfirm}
         />
 
-        <ActionButton
-          label="Retake"
+        <Pressable
           onPress={onRetake}
-          variant="secondary"
-          color={theme.text}
-          borderColor={theme.border}
-        />
+          style={{
+            height: 48,
+            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: theme.border,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#F2F1F9",
+          }}
+        >
+          <Text style={{ color: theme.text, fontWeight: "600" }}>Retake</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -109,9 +209,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    marginTop: 40,
     paddingHorizontal: 16,
     paddingVertical: 16,
     alignItems: "center",
+    justifyContent: "space-between",
     borderBottomWidth: 1,
   },
   title: {
@@ -122,13 +224,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     justifyContent: "center",
+    paddingTop: 32,
   },
   playbackArea: {
     borderRadius: 16,
-    paddingVertical: 40,
+    paddingVertical: 32,
     paddingHorizontal: 24,
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 20,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -177,7 +280,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 8,
     paddingBottom: 24,
     gap: 12,
   },
