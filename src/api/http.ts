@@ -10,6 +10,8 @@ import { API_CONFIG } from '../config/api';
 
 
 // Create axios instance with default config
+console.log("📡 HTTP Config - baseURL:", API_CONFIG.BASE_URL, "timeout:", API_CONFIG.TIMEOUT);
+
 const http: AxiosInstance = axios.create({
   baseURL: API_CONFIG.BASE_URL,
   timeout: API_CONFIG.TIMEOUT,
@@ -46,10 +48,16 @@ http.interceptors.response.use(
         }
 
         // Gọi API refresh token
-        const response = await axios.post(
-          `${process.env.EXPO_PUBLIC_API_BASE_URL}/auth/refresh`,
-          { refreshToken }
-        );
+        const response = await http.post("/api/auth/v1/refresh-token", {
+          refreshToken,
+        });
+
+        if (!response.data.success) {
+          throw new Error(response.data.message || "Token refresh failed");
+        }
+        else {
+          console.log("Token refreshed successfully");
+        }
 
         const { accessToken } = response.data;
         await tokenStorage.setAccessToken(accessToken);
