@@ -1,4 +1,5 @@
 import { CloudinaryAPI } from "../api/cloudinary.api";
+import { http } from "../api/http";
 import { UploadToCloudinaryResponse } from "../types/cloudinary.types";
 
 export const CloudinaryService = {
@@ -44,5 +45,15 @@ export const CloudinaryService = {
       folder,
       fileName ?? `voice_${Date.now()}.m4a`
     );
+  },
+  
+  async deleteImage(publicId: string, type: "image" | "voice"): Promise<void> {
+    try {
+      await http.delete("/api/v1/cloudinary/image", {
+        data: { publicId, type },
+      });
+    } catch (error) {
+      console.error(`🔴 Failed to delete ${type} with public ID: ${publicId}`, error);
+    }
   },
 };

@@ -168,6 +168,9 @@ export default {
     notification_description: "Notifications help you stay on top of your spending",
     on: "On",
     off: "Off",
+    notification_done: "{{type}} {{amount}} VND in {{category}}",
+    expense: "Spent",
+    income: "Received"
   },
   privacy: {
     privacy_security: "Privacy & Security",

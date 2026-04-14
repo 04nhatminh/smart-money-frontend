@@ -18,6 +18,7 @@ import { InputField } from '../InputField';
 import { t } from '../../i18n';
 import authService from '../../auth/authService';
 import { formatDateToDDMMYYYY } from '../../utils/dateFormatter';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 interface EditProfileModalProps {
   visible: boolean;
@@ -39,6 +40,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   );
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { lang } = useLanguage();
 
   useEffect(() => {
     if (visible) {
@@ -67,7 +69,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
     try {
       setLoading(true);
-      const dob = formatDateToDDMMYYYY(dateOfBirth);
+      const dob = dateOfBirth
+                  ? formatDateToDDMMYYYY(dateOfBirth)
+                  : undefined;
       console.log('Submitting update with DOB:', dob);
       const updateData = {
         fullname: fullName.trim(),

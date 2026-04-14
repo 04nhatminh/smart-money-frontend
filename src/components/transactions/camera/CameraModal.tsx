@@ -8,6 +8,7 @@ import AIAPI from "../../../api/ai.api";
 import authApi from "../../../api/auth.api";
 import { connectWebSocket } from "../../../services/websocket";
 import { CloudinaryService } from "../../../services/cloudinary.service";
+import WaitScreen from "../../../../app/(wait)/wait";
 
 type Props = {
   visible: boolean;
@@ -15,7 +16,7 @@ type Props = {
   onCaptureBill: (receipt: Receipt) => void | Promise<void>;
 };
 
-type CameraStep = "camera" | "preview" | "receipt";
+type CameraStep = "camera" | "preview" | "waiting" | "receipt";
 
 export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
   const [step, setStep] = useState<CameraStep>("camera");
@@ -23,6 +24,7 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [cloudinaryPublicId, setCloudinaryPublicId] = useState<string>("");
 
 
   const handleCapture = async (uri: string) => {
@@ -54,7 +56,10 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
       // 📤 Upload image to Cloudinary
       console.log("📤 Uploading image to Cloudinary...");
       const cloudinaryResponse = await CloudinaryService.uploadReceiptImage(photoUri);
-      console.log("✅ Cloudinary URL:", cloudinaryResponse.fileUrl);
+
+      const publicId = cloudinaryResponse.publicId; // ✅ giữ local
+
+      setCloudinaryPublicId(publicId);
 
       // 📤 Submit Cloudinary URL to AI API (LẦN DUY NHẤT)
       const submitRes = await AIAPI.submitImageReceipt(cloudinaryResponse.fileUrl);
@@ -64,6 +69,9 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
 
       const jobId = submitRes.data.jobId;
       console.log("🔥 JOB ID:", jobId);
+
+      // 🔄 Show waiting screen
+      setStep("waiting");
 
       // ⛔ Create promise to wait for AI result
       const resultPromise = new Promise<void>((resolve, reject) => {
@@ -89,10 +97,10 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
 
             try {
               const processedReceipt: Receipt = {
-                type: resultData.type === "INCOME" ? "Income" : "Expense",
+                type: resultData.type === "EXPENSE" ? "EXPENSE" : "INCOME", // Map AI type to local type
                 transactionName:
                   resultData.description || resultData.transactionName || "Receipt",
-                amount: Number(resultData.amount) || 0,
+                amount: Number(resultData.expense) || 0,
                 category: resultData.category || "Other",
                 date: resultData.date || new Date().toISOString(),
                 description: resultData.description || "",
@@ -100,12 +108,17 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
 
               console.log("✅ Receipt processed:", processedReceipt);
               setReceipt(processedReceipt);
+                            
               clearTimeout(timeout);
               resolve(); // ✅ DONE
             } catch (err) {
               console.error("❌ Parse error:", err);
               clearTimeout(timeout);
               reject(err);
+            }
+            finally {
+              // 🗑️ Delete image from Cloudinary regardless of success or failure
+              CloudinaryService.deleteImage(publicId, "image");
             }
           },
         });
@@ -171,6 +184,8 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
           onRetake={handleRetake}
           onConfirm={handlePreviewConfirm}
         />
+      ) : step === "waiting" ? (
+        <WaitScreen />
       ) : (
         <ReceiptPreview
           imageUri={photoUri}

@@ -133,14 +133,14 @@ export function ReceiptPreview({
             </Text>
             {isEditing ? (
               <View style={styles.typeSelector}>
-                {(['Expense', 'Income'] as const).map(type => (
+                {(['EXPENSE', 'INCOME'] as const).map(type => (
                   <Pressable
                     key={type}
                     onPress={() => updateReceipt('type', type)}
                     style={[
                       styles.typeOption,
                       receipt.type === type && {
-                        backgroundColor: type === "Expense" ? "#ef4444" : "#10b981",
+                        backgroundColor: type === "EXPENSE" ? "#ef4444" : "#10b981",
                       }
                     ]}
                   >
@@ -159,11 +159,11 @@ export function ReceiptPreview({
                   styles.detailValue,
                   {
                     color:
-                      receipt.type === "Expense"
+                      receipt.type === "EXPENSE"
                         ? "#ef4444"
                         : "#10b981",
                     backgroundColor:
-                      receipt.type === "Expense"
+                      receipt.type === "EXPENSE"
                         ? "#ef444415"
                         : "#10b98115",
                     paddingHorizontal: 12,

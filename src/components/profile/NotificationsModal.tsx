@@ -12,6 +12,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { t } from '../../i18n';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 interface NotificationsModalProps {
   visible: boolean;
@@ -28,12 +29,17 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   onClose,
   onToggle,
 }) => {
+  React.useEffect(() => {
+    console.log("[NotificationsModal] visible changed to:", visible);
+  }, [visible]);
 
   const handleToggle = (value: boolean) => {
     if (!loading) {
       onToggle(value);
     }
   };
+
+  const { lang } = useLanguage();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { t } from '../../i18n';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 interface ProfileActionsProps {
   userId?: string;
@@ -9,6 +10,7 @@ interface ProfileActionsProps {
 }
 
 export const ProfileActions: React.FC<ProfileActionsProps> = ({ userId, onLogout }) => {
+  const { lang } = useLanguage();
   return (
     <>
       {/* Logout Button */}

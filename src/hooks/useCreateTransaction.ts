@@ -29,7 +29,7 @@ export const getTransactions = async (params: any) => {
 
 const mapReceiptToPayload = (receipt: Receipt) => ({
   amount: receipt.amount,
-  type: receipt.type === "Income" ? ("INCOME" as const) : ("EXPENSE" as const),
+  type: receipt.type === "INCOME" ? ("INCOME" as const) : ("EXPENSE" as const),
   category: receipt.category.toUpperCase(),
   description: receipt.description?.trim() || receipt.transactionName,
   date: parseDateStringtoString(receipt.date),

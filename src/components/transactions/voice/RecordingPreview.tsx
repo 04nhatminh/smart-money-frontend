@@ -18,9 +18,10 @@ type Props = {
   onRetake: () => void;
   onConfirm: () => void;
   isSubmitting?: boolean;
+  onCancel?: () => void;
 };
 
-export function RecordingPreview({ audioUri, onRetake, onConfirm, isSubmitting }: Props) {
+export function RecordingPreview({ audioUri, onRetake, onConfirm, isSubmitting, onCancel }: Props) {
   const { theme } = useThemeMode();
 
   const soundRef = React.useRef<Audio.Sound | null>(null);
@@ -117,89 +118,109 @@ export function RecordingPreview({ audioUri, onRetake, onConfirm, isSubmitting }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Text style={[styles.title, { color: theme.text }]}>
-          Voice Input
-        </Text>
-      </View>
-
-      {/* Content */}
-      <View style={styles.content}>
-        {/* Audio Playback Area */}
-        <View style={[styles.playbackArea, { backgroundColor: theme.card }]}>
+      {isSubmitting ? (
+        // 🤖 AI Processing Loading Screen
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <MaterialCommunityIcons
             name="waveform"
             size={80}
             color={theme.primary}
+            style={{ marginBottom: 16 }}
           />
-
-          <Text style={[styles.subtitle, { color: theme.text }]}>
-            Review your recording
+          <Text style={[styles.loadingText, { color: theme.text }]}>
+            🤖 AI đang xử lý voice input...
           </Text>
-
-          {/* Play/Pause Button */}
-          <Pressable
-            style={[
-              styles.playButton,
-              {
-                backgroundColor: theme.primary,
-              },
-            ]}
-            onPress={handlePlayPause}
-          >
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={32}
-              color="white"
-            />
-          </Pressable>
-
-          {/* Playback Progress */}
-          <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
-            <View
-              style={[styles.progress, 
-                { 
-                  backgroundColor: theme.primary,
-                  width: `${progressPercent}%`,
-                }
-              ]}
-            />
-          </View>
-            <Text style={[styles.duration, { color: theme.subtext }]}>
-              {formatTime(position)} / {formatTime(duration)}
-            </Text>
-          
+          <Text style={[styles.loadingSubtext, { color: theme.subtext, marginTop: 8 }]}>
+            Vui lòng chờ một chút
+          </Text>
         </View>
+      ) : (
+        <>
+          {/* Header */}
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.title, { color: theme.text }]}>
+              Voice Input
+            </Text>
+          </View>
 
-        {/* Instructions */}
-        <Text style={[styles.instructions, { color: theme.subtext }]}>
-          If you're happy with your recording, proceed to enter the transaction details. Otherwise, retake the recording.
-        </Text>
-      </View>
+          {/* Content */}
+          <View style={styles.content}>
+            {/* Audio Playback Area */}
+            <View style={[styles.playbackArea, { backgroundColor: theme.card }]}>
+              <MaterialCommunityIcons
+                name="waveform"
+                size={80}
+                color={theme.primary}
+              />
 
-      {/* Actions */}
-      <View style={styles.actions}>
-        <SubmitButton
-          label="Confirm"
-          onPress={onConfirm}
-        />
+              <Text style={[styles.subtitle, { color: theme.text }]}>
+                Review your recording
+              </Text>
 
-        <Pressable
-          onPress={onRetake}
-          style={{
-            height: 48,
-            borderRadius: 24,
-            borderWidth: 1,
-            borderColor: theme.border,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#F2F1F9",
-          }}
-        >
-          <Text style={{ color: theme.text, fontWeight: "600" }}>Retake</Text>
-        </Pressable>
-      </View>
+              {/* Play/Pause Button */}
+              <Pressable
+                style={[
+                  styles.playButton,
+                  {
+                    backgroundColor: theme.primary,
+                  },
+                ]}
+                onPress={handlePlayPause}
+              >
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={32}
+                  color="white"
+                />
+              </Pressable>
+
+              {/* Playback Progress */}
+              <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
+                <View
+                  style={[styles.progress, 
+                    { 
+                      backgroundColor: theme.primary,
+                      width: `${progressPercent}%`,
+                    }
+                  ]}
+                />
+              </View>
+                <Text style={[styles.duration, { color: theme.subtext }]}>
+                  {formatTime(position)} / {formatTime(duration)}
+                </Text>
+              
+            </View>
+
+            {/* Instructions */}
+            <Text style={[styles.instructions, { color: theme.subtext }]}>
+              If you're happy with your recording, proceed to enter the transaction details. Otherwise, retake the recording.
+            </Text>
+          </View>
+
+          {/* Actions */}
+          <View style={styles.actions}>
+            <SubmitButton
+              label="Confirm"
+              onPress={onConfirm}
+            />
+
+            <Pressable
+              onPress={onRetake}
+              style={{
+                height: 48,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: theme.border,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#F2F1F9",
+              }}
+            >
+              <Text style={{ color: theme.text, fontWeight: "600" }}>Retake</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -283,5 +304,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingBottom: 24,
     gap: 12,
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
   },
 });

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserResponse } from '../../types/auth.types';
 import { t } from '../../i18n';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 interface PersonalInfoProps {
   user: UserResponse;
@@ -10,6 +11,7 @@ interface PersonalInfoProps {
 }
 
 export const PersonalInfo: React.FC<PersonalInfoProps> = ({ user, formatDate }) => {
+  const { lang } = useLanguage();
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>

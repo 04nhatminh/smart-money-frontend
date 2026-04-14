@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { t } from '../../i18n';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 interface MenuItem {
   icon: string;
@@ -25,6 +26,7 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
   onNotifications,
   onPrivacy,
 }) => {
+  const { lang } = useLanguage();
   const DEFAULT_MENU_ITEMS: MenuItem[] = [
     { icon: 'create-outline', label: t('profile.edit_profile'), onPress: onEditProfile },
     { icon: 'key-outline', label: t('profile.change_password'), onPress: onResetPassword },
@@ -48,7 +50,10 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
               styles.menuItem,
               index === items.length - 1 && styles.menuItemLast
             ]}
-            onPress={item.onPress}
+            onPress={() => {
+              console.log("[AccountSettings] Press:", item.label);
+              item.onPress?.();
+            }}
           >
             <View style={styles.menuLeft}>
               <LinearGradient

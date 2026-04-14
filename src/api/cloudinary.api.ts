@@ -1,39 +1,39 @@
 import { CloudinarySuccessResponse, CloudinaryErrorResponse, UploadToCloudinaryResponse } from "../types/cloudinary.types";
+import http from "./http";
 
 type CloudinaryUploadType = "image" | "voice";
 type CloudinaryResponse =
   | CloudinarySuccessResponse
   | CloudinaryErrorResponse;
 
-const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-
 export const CloudinaryAPI = {
   async uploadFile(
     fileUri: string,
-    type: CloudinaryUploadType,
+    type: "image" | "voice",
     folder: string,
     fileName?: string
   ): Promise<UploadToCloudinaryResponse> {
     try {
-      if (!CLOUD_NAME) {
-        throw new Error("Missing EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME");
-      }
-
-      if (!UPLOAD_PRESET) {
-        throw new Error("Missing EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET");
-      }
-
-      if (!fileUri) {
-        throw new Error("File URI is required");
-      }
-
-      const formData = new FormData();
-
       const isImage = type === "image";
       const endpoint = isImage ? "image" : "video";
-      const defaultName = isImage ? "image.jpg" : "audio.m4a";
-      const finalFileName = fileName ?? defaultName;
+
+      const finalFileName =
+        fileName ?? (isImage ? "image.jpg" : "audio.m4a");
+
+      // 🔥 1. LẤY SIGNATURE TỪ BACKEND
+      const signRes = await http.get("/api/v1/cloudinary/signature", {
+        params: { folder },
+      });
+
+      const { timestamp, signature, apiKey, cloudName } =
+        signRes.data.data;
+
+      if (!signRes.data?.data) {
+        throw new Error("Failed to get signature");
+      }
+
+      // 🔥 2. TẠO FORMDATA
+      const formData = new FormData();
 
       formData.append("file", {
         uri: fileUri,
@@ -41,19 +41,17 @@ export const CloudinaryAPI = {
         type: isImage ? "image/jpeg" : "audio/m4a",
       } as any);
 
-      formData.append("upload_preset", UPLOAD_PRESET!);
+      formData.append("api_key", apiKey);
+      formData.append("timestamp", timestamp.toString());
+      formData.append("signature", signature);
       formData.append("folder", folder);
 
-      console.log("📤 Uploading to Cloudinary:", {
-        fileUri,
-        type,
-        folder,
-        fileName: finalFileName
-      });
-      console.log("ENDPOINT:", `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${endpoint}/upload`);
+      // ❌ BỎ upload_preset
+      // formData.append("upload_preset", ...)
 
+      // 🔥 3. UPLOAD
       const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${endpoint}/upload`,
+        `https://api.cloudinary.com/v1_1/${cloudName}/${endpoint}/upload`,
         {
           method: "POST",
           body: formData,
@@ -62,10 +60,8 @@ export const CloudinaryAPI = {
 
       const data = await response.json();
 
-      if (!response.ok || "error" in data) {
-        const errorMsg =
-          "error" in data ? data.error.message : "Cloudinary upload failed";
-        throw new Error(errorMsg);
+      if (!response.ok || data.error) {
+        throw new Error(data?.error?.message || "Upload failed");
       }
 
       return {
@@ -73,9 +69,7 @@ export const CloudinaryAPI = {
         publicId: data.public_id,
       };
     } catch (error: any) {
-      console.error("🔴 [CloudinaryAPI] Error Details:");
-      console.error("   Message:", error?.message || "Unknown error");
-      console.error("   Full Error:", error);
+      console.error("🔴 Upload error:", error);
       throw error;
     }
   },
@@ -94,5 +88,13 @@ export const CloudinaryAPI = {
     fileName: string = "audio.m4a"
   ): Promise<UploadToCloudinaryResponse> {
     return this.uploadFile(audioUri, "voice", folder, fileName);
+  },
+  async deleteImage(publicId: string): Promise<void> {
+    try {
+      await http.post("/api/v1/cloudinary/image", { publicId });
+      console.log(`🗑️ Deleted image with public ID: ${publicId}`);
+    } catch (error) {
+      console.error(`🔴 Failed to delete image with public ID: ${publicId}`, error);
+    }
   },
 };

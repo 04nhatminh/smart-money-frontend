@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 interface StatCardProps {
   icon: string;
@@ -18,6 +19,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   value,
   label,
 }) => {
+  const { lang } = useLanguage();
   return (
     <LinearGradient
       colors={['#FFFFFF', '#F2F1F9']}
