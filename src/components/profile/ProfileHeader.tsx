@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'rea
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { UserResponse } from '../../types/auth.types';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +22,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onEditAvatar,
   avatarTimestamp = Date.now(), // To force refresh avatar when it changes
 }) => {
+  const { lang } = useLanguage();
   return (
     <LinearGradient
       colors={['#3629B7', '#5655B9']}

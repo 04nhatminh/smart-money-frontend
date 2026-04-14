@@ -8,6 +8,8 @@ import {
   FlatList,
   SafeAreaView,
   ActivityIndicator,
+  ImageBackground ,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Notification } from "../../types/notification.type";
@@ -47,29 +49,75 @@ export const NotificationListModal: React.FC<Props> = ({
       onResetUnread?.();   
     }
   }, [visible]);
-  const renderItem = ({ item, index }: { item: Notification; index: number }) => (
-    <View style={styles.item}>
-      
-      {/* Gradient bar bên trái */}
-      <LinearGradient
-        colors={["#A8A3D7", "#3629B7"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.gradientBar}
-      />
 
-      {/* Content */}
-      <View style={styles.contentWrapper}>
-        <Text style={styles.content}>{item.content}</Text>
+  function parseNotification(content: string) {
+    const parts = content.split("|");
 
-        <View style={styles.bottomRow}>
-          <Text style={styles.time}>
-            {new Date(item.createdAt).toLocaleString()}
+    return {
+      key: parts[0],
+      params: {
+        type: parts[1],
+        amount: parts[2],
+        category: parts[3],
+      },
+    };
+  }
+
+  const categoryIcons: Record<string, any> = {
+    FOOD: require("../../../assets/categories/food.png"),
+    TRANSPORTATION: require("../../../assets/categories/transport.png"),
+    CLOTHING: require("../../../assets/categories/clothing.png"),
+    UTILITIES: require("../../../assets/categories/utilities.png"),
+    ENTERTAINMENT: require("../../../assets/categories/entertainment.png"),
+    HEALTH: require("../../../assets/categories/health.png"),
+    EDUCATION: require("../../../assets/categories/education.png"),
+    OTHER: require("../../../assets/categories/other.png"),
+  };
+
+  const renderItem = ({ item }: { item: Notification }) => {
+    const parsed = parseNotification(item.content);
+    const category = parsed.params.category;
+
+    return (
+      <View style={styles.item}>
+        <LinearGradient
+          colors={["#A8A3D7", "#3629B7"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.gradientBar}
+        />
+
+        <View style={styles.contentWrapper}>
+          <Text style={styles.content}>
+            {t(parsed.key, {
+              type: t(parsed.params.type),
+              amount: parsed.params.amount,
+              category: parsed.params.category,
+            })}
           </Text>
+
+          <View style={styles.bottomRow}>
+            <Text style={styles.time}>
+              {new Date(item.createdAt).toLocaleString()}
+            </Text>
+          </View>
+        </View>
+
+        {/* 👇 ICON BÊN PHẢI */}
+        <View style={styles.iconWrapper}>
+          <View style={styles.iconOuter}>
+            <View style={styles.iconInner}>
+              <Image
+                source={categoryIcons[category] || categoryIcons.OTHER}
+                style={styles.icon}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
         <Modal
@@ -78,7 +126,14 @@ export const NotificationListModal: React.FC<Props> = ({
         transparent={false}
         onRequestClose={onClose} // QUAN TRỌNG cho Android
         >
-          <SafeAreaView style={styles.container}>
+
+      <ImageBackground
+        source={require("../../../assets/notification.png")} // 👈 chỉnh path đúng
+        style={{ flex: 1, position: "absolute", width: "100%", height: "100%" }}
+        resizeMode="cover"
+      ></ImageBackground>
+
+        <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           {/* Left placeholder để cân giữa */}
@@ -109,7 +164,7 @@ export const NotificationListModal: React.FC<Props> = ({
           </View>
         ) : notifications.length === 0 ? (
           <View style={styles.center}>
-            <Text style={styles.empty}>{t("notifications.no_notifications")}</Text>
+            <Text style={styles.empty}>{t("notification.no_notifications")}</Text>
           </View>
         ) : (
           <FlatList
@@ -154,8 +209,8 @@ const styles = StyleSheet.create({
     flex: 1,
     zIndex: 999,
     elevation: 10,
-    backgroundColor: "#fff",
     paddingHorizontal: 10,
+    backgroundColor: "transparent",
   },
 
   header: {
@@ -188,7 +243,7 @@ const styles = StyleSheet.create({
 
     // inner shadow nhẹ
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "#FFFFFF",
   },
 
   title: {
@@ -245,7 +300,7 @@ const styles = StyleSheet.create({
 
   content: {
     fontSize: 15,
-    color: "#333",
+    color: "#3629B7",
     fontWeight: "500",
     lineHeight: 20,
   },
@@ -285,5 +340,39 @@ const styles = StyleSheet.create({
   loadingMore: {
     paddingVertical: 16,
     alignItems: "center",
+  },
+  iconWrapper: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    backgroundColor: "#A8A3D7",
+    borderTopLeftRadius: 36,
+    borderBottomLeftRadius: 36,
+  },
+
+  // vòng ngoài (viền tím)
+  iconOuter: {
+    width: 50,
+    height: 50,
+    borderRadius: 23,
+    backgroundColor: "#3629B7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // vòng trong (nền trắng)
+  iconInner: {
+    width: 50,
+    height: 50,
+    borderRadius: 19,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // icon
+  icon: {
+    width: 36,
+    height: 36,
   },
 });

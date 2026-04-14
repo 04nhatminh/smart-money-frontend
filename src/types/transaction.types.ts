@@ -70,7 +70,7 @@ export interface TransactionFilter {
 }
 
 export interface Receipt {
-  type: "Expense" | "Income";
+  type: TransactionType;
   transactionName: string;
   amount: number;
   category: string;

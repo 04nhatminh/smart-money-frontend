@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { type Lang } from '../../i18n';
 import { t } from '../../i18n';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 interface SettingsModalProps {
   visible: boolean;

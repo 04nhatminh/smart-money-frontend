@@ -3,6 +3,7 @@ import { View, StyleSheet, Dimensions } from 'react-native';
 import { StatCard } from './StatCard';
 import { UserResponse } from '../../types/auth.types';
 import { t } from '../../i18n';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 const { width } = Dimensions.get('window');
 
@@ -12,6 +13,7 @@ interface StatsSectionProps {
 }
 
 export const StatsSection: React.FC<StatsSectionProps> = ({ user, coin }) => {
+  const { lang } = useLanguage();
   return (
     <View style={styles.statsSection}>
       <StatCard

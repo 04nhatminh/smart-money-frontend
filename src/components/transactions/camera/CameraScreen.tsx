@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   Pressable,
@@ -12,6 +12,8 @@ import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeMode } from "../../../theme/ThemeProvider";
 import { t } from "../../../i18n";
+import * as ImageManipulator from "expo-image-manipulator";
+
 
 type Props = {
   onCapture: (uri: string) => void;
@@ -23,6 +25,7 @@ export function CameraScreen({ onCapture, onClose }: Props) {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [isRecording, setIsRecording] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
 
   if (!permission) {
     return (
@@ -62,20 +65,41 @@ export function CameraScreen({ onCapture, onClose }: Props) {
   }
 
   async function handleTakePicture() {
-    if (cameraRef.current) {
-      try {
-        setIsRecording(true);
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
-        });
+    if (!cameraReady || !cameraRef.current) return;
 
-        onCapture(photo.uri);
-      } catch (error) {
-        Alert.alert(t("camera.error_capturing"), t("camera.error_capture_failed"));
-        console.error(error);
-      } finally {
-        setIsRecording(false);
-      }
+    try {
+      setIsRecording(true);
+
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+      });
+
+      // 🔥 crop theo tỉ lệ frame (5:4)
+      const cropped = await ImageManipulator.manipulateAsync(
+        photo.uri,
+        [
+          {
+            crop: {
+              originX: 0,
+              originY: 0,
+              width: photo.width,
+              height: photo.width * (4 / 5),
+            },
+          },
+        ],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+
+      onCapture(cropped.uri);
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert(t("camera.error_capturing"), t("camera.error_capture_failed"));
+    } finally {
+      setIsRecording(false);
     }
   }
 
@@ -84,15 +108,18 @@ export function CameraScreen({ onCapture, onClose }: Props) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
-        allowsEditing: false,
+        allowsEditing: true,
+        aspect: [4, 5],
       });
 
       if (!result.canceled && result.assets.length > 0) {
         onCapture(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert(t("camera.error_capturing"), t("camera.error_pick_failed"));
-      console.error(error);
+      console.error("Error picking from library:", error);
+      setTimeout(() => {
+        Alert.alert(t("camera.error_capturing"), t("camera.error_pick_failed"));
+      }, 100);
     }
   }
 
@@ -103,6 +130,7 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         style={styles.camera}
         facing="back"
         flash="auto"
+        onCameraReady={() => setCameraReady(true)}
       />
 
       {/* Receipt Guide Frame - Overlay */}
@@ -132,10 +160,10 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         {/* Capture Button */}
         <Pressable
           onPress={handleTakePicture}
-          disabled={isRecording}
+          disabled={isRecording || !cameraReady}
           style={[
             styles.captureBtn,
-            { opacity: isRecording ? 0.6 : 1 },
+            { opacity: isRecording || !cameraReady ? 0.6 : 1 },
           ]}
         >
           <View style={styles.captureBtnInner} />

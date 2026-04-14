@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { InputField } from '../InputField';
 import authService from '../../auth/authService';
 import { t } from '../../i18n';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 type Step = 'confirm' | 'otp' | 'reset';
 
@@ -36,7 +37,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-
+  const { lang } = useLanguage();
   // Load user email when modal becomes visible
   useEffect(() => {
     if (visible) {

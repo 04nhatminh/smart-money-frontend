@@ -300,7 +300,10 @@ const ProfileScreen: React.FC = () => {
         <PersonalInfo user={user} formatDate={formatDate} />
         <AccountSettings onEditProfile={() => setEditProfileModalVisible(true)} 
                          onResetPassword={() => setResetPasswordModalVisible(true)} 
-                         onNotifications={() => setNotificationsModalVisible(true)}
+                         onNotifications={() => {
+                           console.log("[Profile] Opening notifications modal");
+                           setNotificationsModalVisible(true);
+                         }}
                          onPrivacy={() => setPrivacyModalVisible(true)}
                         />
         <ProfileActions userId={user.id} onLogout={handleLogout} />

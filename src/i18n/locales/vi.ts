@@ -170,6 +170,9 @@ export default {
     notifications_description: "Thông báo giúp bạn dễ dàng theo dõi chi tiêu hơn",
     on: "Bật",
     off: "Tắt",
+    notification_done: "{{type}} {{amount}} VND trong {{category}}",
+    expense: "Đã chi",
+    income: "Đã nhận"
   },
   privacy: {
     privacy_security: "Riêng tư & Bảo mật",

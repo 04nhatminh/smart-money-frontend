@@ -11,6 +11,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { t } from '../../i18n';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 interface PrivacyAndSecurityModalProps {
   visible: boolean;
@@ -21,6 +22,7 @@ export const PrivacyAndSecurityModal: React.FC<PrivacyAndSecurityModalProps> = (
   visible,
   onClose,
 }) => {
+  const { lang } = useLanguage();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <BlurView intensity={90} style={styles.blurContainer}>
