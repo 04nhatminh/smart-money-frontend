@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   ImageBackground ,
+  Animated,
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -63,6 +64,39 @@ export const NotificationListModal: React.FC<Props> = ({
     };
   }
 
+  const AnimatedItem = ({ children, index }: any) => {
+    const translateY = React.useRef(new Animated.Value(20)).current;
+    const opacity = React.useRef(new Animated.Value(0)).current;
+
+    React.useEffect(() => {
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 400,
+          delay: index * 60, // 👈 stagger
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 400,
+          delay: index * 60,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, []);
+
+    return (
+      <Animated.View
+        style={{
+          transform: [{ translateY }],
+          opacity,
+        }}
+      >
+        {children}
+      </Animated.View>
+    );
+  };
+
   const categoryIcons: Record<string, any> = {
     FOOD: require("../../../assets/categories/food.png"),
     TRANSPORTATION: require("../../../assets/categories/transport.png"),
@@ -74,48 +108,49 @@ export const NotificationListModal: React.FC<Props> = ({
     OTHER: require("../../../assets/categories/other.png"),
   };
 
-  const renderItem = ({ item }: { item: Notification }) => {
+  const renderItem = ({ item, index }: { item: Notification; index: number }) => {
     const parsed = parseNotification(item.content);
     const category = parsed.params.category;
 
     return (
-      <View style={styles.item}>
-        <LinearGradient
-          colors={["#A8A3D7", "#3629B7"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.gradientBar}
-        />
+      <AnimatedItem index={index}>
+        <View style={styles.item}>
+          <LinearGradient
+            colors={["#A8A3D7", "#3629B7"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.gradientBar}
+          />
 
-        <View style={styles.contentWrapper}>
-          <Text style={styles.content}>
-            {t(parsed.key, {
-              type: t(parsed.params.type),
-              amount: parsed.params.amount,
-              category: parsed.params.category,
-            })}
-          </Text>
-
-          <View style={styles.bottomRow}>
-            <Text style={styles.time}>
-              {new Date(item.createdAt).toLocaleString()}
+          <View style={styles.contentWrapper}>
+            <Text style={styles.content}>
+              {t(parsed.key, {
+                type: t(parsed.params.type),
+                amount: parsed.params.amount,
+                category: parsed.params.category,
+              })}
             </Text>
-          </View>
-        </View>
 
-        {/* 👇 ICON BÊN PHẢI */}
-        <View style={styles.iconWrapper}>
-          <View style={styles.iconOuter}>
-            <View style={styles.iconInner}>
-              <Image
-                source={categoryIcons[category] || categoryIcons.OTHER}
-                style={styles.icon}
-                resizeMode="contain"
-              />
+            <View style={styles.bottomRow}>
+              <Text style={styles.time}>
+                {new Date(item.createdAt).toLocaleString()}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.iconWrapper}>
+            <View style={styles.iconOuter}>
+              <View style={styles.iconInner}>
+                <Image
+                  source={categoryIcons[category] || categoryIcons.OTHER}
+                  style={styles.icon}
+                  resizeMode="contain"
+                />
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      </AnimatedItem>
     );
   };
 
@@ -128,8 +163,8 @@ export const NotificationListModal: React.FC<Props> = ({
         >
 
       <ImageBackground
-        source={require("../../../assets/notification.png")} // 👈 chỉnh path đúng
-        style={{ flex: 1, position: "absolute", width: "100%", height: "100%" }}
+        source={require("../../../assets/notification.jpg")} // 👈 chỉnh path đúng
+        style={{ flex: 1, position: "absolute", width: "100%", height: "100%", opacity: 0.36 }}
         resizeMode="cover"
       ></ImageBackground>
 
@@ -256,6 +291,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: "#F5F5F5",
+    borderWidth: 1,
+    borderColor: "#A8A3D7",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -279,6 +316,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     marginBottom: 12,
 
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+
     // shadow mềm
     shadowColor: "#3629B7",
     shadowOpacity: 0.08,
@@ -300,7 +340,7 @@ const styles = StyleSheet.create({
 
   content: {
     fontSize: 15,
-    color: "#3629B7",
+    color: "#000",
     fontWeight: "500",
     lineHeight: 20,
   },
@@ -310,6 +350,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    color: "#333",
   },
 
   time: {
