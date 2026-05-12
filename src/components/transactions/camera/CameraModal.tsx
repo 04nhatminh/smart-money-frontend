@@ -6,7 +6,7 @@ import { ReceiptPreview } from "./ReceiptPreview";
 import { Receipt } from "../../../types/transaction.types";
 import AIAPI from "../../../api/ai.api";
 import authApi from "../../../api/auth.api";
-import { connectWebSocket } from "../../../services/websocket";
+import { initWebSocket, subscribeJob } from "../../../services/websocket";
 import { CloudinaryService } from "../../../services/cloudinary.service";
 import WaitScreen from "../../../../app/(wait)/wait";
 
@@ -74,54 +74,53 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
       setStep("waiting");
 
       // ⛔ Create promise to wait for AI result
-      const resultPromise = new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          console.log("❌ Timeout waiting for AI result");
-          reject(new Error("AI processing timeout"));
-        }, 60000); // 60 seconds for debugging
+      const resultPromise = new Promise<void>(async (resolve, reject) => {
+        let done = false;
 
-        // ✅ Connect WebSocket với jobIds TỪNG NỘI DUNG
-        connectWebSocket({
-          userId,
-          jobIds: [jobId], // 👈 TRUYỀN jobId VÀO ĐÂY
-          onResult: (resultJobId: string, resultData: any) => {
-            console.log("🎯 onResult callback called - jobId:", resultJobId, "data:", resultData);
-            
-            // 👈 Callback này sẽ được gọi khi nhận được data từ /topic/ai/${jobId}
-            if (resultJobId !== jobId) {
-              console.log("❌ Job ID mismatch:", resultJobId, "vs", jobId);
-              return; // Ignore other jobs
-            }
-            
-            console.log("🔥 AI RESULT received:", resultData);
+        // ✅ đảm bảo WS đã connect (chỉ connect 1 lần)
+        await initWebSocket(userId);
 
-            try {
-              const processedReceipt: Receipt = {
-                type: resultData.type === "EXPENSE" ? "EXPENSE" : "INCOME", // Map AI type to local type
-                transactionName:
-                  resultData.description || resultData.transactionName || "Receipt",
-                amount: Number(resultData.expense) || 0,
-                category: resultData.category || "Other",
-                date: resultData.date || new Date().toISOString(),
-                description: resultData.description || "",
-              };
+        const unsubscribe = subscribeJob(jobId, (resultData: any) => {
+          if (done) return;
+          done = true;
 
-              console.log("✅ Receipt processed:", processedReceipt);
-              setReceipt(processedReceipt);
-                            
-              clearTimeout(timeout);
-              resolve(); // ✅ DONE
-            } catch (err) {
-              console.error("❌ Parse error:", err);
-              clearTimeout(timeout);
-              reject(err);
-            }
-            finally {
-              // 🗑️ Delete image from Cloudinary regardless of success or failure
-              CloudinaryService.deleteImage(publicId, "image");
-            }
-          },
+          console.log("🔥 AI RESULT received:", resultData);
+
+          try {
+            const processedReceipt: Receipt = {
+              type: resultData.type === "EXPENSE" ? "EXPENSE" : "INCOME",
+              transactionName:
+                resultData.description || resultData.transactionName || "Receipt",
+              amount: Number(resultData.expense) || 0,
+              category: resultData.category || "Other",
+              date: resultData.date || new Date().toISOString(),
+              description: resultData.description || "",
+            };
+
+            setReceipt(processedReceipt);
+
+            clearTimeout(timeout);
+            unsubscribe(); // ✅ QUAN TRỌNG
+
+            resolve();
+          } catch (err) {
+            clearTimeout(timeout);
+            unsubscribe(); // ✅
+            reject(err);
+          } finally {
+            CloudinaryService.deleteImage(publicId, "image");
+          }
         });
+
+        const timeout = setTimeout(() => {
+          if (done) return;
+          done = true;
+
+          console.log("❌ Timeout waiting for AI result");
+
+          unsubscribe(); // ✅ cleanup
+          reject(new Error("AI processing timeout"));
+        }, 60000);
       });
 
       // Wait for AI to process

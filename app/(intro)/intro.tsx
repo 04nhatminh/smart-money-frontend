@@ -134,11 +134,10 @@ const Intro: React.FC = () => {
         {/* Main Content Card */}
         <View style={styles.contentCard}>
           {/* Title - Căn giữa */}
-          <Text style={styles.title}>
-            <Text style={styles.titleLight}>SMART</Text>
-            {'\n'}
-            <Text style={styles.titleHighlight}>MONEY</Text>
-          </Text>
+          <View>
+            <Text style={[styles.title, styles.titleLight]}>SMART</Text>
+            <Text style={[styles.title, styles.titleHighlight]}>MONEY</Text>
+          </View>
 
           {/* Dot Indicators - Căn giữa */}
           <View style={styles.dotContainer}>

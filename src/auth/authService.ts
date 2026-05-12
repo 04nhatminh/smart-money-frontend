@@ -12,7 +12,8 @@ import {
   SendResetPasswordResponseData,
   ResetPasswordRequest,
   GoogleLoginRequest,
-  FacebookLoginRequest
+  FacebookLoginRequest,
+  RefreshTokenRequest
 } from '../types/auth.types';
 import { userStorage } from '../storage/userStorage';
 import { tokenStorage } from '../storage/tokenStorage';
@@ -23,7 +24,6 @@ class AuthService {
 
   // Initialize service
   init() {
-    this.setupInterceptors();
     this.loadUserFromStorage();
   }
 
@@ -44,18 +44,19 @@ class AuthService {
   }
 
   private decodeJWT(token: string) {
-    const payload = token.split(".")[1];
-    return JSON.parse(base64.decode(payload));
+    try {
+      const payload = token.split(".")[1];
+      return JSON.parse(base64.decode(payload));
+    } catch {
+      return null;
+    }
   }
 
   // Check if token is expired
   isTokenExpired(token: string): boolean {
-    try {
-      const payload = this.decodeJWT(token);
-      return payload.exp * 1000 < Date.now();
-    } catch {
-      return true;
-    }
+    const payload = this.decodeJWT(token);
+    if (!payload?.exp) return true;
+    return payload.exp * 1000 < Date.now();
   }
 
   // Store tokens and user data
@@ -107,77 +108,6 @@ class AuthService {
   async isAuthenticated(): Promise<boolean> {
     const token = await this.getToken();
     return !!token && !this.isTokenExpired(token);
-  }
-
-  // Refresh token if needed
-  async refreshTokenIfNeeded(): Promise<boolean> {
-    if (this.tokenRefreshPromise) return this.tokenRefreshPromise;
-
-    this.tokenRefreshPromise = (async () => {
-      const token = await this.getToken();
-      const refreshToken = await this.getRefreshToken();
-
-      if (!token || !refreshToken) return false;
-
-      if (this.isTokenExpired(token)) {
-        const res = await AuthApi.refreshToken({ refreshToken });
-        if (res.success && res.data) {
-          await this.storeAuthData(res.data);
-          return true;
-        }
-      }
-      return false;
-    })();
-
-    const result = await this.tokenRefreshPromise;
-    this.tokenRefreshPromise = null;
-    return result;
-  }
-
-  // Setup axios interceptors
-  setupInterceptors() {
-    // Request interceptor - add token to requests
-    const requestInterceptor = async (config: any) => {
-      const token = await this.getToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    };
-
-    // Response interceptor - handle token refresh
-    const responseInterceptor = async (error: any) => {
-      const originalRequest = error.config;
-
-      // Handle 401 errors for token refresh
-      if (error.response?.status === 401 && !originalRequest._retry) {
-        originalRequest._retry = true;
-
-        try {
-          const refreshed = await this.refreshTokenIfNeeded();
-          if (refreshed) {
-            // Retry original request with new token
-            const token = await this.getToken();
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return import('../api/http').then(({ http }) => http(originalRequest));
-          }
-        } catch (refreshError) {
-          console.error('Token refresh failed:', refreshError);
-          this.clearAuthData();
-        }
-      }
-
-      return Promise.reject(error);
-    };
-
-    // Apply interceptors
-    import('../api/http').then(({ http }) => {
-      http.interceptors.request.use(requestInterceptor);
-      http.interceptors.response.use(
-        (response) => response,
-        responseInterceptor
-      );
-    });
   }
 
   // Login method
@@ -379,6 +309,22 @@ class AuthService {
       return {
         success: false,
         message: error.message || 'Wrong!',
+      };
+    }
+  }
+
+  // Refresh token method
+  async refreshToken(refreshToken: RefreshTokenRequest): Promise<CheckResponse<AuthResponse>> {
+    try {
+      const response = await AuthApi.refreshToken(refreshToken);
+      if (response.success && response.data) {
+        await this.storeAuthData(response.data);
+      }
+      return response;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Token refresh failed',
       };
     }
   }

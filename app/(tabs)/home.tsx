@@ -19,10 +19,10 @@ import {notificationStorage} from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
 import notificationService from "../../src/notification/notificationService";
 import { Notification } from "../../src/types/notification.type";
-import { handleIncomingNotification, setNotificationScreenActive } from "../../src/notification/notificationHandler";
+import { setNotificationScreenActive } from "../../src/notification/notificationHandler";
 import {registerForPushNotificationsAsync} from "../../src/notification/registerForPushNotificationsAsync";
 import {NotificationListModal} from "../../src/components/notification/NotificationListModal"
-import { connectWebSocket, disconnectWebSocket } from "../../src/services/websocket";
+import { initWebSocket, disconnectWebSocket } from "../../src/services/websocket";
 import AppBottomBar from "../../src/components/AppBottomBar";
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
@@ -30,6 +30,7 @@ import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceIn
 import { TransactionRequest, Receipt } from "../../src/types/transaction.types";
 import { useRouter } from "expo-router";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
+import { notificationEmitter } from "../../src/utils/notificationEmitter";
 
 // Mock data for categories
 const categories = [
@@ -67,14 +68,26 @@ export default function HomePage() {
   const [loadingNotification, setLoadingNotification] = useState(false);
 
   useEffect(() => {
-    loadUserData();
+    // load user + unread ban đầu
+    const init = async () => {
+      await loadUserData();
 
-    const initUnread = async () => {
-    const saved = await notificationStorage.getUnreadCount();
-    setUnreadCount(saved);
-  };
+      const saved = await notificationStorage.getUnreadCount();
+      setUnreadCount(saved);
+    };
 
-  initUnread();
+    init();
+
+    // listener realtime
+    const listener = (count: number) => {
+      setUnreadCount(count);
+    };
+
+    notificationEmitter.on("NEW_NOTIFICATION", listener);
+
+    return () => {
+      notificationEmitter.off("NEW_NOTIFICATION", listener);
+    };
   }, []);
 
   const loadUserData = async () => {
@@ -90,37 +103,27 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user?.id) return;
-  
-      const initPush = async () => {
-        const token = await registerForPushNotificationsAsync();
-        console.log("🔥 PUSH TOKEN:", token);
 
-        if (token && user?.id) {
-          await notificationService.savePushTokenToServer(token, user.id);
-        }
-      };
+    let isMounted = true;
 
-      initPush();
+    const init = async () => {
+      // 🔔 Push notification
+      const token = await registerForPushNotificationsAsync();
+      console.log("🔥 PUSH TOKEN:", token);
 
-      connectWebSocket({
-        userId: user.id,
-        jobIds: ["job-1", "job-2"],
+      if (token && user?.id) {
+        await notificationService.savePushTokenToServer(token, user.id);
+      }
 
-        onNotification: (newNotification: Notification) => {
-          handleIncomingNotification(newNotification, {
-            existingList: notifications,
-            setList: setNotifications,
-            setUnread: setUnreadCount,
-          });
-        },
+      // ✅ INIT WebSocket DUY NHẤT
+      await initWebSocket(user.id);
+    };
 
-        onResult: (jobId, data) => {
-          console.log("🔥 AI result:", jobId, data);
-        },
-      });
+    init();
 
     return () => {
-      disconnectWebSocket();
+      isMounted = false;
+      // ❌ KHÔNG disconnect ở đây nếu app còn dùng WS
     };
   }, [user?.id]);
 

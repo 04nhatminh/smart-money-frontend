@@ -170,7 +170,10 @@ export default {
     off: "Off",
     notification_done: "{{type}} {{amount}} VND in {{category}}",
     expense: "Spent",
-    income: "Received"
+    income: "Received",
+    enable_bank_notification: "Enable bank notification reading",
+    notification_privacy: "The app reads notification content (e.g. banking alerts) to automatically detect transactions. Data is processed locally and not shared without your permission.",
+    notification_permission_guide: "Go to Settings → Privacy → Notification access → Enable for this app"
   },
   privacy: {
     privacy_security: "Privacy & Security",

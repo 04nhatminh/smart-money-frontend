@@ -24,42 +24,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize auth service
   useEffect(() => {
-    authService.init();
     checkAuthStatus();
   }, []);
 
-  const checkAuthStatus = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Load user state from storage
-      const state = await authService.loadUserFromStorage();
-      const accessToken = await tokenStorage.getAccessToken();
-      const userData = await userStorage.getUser();
-      
-      // Check if token is valid
-      const isValid = accessToken ? !authService.isTokenExpired(accessToken) : false;
-      
-      setIsSignedIn(isValid);
-      setUser(userData);
-      
-      // If token is expired but refresh token exists, try to refresh
-      if (accessToken && !isValid) {
-        const refreshed = await authService.refreshTokenIfNeeded();
-        if (refreshed) {
-          const newUserData = await userStorage.getUser();
-          setUser(newUserData);
-          setIsSignedIn(true);
-        }
-      }
-    } catch (error) {
-      console.error("Auth check failed:", error);
+const checkAuthStatus = async () => {
+  try {
+    setIsLoading(true);
+
+    const accessToken = await tokenStorage.getAccessToken();
+    const refreshToken = await tokenStorage.getRefreshToken();
+
+    console.log("🔍 Checking auth status...")
+    console.log("Access Token:", accessToken)
+    ;
+    console.log("Refresh Token:", refreshToken);
+
+    if (!accessToken && !refreshToken) {
       setIsSignedIn(false);
       setUser(null);
-    } finally {
-      setIsLoading(false);
+      return;
     }
-  };
+
+    // ✅ Access token còn hạn
+    if (accessToken && !authService.isTokenExpired(accessToken)) {
+      const userData = await userStorage.getUser();
+      setUser(userData);
+      setIsSignedIn(true);
+      return;
+    }
+
+    if (refreshToken) {
+      try {
+        console.log("🔄 Refreshing token from AuthContext...");
+
+        const res = await authService.refreshToken({ refreshToken });
+
+        if (res.success && res.data) {
+          await tokenStorage.setAccessToken(res.data.accessToken);
+
+          if (res.data.refreshToken) {
+            await tokenStorage.setRefreshToken(res.data.refreshToken);
+          }
+
+          const userData = await userStorage.getUser();
+          setUser(userData);
+          setIsSignedIn(true);
+          return;
+        }
+
+        // ❗ chỉ clear nếu BE trả invalid refresh token
+        if (res?.errors?.refreshToken?.includes("INVALID_REFRESH_TOKEN")) {
+          await authService.clearAuthData();
+          setUser(null);
+          setIsSignedIn(false);
+          return;
+        }
+
+      } catch (e) {
+        console.log("❌ Refresh failed (network?) → KEEP TOKEN");
+        
+        // ❗ KHÔNG clear token ở đây
+        setIsSignedIn(false);
+        return;
+      }
+    }
+    setUser(null);
+    setIsSignedIn(false);
+
+  } catch (error) {
+    console.error("Auth check failed:", error);
+    setUser(null);
+    setIsSignedIn(false);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const login = async (email: string, password: string) => {
     try {
