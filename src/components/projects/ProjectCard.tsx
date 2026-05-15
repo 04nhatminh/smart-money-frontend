@@ -5,10 +5,7 @@ import { ProjectListItemResponse } from "../../types/project.types";
 import { projectListStyles as styles } from "../../styles/projectListStyles";
 import {
   formatCurrencyVND,
-  getDeadlineLabel,
-  getProgressText,
-  getProgressValue,
-  getRemainingTimeText,
+  getSafeProgress
 } from "../../utils/project";
 
 type Props = {
@@ -22,9 +19,10 @@ export default function ProjectCard({
   onPress,
   onMorePress,
 }: Props) {
-  const progress = getProgressValue(project.progressPercent);
+  const progress = getSafeProgress(project.progressPercent);
   const isPersonal = project.type === "PERSONAL";
-  const isCompleted = progress >= 100;
+  const isCompleted = project.status === "COMPLETED";
+  const isOverdue = project.status === "OVERDUE";
 
   return (
     <Pressable
@@ -65,7 +63,7 @@ export default function ProjectCard({
 
         <View style={styles.deadlineChip}>
           <Text style={styles.deadlineChipText}>
-            {getDeadlineLabel(project.deadline)}
+            {project.deadlineLabel}
           </Text>
         </View>
       </View>
@@ -96,7 +94,7 @@ export default function ProjectCard({
               isCompleted && styles.completedText,
             ]}
           >
-            {getProgressText(project.progressPercent)}
+            {Math.round(project.progressPercent)}%
           </Text>
         </View>
 
@@ -104,9 +102,10 @@ export default function ProjectCard({
           style={[
             styles.timeLeftText,
             isCompleted && styles.completedText,
+            isOverdue && styles.overdueText,
           ]}
         >
-          {getRemainingTimeText(project.deadline, project.progressPercent)}
+          {project.statusLabel}
         </Text>
       </View>
     </Pressable>

@@ -14,6 +14,7 @@ import { router } from "expo-router";
 import ProjectFilterTabs from "../../src/components/projects/ProjectFilterTabs";
 import ProjectSummaryCards from "../../src/components/projects/ProjectSummaryCards";
 import ProjectCard from "../../src/components/projects/ProjectCard";
+import ProjectStatusFilterModal from "../../src/components/projects/ProjectStatusFilterModal";
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
 import { useProjectList } from "../../src/hooks/useProjectList";
 import { projectListStyles as styles } from "../../src/styles/projectListStyles";
@@ -21,14 +22,17 @@ import { ProjectListItemResponse } from "../../src/types/project.types";
 
 export default function ProjectScreen() {
   const [openCreateModal, setOpenCreateModal] = useState(false);
+  const [openStatusFilterModal, setOpenStatusFilterModal] = useState(false);
 
   const {
     filteredProjects,
     summary,
     filter,
+    statusFilter,
     search,
     refreshing,
     setFilter,
+    setStatusFilter,
     setSearch,
     onRefresh,
     fetchProjects,
@@ -67,8 +71,14 @@ export default function ProjectScreen() {
             />
           </View>
 
-          <Pressable style={styles.filterIconButton}>
-            <Ionicons name="filter-outline" size={24} color="#FFFFFF" />
+          <Pressable 
+            style={[
+              styles.filterIconButton,
+              statusFilter !== "ALL" && styles.filterIconButtonActive
+            ]} 
+            onPress={() => setOpenStatusFilterModal(true)}
+          >
+            <Ionicons name="funnel" size={24} color="#FFFFFF" />
           </Pressable>
         </View>
       </View>
@@ -103,6 +113,13 @@ export default function ProjectScreen() {
           }
         />
       </View>
+
+      <ProjectStatusFilterModal
+        visible={openStatusFilterModal}
+        value={statusFilter}
+        onClose={() => setOpenStatusFilterModal(false)}
+        onChange={setStatusFilter}
+      />
 
       <CreateProjectModal
         visible={openCreateModal}

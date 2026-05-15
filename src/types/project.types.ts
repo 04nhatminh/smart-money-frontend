@@ -1,7 +1,11 @@
 export type ProjectType = "PERSONAL" | "GROUP";
-
 export type ProjectFilterType = "ALL" | ProjectType;
-export type ProjectStatusFilter = "ALL" | "ONGOING" | "COMPLETED" | "OVERDUE";
+
+export type ProjectStatus = "ONGOING" | "COMPLETED" | "OVERDUE";
+export type ProjectStatusFilter = "ALL" | ProjectStatus;
+
+export type SavingPlanMode = "RELAXED" | "URGENT";
+export type CreateProjectModalStep = 1 | 2 | 3;
 
 export type CreateProjectPayload = {
     name: string;
@@ -68,6 +72,10 @@ export type ProjectListItemResponse = {
   totalContributed: number;
   progressPercent: number;
   deadline: string;
+  status: ProjectStatus;
+  monthsLeft: number;
+  deadlineLabel: string;
+  statusLabel: string;
 };
 
 export type ProjectDetailResponse = {
@@ -82,6 +90,35 @@ export type ProjectDetailResponse = {
   remaining: number;
   progressPercent: number;
   deadline: string;
+  monthsLeft: number;
+  deadlineLabel: string;
+  statusLabel: string;
 };
 
 export type ProjectResponse = ProjectDetailResponse;
+
+export type SavingPlanDraft = {
+  payload: CreateProjectPayload;
+  deadlineMonths: number;
+}
+
+export type SavingPlanSuggestionResponse = {
+  monthlySavingAmount: number;
+  estimatedMonths: number;
+  categories: {
+    key: string;
+    label: string;
+    amount: number;
+  }[];
+}
+
+export type SavingPlanAIResponse = {
+  agreed: boolean;
+  message: string;
+  suggestion: SavingPlanSuggestionResponse;
+};
+
+export type SavingPlanSuggestionMap = {
+  RELAXED: SavingPlanSuggestionResponse;
+  URGENT: SavingPlanSuggestionResponse;
+};

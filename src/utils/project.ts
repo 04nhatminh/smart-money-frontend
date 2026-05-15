@@ -88,25 +88,6 @@ export function hasErrors(errors: CreateProjectFormErrors): boolean {
     return Object.values(errors).some(Boolean);
 }
 
-export function getMonthsFromDeadline(deadline: string): string {
-  if (!deadline) return "";
-
-  const today = new Date();
-  const target = new Date(deadline);
-
-  if (Number.isNaN(target.getTime())) return "";
-
-  let months =
-    (target.getFullYear() - today.getFullYear()) * 12 +
-    (target.getMonth() - today.getMonth());
-
-  if (target.getDate() > today.getDate()) {
-    months += 1;
-  }
-
-  return String(Math.max(months, 1));
-}
-
 export function validateEditProjectForm(values: {
   name: string;
   description: string;
@@ -123,73 +104,10 @@ export function formatCurrencyVND(value: number) {
   return value.toLocaleString("de-DE");
 }
 
-export function getMonthsLeft(deadline: string) {
-  if (!deadline) return 0;
-
-  const today = new Date();
-  const endDate = new Date(deadline);
-
-  if (Number.isNaN(endDate.getTime())) return 0;
-
-  let months =
-    (endDate.getFullYear() - today.getFullYear()) * 12 +
-    (endDate.getMonth() - today.getMonth());
-
-  if (endDate.getDate() >= today.getDate()) {
-    months += 1;
-  }
-
-  return Math.max(months, 0);
-}
-
-export function getDeadlineLabel(deadline: string) {
-  const monthsLeft = getMonthsLeft(deadline);
-
-  if (monthsLeft <= 0) return "Completed";
-  if (monthsLeft === 1) return "1 month";
-  return `${monthsLeft} months`;
-}
-
-export function getProgressValue(progressPercent: number) {
+export function getSafeProgress(progressPercent: number) {
   if (!progressPercent || progressPercent < 0) return 0;
   if (progressPercent > 100) return 100;
   return progressPercent;
-}
-
-export function getProgressText(progressPercent: number) {
-  const value = getProgressValue(progressPercent);
-
-  if (value >= 100) return "Completed";
-  return `${Math.round(value)}%`;
-}
-
-export function getProjectStatus(
-  deadline: string,
-  progressPercent: number
-): Exclude<ProjectStatusFilter, "ALL"> {
-  const progress = getProgressValue(progressPercent);
-
-  if (progress >= 100) return "COMPLETED";
-
-  const today = new Date();
-  const endDate = new Date(deadline);
-
-  if (!Number.isNaN(endDate.getTime()) && endDate < today) {
-    return "OVERDUE";
-  }
-
-  return "ONGOING";
-}
-
-export function getRemainingTimeText(deadline: string, progressPercent: number) {
-  const status = getProjectStatus(deadline, progressPercent);
-
-  if (status === "COMPLETED") return "Completed";
-  if (status === "OVERDUE") return "Overdue";
-
-  const monthsLeft = getMonthsLeft(deadline);
-  if (monthsLeft === 1) return "1 month left";
-  return `${monthsLeft} months left`;
 }
 
 export function filterProjects(
@@ -208,13 +126,8 @@ export function filterProjects(
       ? project.name.toLowerCase().includes(normalizedKeyword)
       : true;
 
-    const projectStatus = getProjectStatus(
-      project.deadline,
-      project.progressPercent
-    );
-
     const matchStatus =
-      statusFilter === "ALL" ? true : projectStatus === statusFilter;
+      statusFilter === "ALL" ? true : project.status === statusFilter;
 
     return matchType && matchKeyword && matchStatus;
   });

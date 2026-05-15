@@ -5,6 +5,7 @@ import {
     CreateProjectFormValues,
     CreateProjectPayload,
     ProjectType,
+    SavingPlanDraft,
 } from "../types/project.types";
 import {
     addMonthsFromDate,
@@ -111,6 +112,17 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         };
     };
 
+    const getSavingPlanDraft = (): SavingPlanDraft | null => {
+        if (!validate()) return null;
+
+       
+
+        return {
+            payload: buildPayload(),
+            deadlineMonths: Number(values.deadlineMonths),
+        };
+    };
+
     const handleCreateProject = async () => {
         if (loading) return false;
         if (!validate()) return false;
@@ -126,7 +138,6 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
             return true;
         } finally {
             setLoading(false);
-
         }
     };
 
@@ -146,6 +157,8 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         onChangeTargetAmount,
         onChangeDeadlineMonths,
         onChangeType,
+        buildPayload,
+        getSavingPlanDraft,
         handleCreateProject,
         resetForm,
     };
