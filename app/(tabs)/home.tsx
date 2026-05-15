@@ -30,6 +30,10 @@ import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceIn
 import { TransactionRequest, Receipt } from "../../src/types/transaction.types";
 import { useRouter } from "expo-router";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
+import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
+import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
+import LatestProjectsSection, { LatestProjectItem }from "../../src/components/home/LatestProjectsSection";
+import {ProjectAPI} from "../../src/api/project.api";
 
 // Mock data for categories
 const categories = [
@@ -61,6 +65,10 @@ export default function HomePage() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const { createFromReceipt, createFromVoice } = useCreateTransaction();
+  const [isCreateProjectVisible, setCreateProjectVisible] = useState(false);
+
+  const [latestProjects, setLatestProjects] = useState<LatestProjectItem[]>([]);
+  const [latestProjectsLoading, setLatestProjectsLoading] = useState(false);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotification, setShowNotification] = useState(false);
@@ -75,6 +83,7 @@ export default function HomePage() {
   };
 
   initUnread();
+  fetchLatestProjects();
   }, []);
 
   const loadUserData = async () => {
@@ -149,6 +158,24 @@ export default function HomePage() {
     await loadUserData();
     setRefreshing(false);
   };
+
+  const fetchLatestProjects = async () => {
+  try {
+    setLatestProjectsLoading(true);
+
+    const response = await ProjectAPI.getAll();
+
+    const list = response.data || [];
+
+    const latest = list.slice(0, 3);
+
+    setLatestProjects(latest);
+  } catch (error) {
+    console.log('Fetch latest projects error:', error);
+  } finally {
+    setLatestProjectsLoading(false);
+  }
+};
 
   const handleCreateReceiptTransaction = async (receipt: Receipt) => {
     try {
@@ -285,6 +312,17 @@ export default function HomePage() {
             </View>
           </View>
 
+          {/* Quick Feature Section */}
+          <QuickFeatureSection
+            onOpenCreateProject={() => setCreateProjectVisible(true)}
+          />
+
+          <LatestProjectsSection
+            projects={latestProjects}
+            loading={latestProjectsLoading}
+          />
+            
+
           {/* Categories Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -390,6 +428,11 @@ export default function HomePage() {
         visible={manualVisible}
         onClose={() => setManualVisible(false)}
       />  
+
+      <CreateProjectModal
+        visible={isCreateProjectVisible}
+        onClose={() => setCreateProjectVisible(false)}
+      />
     </SafeAreaView>
   );
 }

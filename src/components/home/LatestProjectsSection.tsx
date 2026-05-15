@@ -1,0 +1,221 @@
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+} from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+
+export type LatestProjectItem = {
+  projectId: string;
+  name: string;
+  targetAmount: number;
+  currency: string;
+  progressPercent?: number;
+  status?: string;
+};
+
+type LatestProjectsSectionProps = {
+  projects: LatestProjectItem[];
+  loading?: boolean;
+};
+
+const cardColors = ['#FFC857', '#E7DAF7', '#D9F3EA', '#DDEBFF'];
+
+const formatMoney = (amount: number, currency: string) => {
+  return `${amount.toLocaleString('vi-VN')} ${currency}`;
+};
+
+export default function LatestProjectsSection({
+  projects,
+  loading = false,
+}: LatestProjectsSectionProps) {
+  if (loading) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Projects</Text>
+        </View>
+
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="small" color="#0F172A" />
+        </View>
+      </View>
+    );
+  }
+
+  if (!projects.length) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Projects</Text>
+        </View>
+
+        <View style={styles.emptyCard}>
+          <MaterialCommunityIcons name="folder-plus" size={28} color="#64748B" />
+          <Text style={styles.emptyTitle}>No projects yet</Text>
+          <Text style={styles.emptyText}>
+            Create your first saving project to track your goal.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Projects</Text>
+
+        <TouchableOpacity
+          activeOpacity={0.75}
+          onPress={() => router.push('/(tabs)/project')}
+        >
+          <Text style={styles.seeAllText}>See All</Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={projects}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.projectId}
+        contentContainerStyle={styles.projectList}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[
+              styles.projectCard,
+              {
+                backgroundColor: cardColors[index % cardColors.length],
+              },
+            ]}
+            onPress={() =>
+              router.push(`/(tabs)/project/${item.projectId}` as any)
+            }
+          >
+            <View style={styles.projectIconBox}>
+              <MaterialCommunityIcons
+                name="piggy-bank"
+                size={25}
+                color="#0F172A"
+              />
+            </View>
+
+            <View>
+              <Text style={styles.projectAmount} numberOfLines={1}>
+                {formatMoney(item.targetAmount, item.currency)}
+              </Text>
+
+              <Text style={styles.projectName} numberOfLines={1}>
+                {item.name}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  section: {
+    marginBottom: 22,
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+
+  seeAllText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+
+  projectList: {
+    gap: 14,
+    paddingRight: 4,
+  },
+
+  projectCard: {
+    width: 142,
+    height: 160,
+    borderRadius: 18,
+    padding: 16,
+    justifyContent: 'space-between',
+  },
+
+  projectIconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+
+  projectAmount: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#020617',
+  },
+
+  projectName: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#475569',
+  },
+
+  loadingBox: {
+    height: 120,
+    borderRadius: 18,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  emptyCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+
+  emptyTitle: {
+    marginTop: 8,
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+
+  emptyText: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+});
