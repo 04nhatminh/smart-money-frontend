@@ -114,13 +114,13 @@ export function BottomBar({
         </Pressable>
 
         <Pressable
-          style={[styles.item, active === "project" && styles.activeItem]}
-          onPress={actualHandlers.onProject}
+          style={[styles.item, active === "transaction" && styles.activeItem]}
+          onPress={actualHandlers.onTransaction}
         >
           <Ionicons
-            name={active === "project" ? "folder" : "folder-outline"}
+            name={active === "transaction" ? "folder" : "folder-outline"}
             size={22}
-            color={iconColor("project")}
+            color={iconColor("transaction")}
           />
         </Pressable>
 

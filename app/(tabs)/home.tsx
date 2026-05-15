@@ -302,15 +302,37 @@ export default function HomePage() {
 
           {/* Balance Card */}
           <View style={styles.balanceCard}>
-            <Text style={styles.balanceLabel}>Total Balance</Text>
-            <Text style={styles.balanceAmount}>$12,345.67</Text>
-            <View style={styles.balanceFooter}>
-              <View style={styles.balanceChange}>
-                <Ionicons name="arrow-up" size={16} color="#4CAF50" />
-                <Text style={styles.balanceChangeText}>+2.5% from last month</Text>
-              </View>
-            </View>
-          </View>
+  <View style={styles.balanceHeader}>
+    <Text style={styles.balanceAmount}>70,000 USD</Text>
+    <Text style={styles.balanceLabel}>Total Balance</Text>
+  </View>
+
+  <View style={styles.balanceSummaryRow}>
+    <View style={styles.balanceSummaryItem}>
+      <View style={styles.summaryIconBox}>
+        <Ionicons name="arrow-down" size={16} color="#16A34A" />
+      </View>
+
+      <View>
+        <Text style={styles.summaryLabel}>Income</Text>
+        <Text style={styles.summaryAmount}>85,000 USD</Text>
+      </View>
+    </View>
+
+    <View style={styles.summaryDivider} />
+
+    <View style={styles.balanceSummaryItem}>
+      <View style={styles.summaryIconBox}>
+        <Ionicons name="arrow-up" size={16} color="#DC2626" />
+      </View>
+
+      <View>
+        <Text style={styles.summaryLabel}>Expense</Text>
+        <Text style={styles.summaryAmount}>15,000 USD</Text>
+      </View>
+    </View>
+  </View>
+</View>
 
           {/* Quick Feature Section */}
           <QuickFeatureSection
@@ -530,40 +552,83 @@ const styles = StyleSheet.create({
     color: '#333',
     paddingVertical: 0,
   },
-  balanceCard: {
-    backgroundColor: '#3629B7',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 25,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: 8,
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 12,
-  },
-  balanceFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  balanceChange: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  balanceChangeText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    marginLeft: 4,
-  },
+ balanceCard: {
+  backgroundColor: '#3629B7',
+  borderRadius: 26,
+  paddingVertical: 22,
+  paddingHorizontal: 20,
+  marginBottom: 18,
+
+  shadowColor: '#0F172A',
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.08,
+  shadowRadius: 16,
+  elevation: 4,
+},
+
+balanceHeader: {
+  marginBottom: 22,
+},
+
+balanceAmount: {
+  fontSize: 34,
+  fontWeight: '900',
+  color: '#ffffff',
+  letterSpacing: -0.8,
+  marginBottom: 4,
+},
+
+balanceLabel: {
+  fontSize: 14,
+  fontWeight: '500',
+  color: '#ebfff3',
+},
+
+balanceSummaryRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#FFFFFF',
+  borderRadius: 18,
+  paddingVertical: 14,
+  paddingHorizontal: 14,
+},
+
+balanceSummaryItem: {
+  flex: 1,
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+summaryIconBox: {
+  width: 34,
+  height: 34,
+  borderRadius: 12,
+  backgroundColor: '#F8FAFC',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginRight: 10,
+},
+
+summaryLabel: {
+  fontSize: 12,
+  fontWeight: '500',
+  color: '#64748B',
+  marginBottom: 2,
+},
+
+summaryAmount: {
+  fontSize: 14,
+  fontWeight: '800',
+  color: '#0F172A',
+},
+
+summaryDivider: {
+  width: 1,
+  height: 36,
+  backgroundColor: '#E2E8F0',
+  marginHorizontal: 12,
+},
+
   section: {
     marginBottom: 25,
   },

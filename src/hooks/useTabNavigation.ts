@@ -40,6 +40,10 @@ export const useTabNavigation = ({
     router.navigate("/(tabs)/project");
   }, [router]);
 
+  const onTransaction = useCallback(() => {
+    router.navigate("/(transactions)/list");
+  }, [router]);
+
   const onProfile = useCallback(() => {
     router.navigate("/(tabs)/profile");
   }, [router]);
@@ -66,6 +70,7 @@ export const useTabNavigation = ({
     onStats,
     onWallet,
     onProject,
+    onTransaction,
     onProfile,
     onAdd,
     onAddByCamera,
