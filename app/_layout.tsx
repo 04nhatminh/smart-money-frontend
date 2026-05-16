@@ -1,7 +1,7 @@
 // app/_layout.tsx
 import React, { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Text } from "react-native";
 import { LanguageProvider } from "../src/i18n/LanguageProvider";
 import { ThemeProvider } from "../src/theme/ThemeProvider";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
@@ -27,7 +27,7 @@ function RootLayoutNav() {
       }),
     });
   }, []);
-  
+
   useEffect(() => {
     if (authLoading || onboardingLoading || isFirstLaunch === null) return;
 
@@ -53,19 +53,20 @@ function RootLayoutNav() {
 
   if (authLoading || onboardingLoading || isFirstLaunch === null) {
     return (
-      <View style={{ flex:1, justifyContent:"center", alignItems:"center" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown:false }}>
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(wait)" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(intro)" />
       <Stack.Screen name="(transactions)" />
+      <Stack.Screen name="(analysis)" />
     </Stack>
   );
 }

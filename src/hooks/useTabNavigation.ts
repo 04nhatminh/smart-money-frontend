@@ -33,11 +33,11 @@ export const useTabNavigation = ({
   }, [router]);
 
   const onWallet = useCallback(() => {
-    router.navigate("/(tabs)/wallet");
+    router.navigate("/(analysis)/_lay");
   }, [router]);
 
-  const onProject = useCallback(() => {
-    router.navigate("/(tabs)/project");
+  const onAnalysis = useCallback(() => {
+    router.navigate("/(tabs)/analysis");
   }, [router]);
 
   const onProfile = useCallback(() => {
@@ -65,7 +65,7 @@ export const useTabNavigation = ({
     onHome,
     onStats,
     onWallet,
-    onProject,
+    onAnalysis,
     onProfile,
     onAdd,
     onAddByCamera,
