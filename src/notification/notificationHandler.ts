@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Notification } from "../types/notification.type";
 import { notificationStorage } from "../storage/notificationStorage";
 import React, { useEffect, useState } from "react";
+import { notificationEmitter } from '../utils/notificationEmitter';
 
 let isAppInNotificationScreen = false; // để tránh spam khi đang mở modal
 
@@ -41,11 +42,13 @@ export const handleIncomingNotification = async (
 
     // 3. update unread count
     if (!isAppInNotificationScreen) {
-      options?.setUnread?.((prev) => {
-        const newCount = prev + 1;
-        notificationStorage.setUnreadCount(newCount);
-        return newCount;
-      });
+      const current = await notificationStorage.getUnreadCount();
+      const newCount = current + 1;
+
+      await notificationStorage.setUnreadCount(newCount);
+
+      // 🔥 emit để UI update
+      notificationEmitter.emit("NEW_NOTIFICATION", newCount);
     }
 
     // 4. 🔔 push local notification
@@ -64,4 +67,6 @@ export const handleIncomingNotification = async (
   } catch (err) {
     console.log("handleIncomingNotification error:", err);
   }
+
+  
 };

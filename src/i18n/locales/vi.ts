@@ -172,7 +172,10 @@ export default {
     off: "Tắt",
     notification_done: "{{type}} {{amount}} VND trong {{category}}",
     expense: "Đã chi",
-    income: "Đã nhận"
+    income: "Đã nhận",
+    enable_bank_notification: "Bật đọc thông báo ngân hàng",
+    notification_privacy: "Ứng dụng sẽ đọc nội dung thông báo (ví dụ: ngân hàng) để tự động ghi nhận giao dịch. Dữ liệu chỉ được xử lý trên thiết bị và không chia sẻ nếu không có sự cho phép.",
+    notification_permission_guide: "Vào Cài đặt → Quyền riêng tư → Truy cập thông báo → Bật cho ứng dụng này"
   },
   privacy: {
     privacy_security: "Riêng tư & Bảo mật",
