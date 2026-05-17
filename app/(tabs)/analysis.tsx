@@ -10,6 +10,8 @@ import {
   useWindowDimensions,
 } from "react-native";
 
+import { ImageBackground } from "react-native";
+
 import {
   VictoryAxis,
   VictoryBar,
@@ -75,14 +77,11 @@ const MONTH_NAMES = [
 ];
 
 const CATEGORY_COLORS = [
-  "#2563EB",
-  "#F97316",
-  "#16A34A",
-  "#9333EA",
-  "#0891B2",
-  "#E11D48",
-  "#F59E0B",
-  "#64748B",
+  "#3629B7",
+  "#6D6ACF",
+  "#A5A3F5",
+  "#C7C6FF",
+  "#F2F1F9",
 ];
 
 async function getAuthHeader() {
@@ -263,261 +262,272 @@ export default function AnalyticsScreen() {
   const canGoNext = selectedMonthIndex < monthOptions.length - 1;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.monthSlider}>
-          <TouchableOpacity
-            style={styles.navButton}
-            disabled={!canGoPrev}
-            onPress={() => handleChangeMonth("prev")}
-          >
-            <Text style={[styles.navIcon, !canGoPrev && styles.navIconDisabled]}>
-              ‹
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.monthCenter}>
-            <Text style={styles.monthTitle}>{selectedMonth.label}</Text>
-            <Text style={styles.monthSubTitle}>{selectedMonth.year}</Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.navButton}
-            disabled={!canGoNext}
-            onPress={() => handleChangeMonth("next")}
-          >
-            <Text style={[styles.navIcon, !canGoNext && styles.navIconDisabled]}>
-              ›
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {loading && (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
-        )}
-
-        {!!error && <Text style={styles.error}>{error}</Text>}
-
-        {!loading && monthlyStats.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Income / Expense by Week</Text>
-              <Text style={styles.sectionCaption}>
-                Tap a column to view details
+    <ImageBackground
+      source={require("../../assets/background_analysis.jpg")}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.monthSlider}>
+            <TouchableOpacity
+              style={styles.navButton}
+              disabled={!canGoPrev}
+              onPress={() => handleChangeMonth("prev")}
+            >
+              <Text style={[styles.navIcon, !canGoPrev && styles.navIconDisabled]}>
+                ‹
               </Text>
+            </TouchableOpacity>
+
+            <View style={styles.monthCenter}>
+              <Text style={styles.monthTitle}>{selectedMonth.label}</Text>
+              <Text style={styles.monthSubTitle}>{selectedMonth.year}</Text>
             </View>
 
-            <View style={styles.chartWrap}>
-              <VictoryChart
-                theme={VictoryTheme.material}
-                width={chartWidth}
-                domainPadding={{ x: 26 }}
-                height={300}
-                padding={{ top: 24, bottom: 52, left: 44, right: 4 }}
-                animate={{ duration: 500 }}
-              >
-                <VictoryAxis
-                  style={{
-                    axis: { stroke: "#E5E7EB" },
-                    tickLabels: { fill: "#64748B", fontSize: 11 },
-                    grid: { stroke: "transparent" },
-                  }}
-                />
+            <TouchableOpacity
+              style={styles.navButton}
+              disabled={!canGoNext}
+              onPress={() => handleChangeMonth("next")}
+            >
+              <Text style={[styles.navIcon, !canGoNext && styles.navIconDisabled]}>
+                ›
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-                <VictoryAxis
-                  dependentAxis
-                  style={{
-                    axis: { stroke: "transparent" },
-                    tickLabels: { fill: "#64748B", fontSize: 11 },
-                    grid: { stroke: "#EEF2F7" },
-                  }}
-                />
-
-                <VictoryStack>
-                  <VictoryBar
-                    data={incomeData}
-                    x="week"
-                    y="value"
-                    labels={({ datum }) => datum.label}
-                    labelComponent={
-                      <VictoryTooltip
-                        flyoutStyle={{
-                          fill: "#111827",
-                          stroke: "#111827",
-                        }}
-                        style={{
-                          fill: "#FFFFFF",
-                          fontSize: 12,
-                        }}
-                      />
-                    }
-                    style={{
-                      data: {
-                        fill: "#22C55E",
-                        width: 24,
-                        strokeWidth: 0,
-                      },
-                    }}
-                  />
-
-                  <VictoryBar
-                    data={expenseData}
-                    x="week"
-                    y="value"
-                    labels={({ datum }) => datum.label}
-                    cornerRadius={{ top: 4 }}
-                    labelComponent={
-                      <VictoryTooltip
-                        flyoutStyle={{
-                          fill: "#111827",
-                          stroke: "#111827",
-                        }}
-                        style={{
-                          fill: "#FFFFFF",
-                          fontSize: 12,
-                        }}
-                      />
-                    }
-                    style={{
-                      data: {
-                        fill: "#EF4444",
-                        width: 24,
-                        strokeWidth: 0,
-                      },
-                    }}
-                  />
-                </VictoryStack>
-              </VictoryChart>
+          {loading && (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator size="large" color="#2563EB" />
             </View>
+          )}
 
-            <View style={styles.legendRow}>
-              <View style={styles.legendItem}>
-                <View style={[styles.dot, { backgroundColor: "#22C55E" }]} />
-                <Text style={styles.legendText}>Income</Text>
+          {!!error && <Text style={styles.error}>{error}</Text>}
+
+          {!loading && monthlyStats.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Income / Expense by Week</Text>
+                <Text style={styles.sectionCaption}>
+                  Tap a column to view details
+                </Text>
               </View>
 
-              <View style={styles.legendItem}>
-                <View style={[styles.dot, { backgroundColor: "#EF4444" }]} />
-                <Text style={styles.legendText}>Expense</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {!loading && pieData.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Category Proportions</Text>
-              <Text style={styles.sectionCaption}>
-                Tap a slice to view category data
-              </Text>
-            </View>
-
-            <View style={styles.pieSection}>
-              <View
-                style={[
-                  styles.pieChart,
-                  {
-                    width: pieSize,
-                    height: pieSize,
-                  },
-                ]}
-              >
-                <VictoryPie
-                  data={pieData}
-                  width={pieSize}
-                  height={pieSize}
-                  padding={18}
-                  innerRadius={42}
+              <View style={styles.chartWrap}>
+                <VictoryChart
+                  theme={VictoryTheme.material}
+                  width={chartWidth}
+                  domainPadding={{ x: 26 }}
+                  height={300}
+                  padding={{ top: 24, bottom: 52, left: 44, right: 4 }}
                   animate={{ duration: 500 }}
-                  labels={({ datum }) => datum.label}
-                  colorScale={CATEGORY_COLORS}
-                  labelComponent={
-                    <VictoryTooltip
-                      flyoutStyle={{
-                        fill: "#FFFFFF",
-                        stroke: "#D0D5DD",
-                      }}
+                >
+                  <VictoryAxis
+                    style={{
+                      axis: { stroke: "#E5E7EB" },
+                      tickLabels: { fill: "#64748B", fontSize: 11 },
+                      grid: { stroke: "transparent" },
+                    }}
+                  />
+
+                  <VictoryAxis
+                    dependentAxis
+                    style={{
+                      axis: { stroke: "transparent" },
+                      tickLabels: { fill: "#64748B", fontSize: 11 },
+                      grid: { stroke: "#EEF2F7" },
+                    }}
+                  />
+
+                  <VictoryStack>
+                    <VictoryBar
+                      data={incomeData}
+                      x="week"
+                      y="value"
+                      labels={({ datum }) => datum.label}
+                      labelComponent={
+                        <VictoryTooltip
+                          flyoutStyle={{
+                            fill: "#111827",
+                            stroke: "#111827",
+                          }}
+                          style={{
+                            fill: "#FFFFFF",
+                            fontSize: 12,
+                          }}
+                        />
+                      }
                       style={{
-                        fill: "#111827",
-                        fontSize: 12,
+                        data: {
+                          fill: "#A5A3F5",
+                          width: 24,
+                          strokeWidth: 0,
+                        },
                       }}
                     />
-                  }
-                  style={{
-                    data: {
-                      stroke: "#FFFFFF",
-                      strokeWidth: 2,
-                    },
-                  }}
-                />
+
+                    <VictoryBar
+                      data={expenseData}
+                      x="week"
+                      y="value"
+                      labels={({ datum }) => datum.label}
+                      cornerRadius={{ top: 4 }}
+                      labelComponent={
+                        <VictoryTooltip
+                          flyoutStyle={{
+                            fill: "#111827",
+                            stroke: "#111827",
+                          }}
+                          style={{
+                            fill: "#FFFFFF",
+                            fontSize: 12,
+                          }}
+                        />
+                      }
+                      style={{
+                        data: {
+                          fill: "#3629B7",
+                          width: 24,
+                          strokeWidth: 0,
+                        },
+                      }}
+                    />
+                  </VictoryStack>
+                </VictoryChart>
               </View>
 
-              <View style={styles.categoryList}>
-                {categoryProportions.map((item, index) => (
-                  <View key={item.category} style={styles.categoryItem}>
-                    <View
-                      style={[
-                        styles.categoryDot,
-                        {
-                          backgroundColor:
-                            CATEGORY_COLORS[index % CATEGORY_COLORS.length],
-                        },
-                      ]}
-                    />
+              <View style={styles.legendRow}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.dot, { backgroundColor: "#A5A3F5" }]} />
+                  <Text style={styles.legendText}>Income</Text>
+                </View>
 
-                    <View style={styles.categoryMeta}>
-                      <Text style={styles.categoryText} numberOfLines={1}>
-                        {item.category}
-                      </Text>
-                      <Text style={styles.categoryPercent}>
-                        {item.percentage.toFixed(1)}%
-                      </Text>
-                    </View>
-                  </View>
-                ))}
+                <View style={styles.legendItem}>
+                  <View style={[styles.dot, { backgroundColor: "#3629B7" }]} />
+                  <Text style={styles.legendText}>Expense</Text>
+                </View>
               </View>
             </View>
-          </View>
-        )}
-      </ScrollView>
-      <AppBottomBar
-        onCameraOpen={() => setCameraVisible(true)}
-        onVoiceOpen={() => setVoiceVisible(true)}
-        onFormOpen={() => setManualVisible(true)}
-      />
+          )}
 
-      <CameraModal
-        visible={cameraVisible}
-        onClose={() => setCameraVisible(false)}
-        onCaptureBill={handleCreateReceiptTransaction}
-      />
+          {!loading && pieData.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Category Proportions</Text>
+                <Text style={styles.sectionCaption}>
+                  Tap a slice to view category data
+                </Text>
+              </View>
 
-      <VoiceInputModal
-        visible={voiceVisible}
-        onClose={() => setVoiceVisible(false)}
-        onCaptureVoice={handleCreateVoiceTransaction}
-      />
+              <View style={styles.pieSection}>
+                <View
+                  style={[
+                    styles.pieChart,
+                    {
+                      width: pieSize,
+                      height: pieSize,
+                    },
+                  ]}
+                >
+                  <VictoryPie
+                    data={pieData}
+                    width={pieSize}
+                    height={pieSize}
+                    padding={18}
+                    innerRadius={42}
+                    animate={{ duration: 500 }}
+                    labels={({ datum }) => datum.label}
+                    colorScale={CATEGORY_COLORS}
+                    labelComponent={
+                      <VictoryTooltip
+                        flyoutStyle={{
+                          fill: "#FFFFFF",
+                          stroke: "#D0D5DD",
+                        }}
+                        style={{
+                          fill: "#111827",
+                          fontSize: 12,
+                        }}
+                      />
+                    }
+                    style={{
+                      data: {
+                        stroke: "#FFFFFF",
+                        strokeWidth: 2,
+                      },
+                    }}
+                  />
+                </View>
 
-      <AddTransactionModal
-        visible={manualVisible}
-        onClose={() => setManualVisible(false)}
-      />
-    </SafeAreaView>
+                <View style={styles.categoryList}>
+                  {categoryProportions.map((item, index) => (
+                    <View key={item.category} style={styles.categoryItem}>
+                      <View
+                        style={[
+                          styles.categoryDot,
+                          {
+                            backgroundColor:
+                              CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+                          },
+                        ]}
+                      />
+
+                      <View style={styles.categoryMeta}>
+                        <Text style={styles.categoryText} numberOfLines={1}>
+                          {item.category}
+                        </Text>
+                        <Text style={styles.categoryPercent}>
+                          {item.percentage.toFixed(1)}%
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+        <AppBottomBar
+          onCameraOpen={() => setCameraVisible(true)}
+          onVoiceOpen={() => setVoiceVisible(true)}
+          onFormOpen={() => setManualVisible(true)}
+        />
+
+        <CameraModal
+          visible={cameraVisible}
+          onClose={() => setCameraVisible(false)}
+          onCaptureBill={handleCreateReceiptTransaction}
+        />
+
+        <VoiceInputModal
+          visible={voiceVisible}
+          onClose={() => setVoiceVisible(false)}
+          onCaptureVoice={handleCreateVoiceTransaction}
+        />
+
+        <AddTransactionModal
+          visible={manualVisible}
+          onClose={() => setManualVisible(false)}
+        />
+      </SafeAreaView>
+    </ImageBackground>
+
   );
 }
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    justifyContent: "center",
+  },
   safe: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
   },
   container: {
     padding: 20,
     paddingBottom: 36,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "transparent",
   },
 
   monthSlider: {
@@ -533,31 +543,37 @@ const styles = StyleSheet.create({
   },
 
   monthTitle: {
-    fontSize: 30,
-    fontWeight: "700",
-    color: "#1F2937",
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#3629B7", // 🔥 primary
   },
 
   monthSubTitle: {
-    marginTop: 2,
     fontSize: 13,
-    color: "#94A3B8",
+    color: "#6D6ACF",
     fontWeight: "600",
   },
 
   navButton: {
     width: 52,
     height: 52,
+    borderRadius: 26,
+
+    backgroundColor: "#F2F1F9",
+    borderWidth: 1,
+    borderColor: "#3629B7",
+
     alignItems: "center",
     justifyContent: "center",
   },
 
   navIcon: {
-    fontSize: 42,
-    lineHeight: 46,
-    color: "#475569",
-    fontWeight: "300",
+    fontSize: 32,
+    color: "#3629B7",
+    textAlign: "center",
+    lineHeight: 32,
   },
+
 
   navIconDisabled: {
     color: "#CBD5E1",
@@ -568,14 +584,22 @@ const styles = StyleSheet.create({
   },
 
   section: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 20,
     paddingVertical: 18,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     marginBottom: 18,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    overflow: "hidden",
+
+    backgroundColor: "rgba(255,255,255,0.85)", // glass effect
+
+    borderWidth: 1.5,
+    borderColor: "#3629B7",
+
+    shadowColor: "#3629B7",
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+
+    elevation: 10,
   },
 
   sectionHeader: {

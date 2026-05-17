@@ -24,10 +24,9 @@ export default function AppBottomBar({
       active={navigation.activeTab}
       onHome={navigation.onHome}
       onStats={navigation.onStats}
-      onTransaction={navigation.onTransaction}
       onAdd={navigation.onAdd}
-      onWallet={navigation.onWallet}
-      onProject={navigation.onAnalysis}
+      onTransaction={navigation.onTransaction}
+      onAnalysis={navigation.onAnalysis}
       onProfile={navigation.onProfile}
       onAddByCamera={navigation.onAddByCamera}
       onAddByVoice={navigation.onAddByVoice}

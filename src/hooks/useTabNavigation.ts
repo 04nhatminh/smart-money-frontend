@@ -1,7 +1,7 @@
 import { useRouter, usePathname } from "expo-router";
 import { useCallback, useMemo } from "react";
 
-export type TabKey = "home" | "stats" | "wallet" | "profile";
+export type TabKey = "home" | "stats" | "transaction" | "analysis" | "profile";
 
 interface UseTabNavigationOptions {
   onCameraOpen?: () => void;
@@ -20,7 +20,8 @@ export const useTabNavigation = ({
   const activeTab = useMemo<TabKey>(() => {
     if (pathname.includes("profile")) return "profile";
     if (pathname.includes("stats")) return "stats";
-    if (pathname.includes("wallet")) return "wallet";
+    if (pathname.includes("transaction")) return "transaction";
+    if (pathname.includes("analysis")) return "analysis";
     return "home";
   }, [pathname]);
 
@@ -32,8 +33,8 @@ export const useTabNavigation = ({
     router.navigate("/(tabs)/stats");
   }, [router]);
 
-  const onWallet = useCallback(() => {
-    router.navigate("/(analysis)/_lay");
+  const onTransaction = useCallback(() => {
+    router.navigate("/(tabs)/transaction");
   }, [router]);
 
   const onAnalysis = useCallback(() => {
@@ -64,7 +65,7 @@ export const useTabNavigation = ({
     activeTab,
     onHome,
     onStats,
-    onWallet,
+    onTransaction,
     onAnalysis,
     onProfile,
     onAdd,
