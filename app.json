@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": true, 
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -22,6 +22,9 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "package": "com.ngohaibang.smartmoneyfrontend",
       "usesCleartextTraffic": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -29,32 +32,18 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
-      ],
-      "package": "com.anonymous.smartmoneyfrontend"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-localization",
-      "@react-native-community/datetimepicker",
       "expo-web-browser",
+      "react-native-reanimated/plugin",
+      "@react-native-community/datetimepicker",
       [
         "expo-camera",
         {
@@ -69,7 +58,6 @@
           "isAccessMediaLocationEnabled": false
         }
       ]
-
     ]
   }
 }

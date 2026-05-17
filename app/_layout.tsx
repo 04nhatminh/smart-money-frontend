@@ -1,7 +1,7 @@
 // app/_layout.tsx
-import React, { useEffect } from "react";
-import { Stack, useRouter } from "expo-router";
-import { View, ActivityIndicator, AppState } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Stack, useRouter, useSegments } from "expo-router";
+import { View, ActivityIndicator, Text, AppState } from "react-native";
 import { LanguageProvider } from "../src/i18n/LanguageProvider";
 import { ThemeProvider } from "../src/theme/ThemeProvider";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
