@@ -8,6 +8,9 @@ import {
   FlatList,
   SafeAreaView,
   ActivityIndicator,
+  ImageBackground ,
+  Animated,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Notification } from "../../types/notification.type";
@@ -47,29 +50,111 @@ export const NotificationListModal: React.FC<Props> = ({
       onResetUnread?.();   
     }
   }, [visible]);
-  const renderItem = ({ item, index }: { item: Notification; index: number }) => (
-    <View style={styles.item}>
-      
-      {/* Gradient bar bên trái */}
-      <LinearGradient
-        colors={["#A8A3D7", "#3629B7"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.gradientBar}
-      />
 
-      {/* Content */}
-      <View style={styles.contentWrapper}>
-        <Text style={styles.content}>{item.content}</Text>
+  function parseNotification(content: string) {
+    const parts = content.split("|");
 
-        <View style={styles.bottomRow}>
-          <Text style={styles.time}>
-            {new Date(item.createdAt).toLocaleString()}
-          </Text>
+    return {
+      key: parts[0],
+      params: {
+        type: parts[1],
+        amount: parts[2],
+        category: parts[3],
+      },
+    };
+  }
+
+  const AnimatedItem = ({ children, index }: any) => {
+    const translateY = React.useRef(new Animated.Value(20)).current;
+    const opacity = React.useRef(new Animated.Value(0)).current;
+
+    React.useEffect(() => {
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 400,
+          delay: index * 60, // 👈 stagger
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 400,
+          delay: index * 60,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, []);
+
+    return (
+      <Animated.View
+        style={{
+          transform: [{ translateY }],
+          opacity,
+        }}
+      >
+        {children}
+      </Animated.View>
+    );
+  };
+
+  const categoryIcons: Record<string, any> = {
+    FOOD: require("../../../assets/categories/food.png"),
+    TRANSPORTATION: require("../../../assets/categories/transport.png"),
+    CLOTHING: require("../../../assets/categories/clothing.png"),
+    UTILITIES: require("../../../assets/categories/utilities.png"),
+    ENTERTAINMENT: require("../../../assets/categories/entertainment.png"),
+    HEALTH: require("../../../assets/categories/health.png"),
+    EDUCATION: require("../../../assets/categories/education.png"),
+    OTHER: require("../../../assets/categories/other.png"),
+  };
+
+  const HEADER_HEIGHT = 120; // chỉnh theo UI thật của bạn
+
+  const renderItem = ({ item, index }: { item: Notification; index: number }) => {
+    const parsed = parseNotification(item.content);
+    const category = parsed.params.category;
+
+    return (
+      <AnimatedItem index={index}>
+        <View style={styles.item}>
+          <LinearGradient
+            colors={["#A8A3D7", "#3629B7"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.gradientBar}
+          />
+
+          <View style={styles.contentWrapper}>
+            <Text style={styles.content}>
+              {t(parsed.key, {
+                type: t(parsed.params.type),
+                amount: parsed.params.amount,
+                category: parsed.params.category,
+              })}
+            </Text>
+
+            <View style={styles.bottomRow}>
+              <Text style={styles.time}>
+                {new Date(item.createdAt).toLocaleString()}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.iconWrapper}>
+            <View style={styles.iconOuter}>
+              <View style={styles.iconInner}>
+                <Image
+                  source={categoryIcons[category] || categoryIcons.OTHER}
+                  style={styles.icon}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+          </View>
         </View>
-      </View>
-    </View>
-  );
+      </AnimatedItem>
+    );
+  };
 
   return (
         <Modal
@@ -78,7 +163,14 @@ export const NotificationListModal: React.FC<Props> = ({
         transparent={false}
         onRequestClose={onClose} // QUAN TRỌNG cho Android
         >
-          <SafeAreaView style={styles.container}>
+
+      <ImageBackground
+        source={require("../../../assets/notification.jpg")} // 👈 chỉnh path đúng
+        style={{ flex: 1, position: "absolute", width: "100%", height: "100%", opacity: 0.36 }}
+        resizeMode="cover"
+      ></ImageBackground>
+
+        <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           {/* Left placeholder để cân giữa */}
@@ -109,7 +201,7 @@ export const NotificationListModal: React.FC<Props> = ({
           </View>
         ) : notifications.length === 0 ? (
           <View style={styles.center}>
-            <Text style={styles.empty}>{t("notifications.no_notifications")}</Text>
+            <Text style={styles.empty}>{t("notification.no_notifications")}</Text>
           </View>
         ) : (
           <FlatList
@@ -117,7 +209,7 @@ export const NotificationListModal: React.FC<Props> = ({
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             contentContainerStyle={{ paddingBottom: 20 }}
-
+            ListHeaderComponent={<View style={{ height: HEADER_HEIGHT }} />}
             onEndReached={() => {
               if (isLoadingMore) return;
               if (visibleCount >= sortedNotifications.length) return;
@@ -154,18 +246,24 @@ const styles = StyleSheet.create({
     flex: 1,
     zIndex: 999,
     elevation: 10,
-    backgroundColor: "#fff",
     paddingHorizontal: 10,
+    backgroundColor: "transparent",
   },
 
   header: {
+    position: "absolute",
+    top: 40, // hoặc 0 + paddingTop SafeArea
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 20,
-    marginTop: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    paddingHorizontal: 10,
+
+    backgroundColor: "transparent", // 👈 nên có để đỡ bị xuyên nền
   },
 
   titleContainer: {
@@ -188,7 +286,7 @@ const styles = StyleSheet.create({
 
     // inner shadow nhẹ
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "#FFFFFF",
   },
 
   title: {
@@ -201,6 +299,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: "#F5F5F5",
+    borderWidth: 1,
+    borderColor: "#A8A3D7",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -224,6 +324,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     marginBottom: 12,
 
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+
     // shadow mềm
     shadowColor: "#3629B7",
     shadowOpacity: 0.08,
@@ -245,7 +348,7 @@ const styles = StyleSheet.create({
 
   content: {
     fontSize: 15,
-    color: "#333",
+    color: "#000",
     fontWeight: "500",
     lineHeight: 20,
   },
@@ -255,6 +358,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    color: "#333",
   },
 
   time: {
@@ -285,5 +389,39 @@ const styles = StyleSheet.create({
   loadingMore: {
     paddingVertical: 16,
     alignItems: "center",
+  },
+  iconWrapper: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    backgroundColor: "#A8A3D7",
+    borderTopLeftRadius: 36,
+    borderBottomLeftRadius: 36,
+  },
+
+  // vòng ngoài (viền tím)
+  iconOuter: {
+    width: 50,
+    height: 50,
+    borderRadius: 23,
+    backgroundColor: "#3629B7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // vòng trong (nền trắng)
+  iconInner: {
+    width: 50,
+    height: 50,
+    borderRadius: 19,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // icon
+  icon: {
+    width: 36,
+    height: 36,
   },
 });

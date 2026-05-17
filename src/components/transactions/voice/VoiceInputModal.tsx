@@ -8,6 +8,7 @@ import { CloudinaryService } from "../../../services/cloudinary.service";
 import AIAPI from "../../../api/ai.api";
 import authApi from "../../../api/auth.api";
 import { connectWebSocket } from "../../../services/websocket";
+import WaitScreen from "../../../../app/(wait)/wait";
 
 type Props = {
   visible: boolean;
@@ -15,7 +16,7 @@ type Props = {
   onCaptureVoice: (transaction: TransactionRequest) => void | Promise<void>;
 };
 
-type VoiceStep = "recording" | "preview" | "form";
+type VoiceStep = "recording" | "preview" | "waiting" | "form";
 
 export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
   const [step, setStep] = useState<VoiceStep>("recording");
@@ -23,6 +24,7 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
   const [transaction, setTransaction] = useState<TransactionRequest | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [cloudinaryPublicId, setCloudinaryPublicId] = useState<string>("");
 
   const handleRecordingComplete = (uri: string) => {
     setAudioUri(uri);
@@ -39,8 +41,10 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
   };
 
   const handlePreviewConfirm = async () => {
+    console.log("🎯 handlePreviewConfirm called");
+    setIsSubmitting(true);
     setSubmitError(null);
-    setStep("form");
+
     try {
       if (!audioUri) {
         throw new Error("Audio URI is missing");
@@ -57,8 +61,10 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
       console.log("📤 Uploading voice to Cloudinary...");
       const cloudinaryResponse =
         await CloudinaryService.uploadTransactionVoice(audioUri);
+      
+        const publicId = cloudinaryResponse.publicId; // ✅ giữ local
 
-      console.log("✅ Cloudinary Voice URL:", cloudinaryResponse.fileUrl);
+        setCloudinaryPublicId(publicId);
 
       // 📤 Submit Cloudinary URL to AI API
       const submitRes = await AIAPI.submitVoiceAudio(
@@ -71,6 +77,9 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
 
       const jobId = submitRes.data.jobId;
       console.log("🔥 VOICE JOB ID:", jobId);
+
+      // 🔄 Show waiting screen
+      setStep("waiting");
 
       // ⛔ Wait for AI result
       const resultPromise = new Promise<void>((resolve, reject) => {
@@ -99,7 +108,7 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
 
             try {
               const processedTransaction: TransactionRequest = {
-                amount: Number(resultData.amount) || 0,
+                amount: Number(resultData.expense) || 0,
                 category: resultData.category || "Other",
                 type: resultData.type || "EXPENSE",
                 description:
@@ -112,12 +121,20 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
 
               console.log("✅ Voice transaction processed:", processedTransaction);
               setTransaction(processedTransaction);
+              
+              // 🗑️ Delete voice file from Cloudinary after AI processing
+              CloudinaryService.deleteImage(publicId, "voice");
+              
               clearTimeout(timeout);
               resolve();
             } catch (err) {
               console.error("❌ Voice parse error:", err);
               clearTimeout(timeout);
               reject(err);
+            }
+            finally {
+              // 🗑️ Delete voice file from Cloudinary regardless of success or failure
+              CloudinaryService.deleteImage(publicId, "voice");
             }
           },
         });
@@ -134,7 +151,6 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
     } finally {
       setIsSubmitting(false);
     }
-      
   };
 
   const handleVoiceConfirm = async (transaction: TransactionRequest) => {
@@ -181,7 +197,10 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
           onRetake={handleRetake}
           onConfirm={handlePreviewConfirm}
           isSubmitting={isSubmitting}
+          onCancel={handleCancel}
         />
+      ) : step === "waiting" ? (
+        <WaitScreen />
       ) : (
         <VoiceInput
           audioUri={audioUri}

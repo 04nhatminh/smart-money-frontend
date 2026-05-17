@@ -24,7 +24,9 @@
       "edgeToEdgeEnabled": true,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
-      "package": "com.anonymous.smartmoneyfrontend",
+      "package": "com.ngohaibang.smartmoneyfrontend",
+      "usesCleartextTraffic": true,
+      "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,18 @@ import {
   TouchableOpacity,
   Platform,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  Switch 
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { t } from '../../i18n';
+import { useLanguage } from '../../i18n/LanguageProvider';
+import NotificationNative from '../../notification/NotificationNative';
+import { NotificationListenerService } from '../../notification/NotificationListenerService';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const ENABLE_KEY = "notification_listener_enabled";
 interface PrivacyAndSecurityModalProps {
   visible: boolean;
   onClose: () => void;
@@ -21,6 +28,48 @@ export const PrivacyAndSecurityModal: React.FC<PrivacyAndSecurityModalProps> = (
   visible,
   onClose,
 }) => {
+  const { lang } = useLanguage();
+  const [hasPermission, setHasPermission] = React.useState<boolean | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [enabled, setEnabled] = React.useState(false);
+
+  const loadEnabled = async () => {
+    const val = await AsyncStorage.getItem(ENABLE_KEY);
+    setEnabled(val === "true");
+  };
+
+
+  useEffect(() => {
+    if (visible) {
+      checkPermission();
+      loadEnabled(); // ✅ thêm cái này
+    }
+  }, [visible]);
+
+  const checkPermission = async () => {
+    const res = await NotificationNative.hasPermission();
+    setHasPermission(res);
+  };
+
+  const handleToggle = async (value: boolean) => {
+    setEnabled(value);
+    await AsyncStorage.setItem(ENABLE_KEY, String(value));
+    if (value) {
+      if (!hasPermission) {
+        NotificationNative.openSettings();
+        return;
+      }
+
+      // ✅ chỉ init khi user bật
+      NotificationListenerService.initialize();
+      NotificationNative.notifyJSReady();
+
+    } else {
+      // ❌ tắt listener (bạn cần implement)
+      NotificationListenerService.stop?.();
+    }
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <BlurView intensity={90} style={styles.blurContainer}>
@@ -31,22 +80,41 @@ export const PrivacyAndSecurityModal: React.FC<PrivacyAndSecurityModalProps> = (
           >
             {/* Header với tiêu đề và nút đóng */}
             <View style={styles.header}>
-              <Text style={styles.title}>{t('privacy.privacy_security')}</Text>
+              <Text style={styles.title}>
+                {t('notification.enable_bank_notification')}
+              </Text>
+
               <TouchableOpacity onPress={onClose}>
                 <Ionicons name="close" size={28} color="#3629B7" />
               </TouchableOpacity>
             </View>
 
-            {/* Nội dung mô tả */}
-            <View style={styles.content}>
-              <Ionicons name="shield-checkmark-outline" size={48} color="#3629B7" style={styles.icon} />
-              <Text style={styles.description}>
-                {t('privacy.privacy_description')}
+            <View style={{ marginTop: 20, width: '100%' }}>
+              {/* Switch */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 16 }}>
+                  {t('notification.enable_bank_notification')}
+                </Text>
+
+                <Switch
+                  value={enabled}
+                  onValueChange={handleToggle}
+                />
+              </View>
+
+              {/* Privacy */}
+              <Text style={styles.hint}>
+                {t('notification.notification_privacy')}
               </Text>
-              <Text style={styles.description}>
-                {t('security.security_description')}
-              </Text>
+
+              {/* Guide (chỉ khi chưa có quyền) */}
+              {hasPermission === false && (
+                <Text style={[styles.hint, { color: '#EF4444' }]}>
+                  {t('notification.notification_permission_guide')}
+                </Text>
+              )}
             </View>
+
           </KeyboardAvoidingView>
         </View>
       </BlurView>
@@ -99,6 +167,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 12,
+  },
+  hint: {
+    marginTop: 12,
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  button: {
+    backgroundColor: '#3629B7',
+    paddingVertical: 14,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

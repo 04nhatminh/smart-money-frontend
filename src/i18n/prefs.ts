@@ -3,12 +3,18 @@ import { setLanguage, type Lang } from "./index";
 
 const KEY = "lang";
 
-export async function loadLanguageFromStorage() {
+export async function loadLanguageFromStorage(): Promise<Lang | null> {
   try {
     const v = await AsyncStorage.getItem(KEY);
-    if (v === "en" || v === "vi") setLanguage(v as Lang);
+
+    if (v === "en" || v === "vi") {
+      setLanguage(v as Lang);
+      return v as Lang; // ✅ trả về luôn
+    }
+
+    return null;
   } catch (e) {
-    // ignore: app vẫn chạy theo device locale
+    return null;
   }
 }
 
