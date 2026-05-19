@@ -17,6 +17,27 @@ const http: AxiosInstance = axios.create({
   timeout: API_CONFIG.TIMEOUT,
 });
 
+const refreshHttp = axios.create({
+  baseURL: API_CONFIG.BASE_URL,
+  timeout: API_CONFIG.TIMEOUT,
+});
+
+interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+const subscribeTokenRefresh = (cb: (token: string) => void) => {
+  refreshSubscribers.push(cb);
+};
+
+const onRefreshed = (token: string) => {
+  refreshSubscribers.forEach(cb => cb(token));
+  refreshSubscribers = [];
+};
+
 // Request interceptor - Thêm token vào headers
 http.interceptors.request.use(
   async (config) => {
@@ -35,40 +56,43 @@ http.interceptors.request.use(
 http.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as CustomAxiosRequestConfig;
 
-    // Nếu status 401 và chưa retry
     if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise(resolve => {
+          subscribeTokenRefresh((token: string) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(http(originalRequest));
+          });
+        });
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
 
       try {
         const refreshToken = await tokenStorage.getRefreshToken();
-        if (!refreshToken) {
-          throw new Error("No refresh token");
-        }
 
-        // Gọi API refresh token
-        const response = await http.post("/api/auth/v1/refresh-token", {
+        const response = await refreshHttp.post("/api/auth/v1/refresh-token", {
           refreshToken,
         });
 
-        if (!response.data.success) {
-          throw new Error(response.data.message || "Token refresh failed");
-        }
-        else {
-          console.log("Token refreshed successfully");
-        }
+        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
 
-        const { accessToken } = response.data;
         await tokenStorage.setAccessToken(accessToken);
+        if (newRefreshToken) {   // ✅ chỉ set nếu có
+          await tokenStorage.setRefreshToken(newRefreshToken);
+        }
+        onRefreshed(accessToken);
+        isRefreshing = false;
 
-        // Retry request với token mới
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return http(originalRequest);
-      } catch (refreshError) {
-        // Refresh token thất bại - logout
+      } catch (err) {
+        isRefreshing = false;
         await tokenStorage.clear();
-        return Promise.reject(refreshError);
+        return Promise.reject(err);
       }
     }
 

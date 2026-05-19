@@ -154,7 +154,11 @@ class AIAPI {
     }
   }
 
-
+  async submitText(
+    text: string
+  ): Promise<CheckResponse<AIJobResponse>> {
+    return this.submitJob(text, "notification");
+  }
 }
 
 export default new AIAPI();

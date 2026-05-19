@@ -108,6 +108,8 @@ export const NotificationListModal: React.FC<Props> = ({
     OTHER: require("../../../assets/categories/other.png"),
   };
 
+  const HEADER_HEIGHT = 120; // chỉnh theo UI thật của bạn
+
   const renderItem = ({ item, index }: { item: Notification; index: number }) => {
     const parsed = parseNotification(item.content);
     const category = parsed.params.category;
@@ -207,7 +209,7 @@ export const NotificationListModal: React.FC<Props> = ({
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             contentContainerStyle={{ paddingBottom: 20 }}
-
+            ListHeaderComponent={<View style={{ height: HEADER_HEIGHT }} />}
             onEndReached={() => {
               if (isLoadingMore) return;
               if (visibleCount >= sortedNotifications.length) return;
@@ -249,13 +251,19 @@ const styles = StyleSheet.create({
   },
 
   header: {
+    position: "absolute",
+    top: 40, // hoặc 0 + paddingTop SafeArea
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 20,
-    marginTop: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    paddingHorizontal: 10,
+
+    backgroundColor: "transparent", // 👈 nên có để đỡ bị xuyên nền
   },
 
   titleContainer: {
