@@ -4,6 +4,7 @@ import {
     CreateProjectFormErrors,
     CreateProjectFormValues,
     CreateProjectPayload,
+    ProjectPriority,
     ProjectType,
     SavingPlanDraft,
 } from "../types/project.types";
@@ -23,6 +24,7 @@ const initialFormValues: CreateProjectFormValues = {
     targetAmount: "",
     deadlineMonths: "",
     type: "PERSONAL",
+    priority: "LOW",
 };
 
 const initialErrors: CreateProjectFormErrors = {
@@ -51,6 +53,7 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         values.description.trim() !== "" ||
         values.targetAmount.trim() !== "" ||
         values.deadlineMonths.trim() !== "" ||
+        values.priority.trim() !== "" ||
         values.type !== "PERSONAL"
         );
     }, [values]);
@@ -95,6 +98,10 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         onChangeField("type", value);
     };
 
+    const onChangePriority = (value: ProjectPriority) => {
+        onChangeField("priority", value);
+    };
+
     const validate = () => {
         const nextErrors = validateCreateProjectForm(values);
         setErrors(nextErrors);
@@ -108,6 +115,7 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
             targetAmount: parseCurrencyToNumber(values.targetAmount),
             deadline: formatDateToYYYYMMDD(addMonthsFromDate(Number(values.deadlineMonths))),
             type: values.type,
+            priority: values.priority,
             currency: "VND",
         };
     };
@@ -161,5 +169,6 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         getSavingPlanDraft,
         handleCreateProject,
         resetForm,
+        onChangePriority,
     };
 }

@@ -1,13 +1,17 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { InputField } from '../InputField';
 import { projectStyles as styles } from '../../styles/projectStyles';
 import { CreateProjectFormErrors } from '../../types/project.types';
+import { ProjectPriority } from '../../types/project.types';
+
+const PRIORITY_OPTIONS = ['HIGH', 'MEDIUM', 'LOW'] as const;
 
 type Props = {
     name: string;
     description: string;
     targetAmount: string;
+    priority: ProjectPriority;
     deadlineMonths: string;
     errors: CreateProjectFormErrors;
     previewDeadline: string;
@@ -15,12 +19,14 @@ type Props = {
     onChangeDescription: (value: string) => void;
     onChangeTargetAmount: (value: string) => void;
     onChangeDeadlineMonths: (value: string) => void;
+    onChangePriority: (value: ProjectPriority) => void;
 };
 
 export default function ProjectFormFields({
     name,
     targetAmount,
     deadlineMonths,
+    priority,
     description,
     errors,
     previewDeadline,
@@ -28,6 +34,7 @@ export default function ProjectFormFields({
     onChangeTargetAmount,
     onChangeDeadlineMonths,
     onChangeDescription,
+    onChangePriority,
 }: Props) {
     return (
         <>
@@ -64,6 +71,34 @@ export default function ProjectFormFields({
             {!!previewDeadline && (
                 <Text style={styles.helperText}>Deadline date: {previewDeadline}</Text>
             )}
+
+            <Text style={styles.name}>Priority</Text>
+
+                <View style={styles.typeRow}>
+                {["HIGH", "MEDIUM", "LOW"].map((item) => {
+                    const active = priority === item;
+
+                    return (
+                    <Pressable
+                        key={item}
+                        style={[
+                        styles.typeBtn,
+                        active && styles.typeBtnActive,
+                        ]}
+                        onPress={() => onChangePriority(item as ProjectPriority)}
+                    >
+                        <Text
+                        style={[
+                            styles.typeButtonText,
+                            active && styles.typeButtonTextActive,
+                        ]}
+                        >
+                        {item}
+                        </Text>
+                    </Pressable>
+                    );
+                })}
+                </View>
 
             <Text style={styles.name}>Description</Text>
             <InputField

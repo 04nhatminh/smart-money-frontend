@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, Text, View} from "react-native";
 import { ButtonSave } from "../ButtonSave";
 import { projectStyles as styles } from "../../styles/projectStyles";
-import { CreateProjectFormErrors, ProjectType } from "../../types/project.types";
+import { CreateProjectFormErrors, ProjectPriority, ProjectType } from "../../types/project.types";
 import ProjectFormFields from "./ProjectFormFields";
 import ProjectTypeTabs from "./ProjectTypeTabs";
 import { t } from "../../i18n";
@@ -12,6 +12,7 @@ type Props = {
     name: string;
     targetAmount: string;
     deadlineMonths: string;
+    priority: ProjectPriority;
     description: string;
     errors: CreateProjectFormErrors;
     previewDeadline: string;
@@ -20,6 +21,7 @@ type Props = {
     onChangeName: (name: string) => void;
     onChangeTargetAmount: (amount: string) => void;
     onChangeDeadlineMonths: (months: string) => void;
+    onChangePriority: (value: ProjectPriority) => void;
     onChangeDescription: (description: string) => void;
     onCancel: () => void;
     onNext: () => void;
@@ -30,6 +32,7 @@ export default function CreateProjectStep({
     name,
     targetAmount,
     deadlineMonths,
+    priority,
     description,
     errors,
     previewDeadline,
@@ -38,6 +41,7 @@ export default function CreateProjectStep({
     onChangeName,
     onChangeTargetAmount,
     onChangeDeadlineMonths,
+    onChangePriority,
     onChangeDescription,
     onCancel,
     onNext,
@@ -60,12 +64,15 @@ export default function CreateProjectStep({
                     description={description}
                     targetAmount={targetAmount}
                     deadlineMonths={deadlineMonths}
+                    priority={priority}
+
                     errors={errors}
                     previewDeadline={previewDeadline}
                     onChangeName={onChangeName}
                     onChangeDescription={onChangeDescription}
                     onChangeTargetAmount={onChangeTargetAmount}
                     onChangeDeadlineMonths={onChangeDeadlineMonths}
+                    onChangePriority={onChangePriority}
                 />
 
                 <View style={styles.buttonRow}>

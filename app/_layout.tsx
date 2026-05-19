@@ -30,7 +30,7 @@ function RootLayoutNav() {
   
   useEffect(() => {
     if (authLoading || onboardingLoading || isFirstLaunch === null) return;
-
+    SplashScreen.hideAsync();
     // 1️⃣ Lần đầu mở app → intro
     if (isFirstLaunch && !authLoading) {
       console.log("🚀 First launch detected, navigating to intro...");

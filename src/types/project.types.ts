@@ -7,10 +7,16 @@ export type ProjectStatusFilter = "ALL" | ProjectStatus;
 export type SavingPlanMode = "RELAXED" | "URGENT";
 export type CreateProjectModalStep = 1 | 2 | 3;
 
+export type ProjectPriority =
+  | "LOW"
+  | "MEDIUM"
+  | "HIGH";
+
 export type CreateProjectPayload = {
     name: string;
     description: string;
     type: ProjectType;
+    priority: ProjectPriority;
     targetAmount: number;
     currency: string;
     deadline: string;
@@ -19,6 +25,7 @@ export type CreateProjectPayload = {
 export type UpdateProjectPayload = {
   name?: string;
   description?: string;
+  priority?: ProjectPriority;
   targetAmount?: number;
   currency?: string;
   deadline?: string; // yyyy-MM-dd
@@ -40,6 +47,7 @@ export type CreateProjectFormValues = {
     targetAmount: string;
     deadlineMonths: string;
     type: ProjectType;
+    priority: ProjectPriority;
 };
 
 export type CreateProjectFormErrors = {
@@ -121,4 +129,13 @@ export type SavingPlanAIResponse = {
 export type SavingPlanSuggestionMap = {
   RELAXED: SavingPlanSuggestionResponse;
   URGENT: SavingPlanSuggestionResponse;
+};
+
+export type ProjectAdvisorPayload = CreateProjectPayload & {
+  mode: SavingPlanMode;
+};
+
+export type ProjectAdvisorResponse = {
+  monthlySaving: number;
+  numberOfMonths: number;
 };
