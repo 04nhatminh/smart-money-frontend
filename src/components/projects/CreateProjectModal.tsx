@@ -47,6 +47,7 @@ export default function CreateProjectModal({
         onChangeTargetAmount,
         onChangeDeadlineMonths,
         onChangeType,
+        onChangePriority,
         getSavingPlanDraft,
         resetForm,
     } = useCreateProject();
@@ -159,6 +160,7 @@ export default function CreateProjectModal({
                                     description={values.description}
                                     targetAmount={values.targetAmount}
                                     deadlineMonths={values.deadlineMonths}
+                                    priority={values.priority}
                                     errors={errors}
                                     previewDeadline={previewDeadline}
                                     onChangeType={onChangeType}
@@ -166,6 +168,7 @@ export default function CreateProjectModal({
                                     onChangeDescription={onChangeDescription}
                                     onChangeTargetAmount={onChangeTargetAmount}
                                     onChangeDeadlineMonths={onChangeDeadlineMonths}
+                                    onChangePriority={onChangePriority}
                                     onCancel={handleClose}
                                     onNext={handleNextFromCreate}
                                     loading={loading}
