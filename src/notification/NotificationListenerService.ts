@@ -8,7 +8,8 @@ import { tokenStorage } from "../storage/tokenStorage";
 import authApi from "../api/auth.api";
 import { TransactionType } from "../types/transaction.types";
 import { formatDateTime } from "../utils/dateFormatter";
-
+import PendingStorage from "../storage/pendingTransactionStorage";
+import TransactionParser from "../utils/transactionParser";
 const { NotificationModule } = NativeModules;
 const emitter = new NativeEventEmitter(NotificationModule);
 
@@ -24,6 +25,7 @@ export class NotificationListenerService {
   private static nativeSubscription: any = null;
 
   private static processedSet = new Set<Fingerprint>();
+  private static inFlightSet = new Set<Fingerprint>(); // Prevent concurrent processing
 
   private static MAX_AGE_MS = 30 * 1000;
   private static BUCKET_MS = 10 * 1000;
@@ -39,13 +41,13 @@ export class NotificationListenerService {
     this.isInitialized = true;
 
     await this.loadCache();
+    await PendingStorage.load(); // 👈 thêm dòng này
 
     console.log("✅ NotificationListener initialized:", this.processedSet.size);
 
     NotificationModule?.notifyJSReady();
 
-
-    this.attachNativeListener(); // 🔥 QUAN TRỌNG
+    this.attachNativeListener();
   }
 
   static destroy() {
@@ -119,7 +121,14 @@ export class NotificationListenerService {
       return false;
     }
 
+    // Check if already in-flight to prevent concurrent processing
+    if (this.inFlightSet.has(key)) {
+      console.log("⏭️ Already processing:", key);
+      return false;
+    }
+
     this.processedSet.add(key);
+    this.inFlightSet.add(key);
 
     setTimeout(() => {
       this.processedSet.delete(key);
@@ -168,24 +177,27 @@ export class NotificationListenerService {
       normalized.includes("vietcom") ||
       normalized.includes("vietin") ||
       normalized.includes("bidv") ||
-      normalized.includes("techcom")
+      normalized.includes("techcom") ||
+      normalized.includes("vpbank") ||
+      normalized.includes("sacombank") ||
+      normalized.includes("gm") 
     );
   }
 
   private static TRANSACTION_KEYWORDS = [
-    "chuyển tiền",
-    "nhận tiền",
+    "chuyển",
+    "nhận",
     "ghi có",
     "ghi nợ",
-    "biến động số dư",
     "thanh toán",
-    "nap tien",
-    "rút tiền",
-    "so du",
-    "tai khoan",
+    "giao dịch",
+    "số dư",
+    "nạp",
+    "rút",
   ];
 
-  private static MONEY_REGEX = /\b\d{1,3}([.,]\d{3})*(\s?)(vnd|vnđ|đ)\b/i;
+  private static MONEY_REGEX =
+    /\b\d+([.,]\d+)?\s?(k|nghin|ngan|tr|trieu|vnd|vnđ|d)\b/i;
 
   private static ACCOUNT_REGEX = /(tk|tài khoản|account)/i;
 
@@ -252,7 +264,12 @@ export class NotificationListenerService {
 
       console.log("🚀 Processing lockscreen notification");
 
-      await this.processAndCreateTransaction(text);
+      try {
+        await this.processAndCreateTransaction(text);
+      } finally {
+        const fp = this.getFingerprint(text, timestamp, "native", pkg);
+        this.inFlightSet.delete(fp);
+      }
 
     } catch (e) {
       console.error("❌ LockScreen error:", e);
@@ -277,49 +294,92 @@ export class NotificationListenerService {
 
       console.log("🚀 Processing foreground notification");
 
-      await this.processAndCreateTransaction(text);
+      try {
+        await this.processAndCreateTransaction(text);
+      } finally {
+        const fp = this.getFingerprint(text, timestamp, "foreground");
+        this.inFlightSet.delete(fp);
+      }
 
     } catch (e) {
       console.error("❌ Foreground error:", e);
     }
   }
 
+  private static async pollResult(jobId: string, maxAttempts = 5, delay = 2000) {
+    for (let i = 0; i < maxAttempts; i++) {
+      const res = await AIAPI.getResult(jobId);
+
+      if (res?.success && res.data) {
+        return {
+          status: "SUCCESS",
+          data: res.data   // 👈 wrap lại cho giống WS
+        };
+      }
+
+      await new Promise(r => setTimeout(r, delay));
+    }
+
+    return { status: "TIMEOUT" };
+  }
+
   // ================= MAIN FLOW =================
 
   private static async processAndCreateTransaction(rawText: string) {
     try {
-      this.eventBus.emit("ai:processing-start", rawText);
-
       const submitRes = await AIAPI.submitText(rawText);
 
       if (!submitRes?.success || !submitRes?.data?.jobId) {
-        throw new Error("Submit failed");
+        throw new Error("Submit failed: No jobId returned");
       }
 
       const jobId = submitRes.data.jobId;
+      console.log("📨 Submitted to AI server, jobId:", jobId);
 
       const aiResult = await waitForAIResult(jobId);
 
-      const payload = {
-        amount: Number(aiResult.expense || aiResult.amount || 0),
-        category: aiResult.category || "OTHER",
-        type: aiResult.type === "INCOME" ? "INCOME" as TransactionType : "EXPENSE" as TransactionType, 
-        description: aiResult.description || rawText,
-        date: aiResult.date || formatDateTime(new Date()),
-      };
+      let finalResult = aiResult;
 
-      const createRes = await TransactionApi.create(payload);
+      if (aiResult.status === "TIMEOUT") {
+        console.log("⚠️ WS timeout → polling backend");
 
-      if (!createRes?.success) {
-        throw new Error("Create failed");
+        const fallback = await this.pollResult(jobId);
+
+        if (!fallback || fallback.status !== "SUCCESS") {
+          throw new Error("AI result not available");
+        }
+
+        finalResult = fallback.data; // 👈 LẤY DATA
       }
 
-      this.eventBus.emit("ai:transaction-created", createRes.data);
+      // 👇 dùng chung flow
+      const amount = TransactionParser.parseAmount(
+        finalResult.expense || finalResult.amount || 0
+      );
 
-      console.log("✅ Transaction created");
+      if (amount === null || amount <= 0) {
+        throw new Error(`Invalid amount: ${finalResult.expense || finalResult.amount}`);
+      }
+
+      const payload = {
+        amount,
+        category: finalResult.category || "OTHER",
+        type:
+          finalResult.type === "INCOME"
+            ? "INCOME"
+            : ("EXPENSE" as TransactionType),
+        description: finalResult.description || rawText,
+        date: finalResult.date || formatDateTime(new Date()),
+      };
+
+      await PendingStorage.add(payload);
+
+      console.log("✅ Added to pending queue:", payload);
+    
+
     } catch (error: any) {
-      this.eventBus.emit("ai:processing-error", error?.message);
-      console.error("❌ Processing error:", error);
+      console.error("❌ Error processing AI result:", error);
+      this.eventBus.emit("ai:processing-error", error?.message || "Unknown error");
     }
   }
 

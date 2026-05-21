@@ -159,6 +159,28 @@ class AIAPI {
   ): Promise<CheckResponse<AIJobResponse>> {
     return this.submitJob(text, "notification");
   }
+
+  async getResult(
+    jobId: string
+  ): Promise<CheckResponse<any>> {
+    try {
+      const headers = await this.getAuthHeader();
+      const res = await http.get(`/api/v1/ai/${jobId}`, {
+        headers
+      });
+      return {
+        success: true,
+        message: "Get AI result success",
+        data: res.data
+      };
+    } catch (error: any) {
+      console.error("❌ GET AI RESULT ERROR:", error);
+      return error.response?.data || {
+        success: false,
+        message: error.message || "Get AI result failed"
+      };
+    }
+  }
 }
 
 export default new AIAPI();

@@ -251,6 +251,9 @@ export default {
     unverified: "Chưa xác minh",
     see_more: "Xem thêm",
     choose: "Chọn danh mục",
+    pending_transactions: "Giao Dịch Đang Chờ",
+    no_pending: "Không có giao dịch nào đang chờ",
+    approve: "Phê duyệt",
   },
   camera: {
     scan_receipt: "Quét Hóa Đơn",

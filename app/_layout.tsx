@@ -1,7 +1,6 @@
-// app/_layout.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { View, ActivityIndicator, Text, AppState } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 import { LanguageProvider } from "../src/i18n/LanguageProvider";
 import { ThemeProvider } from "../src/theme/ThemeProvider";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
@@ -9,34 +8,34 @@ import { OnboardingProvider, useOnboarding } from "../src/context/OnboardingCont
 import { NotificationUIProvider } from '../src/context/NotificationUIContext';
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from 'expo-notifications';
+import { AppState } from "react-native";
 import { NotificationListenerService } from '../src/notification/NotificationListenerService';
-import NotificationToast from '../src/components/notification/NotificationToast';
 import NotificationNative from "../src/notification/NotificationNative";
+import NotificationToast from '../src/components/notification/NotificationToast';
+import PendingTransactionPanel, { PendingPanelRef } from "../src/components/transactions/PendingTransactionPanel";
 
-SplashScreen.preventAutoHideAsync();
+export const panelRef = React.createRef<PendingPanelRef>();
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootLayoutNav() {
   const { isSignedIn, isLoading: authLoading } = useAuth();
   const { isFirstLaunch, isLoading: onboardingLoading } = useOnboarding();
+
   const router = useRouter();
-  
+  const segments = useSegments();
+
+  const isLoading =
+    isFirstLaunch === null || authLoading || onboardingLoading;
+
+  // ✅ Hide splash
   useEffect(() => {
-    const sub = AppState.addEventListener('change', async (state) => {
-      if (state === 'active') {
-        const hasPermission = await NotificationNative.hasPermission();
+    if (!isLoading) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoading]);
 
-        if (hasPermission) {
-          NotificationListenerService.initialize();
-          NotificationNative.notifyJSReady();
-        }
-      }
-    });
-
-    return () => sub.remove();
-  }, []);
-
-  // 🔔 Setup notification handlers
-  useEffect(() => {    
+  useEffect(() => {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowBanner: true,
@@ -45,58 +44,90 @@ function RootLayoutNav() {
         shouldSetBadge: true,
       }),
     });
+  }, []);
 
-    // Request notification listener permission (Android only)
-    if (isSignedIn) {
-      const requestPermission = async () => {
-        try {
-          console.log("📱 Requesting notification listener permission...");
-          // The helper will show UI prompt if needed
-          // This is non-blocking and won't interfere with app flow
-        } catch (error) {
-          console.error("Error requesting permission:", error);
-        }
-      };
-      requestPermission();
-    }
-  }, [isSignedIn, isFirstLaunch, authLoading, onboardingLoading]);
-  
   useEffect(() => {
-    if (isFirstLaunch === null || authLoading || onboardingLoading) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setTimeout(async () => {
+          try {
+            if (!NotificationNative || !NotificationNative.hasPermission) {
+              console.warn("⚠️ NotificationNative not available");
+              return;
+            }
 
-    SplashScreen.hideAsync(); // ✅ hide sớm
+            const hasPermission = await NotificationNative.hasPermission();
 
-    if (isFirstLaunch) {
+            if (hasPermission) {
+              NotificationListenerService?.initialize?.();
+              NotificationNative?.notifyJSReady?.();
+            }
+          } catch (e) {
+            console.error("❌ Notification crash:", e);
+          }
+        }, 500);
+      }
+    });
+
+    return () => sub.remove();
+  }, []);
+
+
+  // ✅ 🔥 REDIRECT LOGIC (QUAN TRỌNG NHẤT)
+  useEffect(() => {
+    if (isLoading) return;
+
+    const segment = segments[0];
+
+    const inIntro = segment === "(intro)";
+    const inAuth = segment === "(auth)";
+    const inTabs = segment === "(tabs)";
+
+    console.log("🔍 segments:", segments);
+    console.log("🔍 state:", { isFirstLaunch, isSignedIn });
+
+    // 👉 FIRST LAUNCH
+    if (isFirstLaunch && !inIntro) {
       router.replace("/(intro)/intro");
       return;
     }
 
-    if (!isSignedIn) {
+    // 👉 CHƯA LOGIN
+    if (!isFirstLaunch && !isSignedIn && !inAuth) {
       router.replace("/(auth)/auth");
       return;
     }
 
-    router.replace("/(tabs)");
-  }, [isSignedIn, isFirstLaunch, authLoading, onboardingLoading]);
-
-  if (isFirstLaunch === null) {
-        return (
-        <View style={{ flex:1, justifyContent:"center", alignItems:"center" }}>
-          <ActivityIndicator size="large" />
-        </View>
-      );
+    // 👉 ĐÃ LOGIN
+    if (!isFirstLaunch && isSignedIn && !inTabs) {
+      router.replace("/(tabs)");
+      return;
     }
 
+  }, [isFirstLaunch, isSignedIn, isLoading, segments]);
+
+  // ✅ Loading UI
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  // ✅ Stack đơn giản (KHÔNG condition nữa)
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(wait)" />
+        <Stack.Screen name="(intro)" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(intro)" />
         <Stack.Screen name="(transactions)" />
+        <Stack.Screen name="(wait)" />
       </Stack>
+
       <NotificationToast />
+      <PendingTransactionPanel ref={panelRef} />
     </>
   );
 }
