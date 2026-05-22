@@ -1,27 +1,39 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import {
-  SavingPlanAIResponse,
+  ProjectAdvisorResponse,
   SavingPlanMode,
 } from "../../types/project.types";
 import { savingPlanStyles as styles } from "../../styles/savingPlanStyles";
 
 type Props = {
   mode: SavingPlanMode | null;
-  aiResponse: SavingPlanAIResponse | null;
   onBack: () => void;
   onSelectMode: (mode: SavingPlanMode) => void;
   onContinue: () => void;
+  onEditProject?: () => void;
+  advisorLoading?: boolean;
+  advisorData?: ProjectAdvisorResponse | null;
+  advisorError?: string | null;
+  onConfirmAdvisorPlan: () => void;
+  onKeepOriginalPlan: () => void;
+  confirmLoading?: boolean;
 };
 
 export default function SavingPlanModeStep({
   mode,
-  aiResponse,
   onBack,
   onSelectMode,
   onContinue,
+  onEditProject,
+  advisorLoading,
+  advisorData,
+  advisorError,
+  onConfirmAdvisorPlan,
+  onKeepOriginalPlan,
+  confirmLoading,
 }: Props) {
-  const showAISection = !!mode && !!aiResponse;
+  const showAISection = !!mode;
 
   return (
     <>
@@ -79,35 +91,86 @@ export default function SavingPlanModeStep({
         <>
           <Text style={styles.sectionTitle}>AI Suggestion:</Text>
 
-          <View style={styles.suggestionBox}>
-            <Text
-              style={[
-                styles.aiStatusText,
-                aiResponse.agreed ? styles.aiAgreeText : styles.aiAdjustText,
-              ]}
-            >
-              {aiResponse.agreed ? "AI agrees with your plan." : "AI suggests an adjusted plan."}
-            </Text>
+          <View
+            style={[
+              styles.suggestionBox,
+              advisorError && styles.suggestionErrorBox,
+            ]}
+          >
+            {advisorLoading ? (
+              <Text style={styles.suggestionText}>
+                AI is generating your saving plan...
+              </Text>
+            ) : advisorError ? (
+              <>
+                <Text style={styles.suggestionErrorTitle}>
+                  This plan may not be suitable
+                </Text>
 
-            <Text style={styles.suggestionText}>{aiResponse.message}</Text>
+                <Text style={styles.suggestionErrorText}>
+                  {advisorError}
+                </Text>
 
-            <Text style={styles.suggestionText}>
-              Suggested monthly saving:{" "}
-              {aiResponse.suggestion.monthlySavingAmount.toLocaleString("de-DE")} VND/month
-            </Text>
+                <Pressable
+                  style={styles.inlineEditButton}
+                  onPress={onEditProject}
+                >
+                  <Text style={styles.inlineEditButtonText}>
+                    Edit Project
+                  </Text>
+                </Pressable>
+              </>
+            ) : advisorData ? (
+              <>
+                <Text style={styles.suggestionText}>
+                  Monthly Saving:{" "}
+                  {advisorData.monthlySaving.toLocaleString("de-DE")} VND
+                </Text>
 
-            <Text style={styles.suggestionText}>
-              Estimated time: {aiResponse.suggestion.estimatedMonths} months
-            </Text>
+                <Text style={styles.suggestionText}>
+                  Estimated Months: {advisorData.numberOfMonths}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.suggestionText}>
+                Select a mode to receive AI suggestion.
+              </Text>
+            )}
           </View>
 
-          <Text style={styles.questionText}>
-            Do you accept this plan?
-          </Text>
+          {advisorData && !advisorError && (
+            <>
+              <Text style={styles.questionText}>
+                Do you want to use this AI suggested plan?
+              </Text>
 
-          <Pressable style={styles.primaryButton} onPress={onContinue}>
-            <Text style={styles.primaryButtonText}>Continue</Text>
-          </Pressable>
+              <Pressable
+                style={[
+                  styles.primaryButton,
+                  confirmLoading && styles.disabledButton,
+                ]}
+                disabled={confirmLoading}
+                onPress={onConfirmAdvisorPlan}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {confirmLoading ? "Creating..." : "Confirm AI Plan"}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  confirmLoading && styles.disabledButton,
+                ]}
+                disabled={confirmLoading}
+                onPress={onKeepOriginalPlan}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  Keep Original Plan
+                </Text>
+              </Pressable>
+            </>
+          )}
         </>
       )}
 

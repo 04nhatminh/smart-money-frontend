@@ -1,14 +1,14 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import {
-  SavingPlanAIResponse,
   SavingPlanMode,
+  ProjectAdvisorResponse,
 } from "../../types/project.types";
 import { savingPlanStyles as styles } from "../../styles/savingPlanStyles";
 
 type Props = {
   mode: SavingPlanMode | null;
-  aiResponse: SavingPlanAIResponse | null;
+  advisorData: ProjectAdvisorResponse | null;
   loading?: boolean;
   onBack: () => void;
   onConfirm: () => void;
@@ -17,13 +17,13 @@ type Props = {
 
 export default function SavingPlanReviewStep({
   mode,
-  aiResponse,
+  advisorData,
   loading = false,
   onBack,
   onConfirm,
   onCancel,
 }: Props) {
-  const suggestion = aiResponse?.suggestion ?? null;
+  const suggestion = advisorData?? null;
 
   return (
     <>
@@ -38,7 +38,7 @@ export default function SavingPlanReviewStep({
           To reach your goal, AI suggests limiting these categories:
         </Text>
 
-        {suggestion?.categories?.map((item) => (
+        {/* {suggestion?.categories?.map((item) => (
           <View key={item.key} style={styles.reviewRow}>
             <Text style={styles.reviewLabel}>{item.label}</Text>
             <Text style={styles.reviewValue}>
@@ -51,7 +51,7 @@ export default function SavingPlanReviewStep({
           <View style={styles.reviewRow}>
             <Text style={styles.reviewLabel}>No suggestion available</Text>
           </View>
-        )}
+        )} */}
       </View>
 
       <Pressable

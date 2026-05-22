@@ -267,17 +267,50 @@ export const savingPlanStyles = StyleSheet.create({
   },
 
   aiStatusText: {
-  fontSize: 14,
-  fontWeight: "700",
-  marginBottom: 8,
-},
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
 
-aiAgreeText: {
-  color: "#16A34A",
-},
+  aiAgreeText: {
+    color: "#16A34A",
+  },
 
-aiAdjustText: {
-  color: "#4B3FD6",
-},
+  aiAdjustText: {
+    color: "#4B3FD6",
+  },
+
+  suggestionErrorBox: {
+    borderColor: "#FFB4C2",
+    backgroundColor: "#FFF5F7",
+  },
+
+  suggestionErrorTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FF4D6D",
+    marginBottom: 8,
+  },
+
+  suggestionErrorText: {
+    fontSize: 13,
+    color: "#555",
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+
+  inlineEditButton: {
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "#FF4D6D",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  inlineEditButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 14,
+  },
 
 });

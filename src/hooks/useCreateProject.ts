@@ -120,6 +120,17 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         };
     };
 
+    const buildPayloadWithAdvisorMonths = (
+        numberOfMonths: number
+        ): CreateProjectPayload => {
+        return {
+            ...buildPayload(),
+            deadline: formatDateToYYYYMMDD(
+            addMonthsFromDate(numberOfMonths)
+            ),
+        };
+    };
+
     const getSavingPlanDraft = (): SavingPlanDraft | null => {
         if (!validate()) return null;
 
@@ -166,6 +177,7 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         onChangeDeadlineMonths,
         onChangeType,
         buildPayload,
+        buildPayloadWithAdvisorMonths,
         getSavingPlanDraft,
         handleCreateProject,
         resetForm,

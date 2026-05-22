@@ -9,6 +9,8 @@ import {
   ProjectListItemResponse,
   ProjectResponse,
   UpdateProjectPayload,
+  ProjectAdvisorPayload,
+  ProjectAdvisorResponse,
 } from "../types/project.types";
 import { ApiResponse } from "../types/auth.types";
 
@@ -265,6 +267,36 @@ export const ProjectAPI = {
         error?.response?.data || {
           success: false,
           message: errorMsg,
+        }
+      );
+    }
+  },
+
+  async advisor(
+    data: ProjectAdvisorPayload
+  ): Promise<ApiResponse<ProjectAdvisorResponse>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/project-advisor`;
+
+      console.log("🔵 [ProjectAPI] POST Advisor:");
+      console.log("   URL:", fullUrl);
+      console.log("   Payload:", JSON.stringify(data, null, 2));
+
+      const res = await http.post(
+        "/api/v1/projects/project-advisor",
+        data
+      );
+
+      console.log("🟢 [ProjectAPI] Advisor Success:", res.data);
+
+      return res.data;
+    } catch (error: any) {
+      console.error("🔴 [ProjectAPI] Advisor Error:", error);
+
+      return (
+        error.response?.data || {
+          success: false,
+          message: error?.message || "Advisor failed",
         }
       );
     }

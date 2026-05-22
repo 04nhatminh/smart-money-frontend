@@ -1,7 +1,7 @@
 export type ProjectType = "PERSONAL" | "GROUP";
 export type ProjectFilterType = "ALL" | ProjectType;
 
-export type ProjectStatus = "ONGOING" | "COMPLETED" | "OVERDUE";
+export type ProjectStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
 export type ProjectStatusFilter = "ALL" | ProjectStatus;
 
 export type SavingPlanMode = "RELAXED" | "URGENT";
@@ -48,6 +48,7 @@ export type CreateProjectFormValues = {
     deadlineMonths: string;
     type: ProjectType;
     priority: ProjectPriority;
+    status: ProjectStatus;
 };
 
 export type CreateProjectFormErrors = {
@@ -76,6 +77,7 @@ export type ProjectListItemResponse = {
   name: string;
   type: ProjectType;
   targetAmount: number;
+  priority: ProjectPriority;
   currency: string;
   totalContributed: number;
   progressPercent: number;
@@ -83,7 +85,6 @@ export type ProjectListItemResponse = {
   status: ProjectStatus;
   monthsLeft: number;
   deadlineLabel: string;
-  statusLabel: string;
 };
 
 export type ProjectDetailResponse = {

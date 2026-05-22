@@ -8,15 +8,17 @@ import { projectStyles as styles } from "../../styles/projectStyles";
 import { useCreateProject } from "../../hooks/useCreateProject";
 import {
     CreateProjectModalStep,
-    SavingPlanDraft,
+    CreateProjectPayload,
+    ProjectAdvisorResponse,
     SavingPlanMode,
 } from "../../types/project.types";
+import { UserIncomeApi } from "../../api/userIncome.api";
 import CreateProjectStep from "./CreateProjectStep";
 import SavingPlanModeStep from "./SavingPlanModeStep";
 import SavingPlanReviewStep from "./SavingPlanReviewStep";
+import SetupIncomeModal from "./SetupIncomeModal";
 import { t } from "../../i18n";
 import { ProjectAPI } from "../../api/project.api";
-import { getSavingPlanSuggestion } from "../../utils/savingPlan";
 
 type Props = {
     visible: boolean;
@@ -30,11 +32,21 @@ export default function CreateProjectModal({
     onCreated 
 }: Props) {
     const [step, setStep] = useState<CreateProjectModalStep>(1);
+
     const [mode, setMode] = useState<SavingPlanMode | null>(null);
-    const [draft, setDraft] = useState<SavingPlanDraft | null>(null);
+
+    const [showSetupIncome, setShowSetupIncome] = useState(false);
+
+    const [confirmLoading, setConfirmLoading] = useState(false);
+
+    const [advisorLoading, setAdvisorLoading] = useState(false);
+    const [advisorData, setAdvisorData] = useState<ProjectAdvisorResponse | null>(null);
+    const [advisorError, setAdvisorError] = useState<string | null>(null);
+    
+    const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+    
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showExitModal, setShowExitModal] = useState(false);
-    const [confirmLoading, setConfirmLoading] = useState(false);
 
     const {
         values,
@@ -48,85 +60,198 @@ export default function CreateProjectModal({
         onChangeDeadlineMonths,
         onChangeType,
         onChangePriority,
-        getSavingPlanDraft,
+        buildPayload,
+        buildPayloadWithAdvisorMonths,
         resetForm,
     } = useCreateProject();
-
-    const aiResponse = useMemo(() => {
-        if (!mode) return null;
-        return getSavingPlanSuggestion(mode);
-    }, [mode]);
 
     const resetAll = () => {
         resetForm();
         setStep(1);
         setMode(null);
-        setDraft(null);
+        setAdvisorData(null);
+        setAdvisorError(null);
+        setCreatedProjectId(null);
+        setAdvisorLoading(false);
         setConfirmLoading(false);
+        setShowSetupIncome(false);
     };
 
     const handleClose = () => {
-        if (isDirty || step !== 1 || draft || mode) {
+        if (isDirty || step !== 1 || createdProjectId || mode) {
             setShowExitModal(true);
             return;
         }
 
-        resetForm();
+        resetAll();
         onClose();
-    }
+    };
 
     const handleConfirmExit = () => {
         setShowExitModal(false);
-        resetForm();
+        resetAll();
         onClose();
     };
 
-    const handleNextFromCreate = () => {
-        const nextDraft = getSavingPlanDraft();
-        if (!nextDraft) return;
+    const handleNextFromCreate = async () => {
 
-        setDraft(nextDraft);
-        setStep(2);
+        try {
+            const incomeResponse = await UserIncomeApi.getMe();
+
+            const hasIncome = incomeResponse?.success &&
+                !!incomeResponse?.data;
+
+            if (!hasIncome) {
+                setShowSetupIncome(true);
+                return;
+            }
+
+            setStep(2);
+        } catch (error) {
+            setShowSetupIncome(true);
+        }
     };
 
-    const handleSelectMode = (selectedMode: SavingPlanMode) => {
-        setMode(selectedMode);
-    }
+    const handleSelectMode = async (selectedMode: SavingPlanMode) => {
+
+        try {
+            setMode(selectedMode);
+            setAdvisorLoading(true);
+            setAdvisorData(null);
+            setAdvisorError(null);
+
+            const payload = buildPayload();
+
+            if (!payload) {
+                throw new Error("Invalid project data");
+            }
+
+            const response = await ProjectAPI.advisor({
+                ...payload,
+                mode: selectedMode,
+            });
+
+            if (!response?.success || !response?.data) {
+                 setAdvisorError(
+                    response?.message || "Failed to get AI suggestion"
+                );
+                return;
+            }
+
+            setAdvisorData(response.data);
+        } catch (error: any) {
+            Alert.alert(
+            "Advisor Error",
+            error?.message ||
+                "Failed to get AI suggestion"
+            );
+        } finally {
+            setAdvisorLoading(false);
+        }
+    };
 
     const handleContinueToReview = () => {
-        if (!mode || !aiResponse) return;
+        if (!advisorData) return;
         setStep(3);
-    };    
+    };
+
+    const handleEditProjectFromAdvisor = () => {
+        setAdvisorError(null);
+        setAdvisorData(null);
+        setMode(null);
+        setStep(1);
+    };
 
     const handleBackStep = () => {
-        if (step === 1) return;
+        if (step === 1) {
+            return;
+        }
 
         if (step === 2) {
-            setStep(1);
+            setAdvisorData(null);
             setMode(null);
+            setStep(1);
             return;
         }
 
         if (step === 3) {
             setStep(2);
+            return;
         }
     };
 
+    const createProjectWithPayload = async (
+        payload: CreateProjectPayload
+        ) => {
+        try {
+            setConfirmLoading(true);
+
+            const response = await ProjectAPI.create(payload);
+
+            if (!response?.success || !response.data) {
+            throw new Error(
+                response?.message || "Failed to create project"
+            );
+            }
+
+            setCreatedProjectId(response.data.projectId);
+            setStep(3);
+        } catch (error: any) {
+            Alert.alert(
+            "Error",
+            error?.message || "Failed to create project"
+            );
+        } finally {
+            setConfirmLoading(false);
+        }
+    };
+
+    const handleConfirmAdvisorPlan = async () => {
+        if (!advisorData) return;
+
+        const payload = buildPayloadWithAdvisorMonths(
+            advisorData.numberOfMonths
+        );
+
+        await createProjectWithPayload(payload);
+    };    
+
+    const handleKeepOriginalPlan = async () => {
+        const payload = buildPayload();
+
+        await createProjectWithPayload(payload);
+    };
+
+    // Sau sẽ sửa lại và lưu budget plan
     const handleConfirmCreate = async () => {
-        if (!draft) return;
+        if (!advisorData) return;
 
         try {
             setConfirmLoading(true);
 
-            const response = await ProjectAPI.create(draft.payload);
+            const payload = buildPayloadWithAdvisorMonths(
+            advisorData.numberOfMonths
+            );
+
+            console.log(
+            "🟣 Create project with advisor-confirmed deadline:",
+            JSON.stringify(payload, null, 2)
+            );
+
+            const response = await ProjectAPI.create(payload);
 
             if (!response?.success) {
-                throw new Error(response?.message || "Failed to create project");
+            throw new Error(
+                response?.message || "Failed to create project"
+            );
             }
 
             setShowSuccessModal(true);
         } catch (error: any) {
-            Alert.alert("Error", error?.message || "Failed to create project. Please try again.");
+            Alert.alert(
+            "Error",
+            error?.message || "Failed to create project"
+            );
         } finally {
             setConfirmLoading(false);
         }
@@ -178,17 +303,23 @@ export default function CreateProjectModal({
                             {step === 2 && (
                                 <SavingPlanModeStep
                                     mode={mode}
-                                    aiResponse={aiResponse}
+                                    advisorData={advisorData}
+                                    advisorLoading={advisorLoading}
+                                    advisorError={advisorError}
                                     onBack={handleBackStep}
                                     onSelectMode={handleSelectMode}
                                     onContinue={handleContinueToReview}
+                                    onEditProject={handleEditProjectFromAdvisor}
+                                    onConfirmAdvisorPlan={handleConfirmAdvisorPlan}
+                                    onKeepOriginalPlan={handleKeepOriginalPlan}
+                                    confirmLoading={confirmLoading}
                                 />
                             )}
 
                             {step === 3 && (
                                 <SavingPlanReviewStep
                                     mode={mode}
-                                    aiResponse={aiResponse}
+                                    advisorData={advisorData}
                                     loading={confirmLoading}
                                     onBack={handleBackStep}
                                     onConfirm={handleConfirmCreate}
@@ -217,6 +348,15 @@ export default function CreateProjectModal({
                 description={t("project.confirmExitDesc")}
                 cancelText={t("common.cancel")}
                 confirmText={t("common.continue")}
+            />
+
+            <SetupIncomeModal
+                visible={showSetupIncome}
+                onClose={() => setShowSetupIncome(false)}
+                onSuccess={() => {
+                    setShowSetupIncome(false);
+                    setStep(2);
+                }}
             />
         </>
     )
