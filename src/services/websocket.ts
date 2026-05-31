@@ -5,12 +5,20 @@ import { handleIncomingNotification } from "../notification/notificationHandler"
 let stompClient: Client | null = null;
 let isConnected = false;
 let isConnecting = false;
+let notificationCallback: ((notification: any) => void) | null = null;
 
 // lưu subscriptions
 const jobSubscriptions = new Map<string, StompSubscription>();
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const WS_URL: string | null = BASE_URL ? `${BASE_URL}/ws` : null;
+
+type ConnectWebSocketOptions = {
+  userId: string;
+  jobIds?: string[];
+  onNotification?: (notification: any) => void;
+  onResult?: (jobId: string, data: any) => void;
+};
 
 // ==============================
 // 🚀 INIT (singleton)
@@ -59,7 +67,11 @@ export const initWebSocket = (userId: string): Promise<Client> => {
         try {
           const data = JSON.parse(msg.body);
           console.log("🔔 Received notification:", data);
-          handleIncomingNotification(data);
+          if (notificationCallback) {
+            notificationCallback(data);
+          } else {
+            handleIncomingNotification(data);
+          }
         } catch (err) {
           console.error("❌ Notification parse error", err);
         }
@@ -76,6 +88,35 @@ export const initWebSocket = (userId: string): Promise<Client> => {
 
     stompClient.activate();
   });
+};
+
+// ==============================
+// 🔄 COMPAT API (legacy callers)
+// ==============================
+export const connectWebSocket = async ({
+  userId,
+  jobIds = [],
+  onNotification,
+  onResult,
+}: ConnectWebSocketOptions): Promise<() => void> => {
+  if (onNotification) {
+    notificationCallback = onNotification;
+  }
+
+  await initWebSocket(userId);
+
+  const unsubscribers: Array<() => void> = [];
+  if (onResult) {
+    for (const jobId of jobIds) {
+      unsubscribers.push(subscribeJob(jobId, (data) => onResult(jobId, data)));
+    }
+  }
+
+  return () => {
+    for (const unsubscribe of unsubscribers) {
+      unsubscribe();
+    }
+  };
 };
 
 // ==============================
@@ -129,6 +170,7 @@ export const disconnectWebSocket = () => {
     stompClient = null;
     isConnected = false;
     isConnecting = false;
+    notificationCallback = null;
     jobSubscriptions.clear();
 
     console.log("🔌 WebSocket disconnected");
