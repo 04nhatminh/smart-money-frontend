@@ -4,9 +4,10 @@ import {
     CreateProjectFormErrors,
     CreateProjectFormValues,
     CreateProjectPayload,
+    PROJECT_PRIORITIES,
+    ProjectAdvisorResponse,
     ProjectPriority,
     ProjectType,
-    SavingPlanDraft,
 } from "../types/project.types";
 import {
     addMonthsFromDate,
@@ -24,7 +25,7 @@ const initialFormValues: CreateProjectFormValues = {
     targetAmount: "",
     deadlineMonths: "",
     type: "PERSONAL",
-    priority: "LOW",
+    priority: "HIGH",
 };
 
 const initialErrors: CreateProjectFormErrors = {
@@ -35,14 +36,26 @@ const initialErrors: CreateProjectFormErrors = {
 };
 
 type UseCreateProjectProps = {
-    onSuccess?: () => void;
+    usedPriorities?: ProjectPriority[];
 }
 
-export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
+export function useCreateProject({  
+    usedPriorities = [], 
+}: UseCreateProjectProps = {}) {
     const [values, setValues] = useState<CreateProjectFormValues>(initialFormValues);
     const [errors, setErrors] = useState<CreateProjectFormErrors>(initialErrors);
     const [loading, setLoading] = useState(false);
 
+    const availablePriorities = useMemo(() => {
+      return PROJECT_PRIORITIES.filter(
+        (priority) =>
+          !usedPriorities.includes(priority)
+      );
+
+    }, [usedPriorities]);
+
+    const canCreateProject = availablePriorities.length > 0;
+    
     const previewDeadline = useMemo(() => {
         return getPreviewDeadline(values.deadlineMonths);
     }, [values.deadlineMonths]);
@@ -105,7 +118,7 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
     const validate = () => {
         const nextErrors = validateCreateProjectForm(values);
         setErrors(nextErrors);
-        return !hasErrors(nextErrors);
+        return (Object.keys(nextErrors).length === 0);
     };
 
     const buildPayload = (): CreateProjectPayload => {
@@ -120,45 +133,18 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         };
     };
 
-    const buildPayloadWithAdvisorMonths = (
-        numberOfMonths: number
+    const buildPayloadWithAdvisor =
+        ( 
+            advisor:ProjectAdvisorResponse
         ): CreateProjectPayload => {
         return {
             ...buildPayload(),
             deadline: formatDateToYYYYMMDD(
-            addMonthsFromDate(numberOfMonths)
+                addMonthsFromDate(advisor.numberOfMonths)
             ),
         };
     };
 
-    const getSavingPlanDraft = (): SavingPlanDraft | null => {
-        if (!validate()) return null;
-
-       
-
-        return {
-            payload: buildPayload(),
-            deadlineMonths: Number(values.deadlineMonths),
-        };
-    };
-
-    const handleCreateProject = async () => {
-        if (loading) return false;
-        if (!validate()) return false;
-
-        try {
-            setLoading(true);
-            const payload = buildPayload();
-            const response = await ProjectAPI.create(payload);
-            if (!response?.success) {
-                throw new Error(response?.message || "Failed to create project");
-            }
-            onSuccess?.();
-            return true;
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const resetForm = () => {
         setValues(initialFormValues);
@@ -177,9 +163,9 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         onChangeDeadlineMonths,
         onChangeType,
         buildPayload,
-        buildPayloadWithAdvisorMonths,
-        getSavingPlanDraft,
-        handleCreateProject,
+        buildPayloadWithAdvisor,
+        canCreateProject,
+        availablePriorities,
         resetForm,
         onChangePriority,
     };

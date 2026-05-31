@@ -3,9 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 import { InputField } from '../InputField';
 import { projectStyles as styles } from '../../styles/projectStyles';
 import { CreateProjectFormErrors } from '../../types/project.types';
-import { ProjectPriority } from '../../types/project.types';
+import { ProjectPriority, PROJECT_PRIORITIES } from '../../types/project.types';
 
-const PRIORITY_OPTIONS = ['HIGH', 'MEDIUM', 'LOW'] as const;
 
 type Props = {
     name: string;
@@ -15,6 +14,7 @@ type Props = {
     deadlineMonths: string;
     errors: CreateProjectFormErrors;
     previewDeadline: string;
+    availablePriorities?: ProjectPriority[];
     onChangeName: (value: string) => void;
     onChangeDescription: (value: string) => void;
     onChangeTargetAmount: (value: string) => void;
@@ -35,7 +35,11 @@ export default function ProjectFormFields({
     onChangeDeadlineMonths,
     onChangeDescription,
     onChangePriority,
+    availablePriorities,
 }: Props) {
+    const disabledPriorities = PROJECT_PRIORITIES.filter(
+        (p) => !availablePriorities?.includes(p)
+    );
     return (
         <>
             <Text style={styles.name}>Name</Text>
@@ -74,30 +78,85 @@ export default function ProjectFormFields({
 
             <Text style={styles.name}>Priority</Text>
 
-                <View style={styles.typeRow}>
-                {["HIGH", "MEDIUM", "LOW"].map((item) => {
+                <View style={styles.priorityContainer}>
+
+                {PROJECT_PRIORITIES.map((item) => {
+
                     const active = priority === item;
+                    const used = !availablePriorities?.includes(item);
+                    const disabled = used && !active;
 
                     return (
-                    <Pressable
-                        key={item}
-                        style={[
-                        styles.typeBtn,
-                        active && styles.typeBtnActive,
-                        ]}
-                        onPress={() => onChangePriority(item as ProjectPriority)}
-                    >
-                        <Text
-                        style={[
-                            styles.typeButtonText,
-                            active && styles.typeButtonTextActive,
-                        ]}
+                        <Pressable
+                            key={item}
+                            disabled={disabled}
+                            style={[
+                                styles.priorityCard,
+
+                                active &&
+                                    styles.priorityCardActive,
+
+                                used &&
+                                    !active &&
+                                    styles.priorityCardDisabled,
+                            ]}
+                            onPress={() =>
+                                onChangePriority(item)
+                            }
                         >
-                        {item}
-                        </Text>
-                    </Pressable>
+
+                            <View style={styles.priorityHeader}>
+
+                                <Text
+                                    style={[
+                                        styles.priorityTitle,
+
+                                        active &&
+                                            styles.priorityTitleActive,
+
+                                        used &&
+                                            !active &&
+                                            styles.priorityTitleDisabled,
+                                    ]}
+                                >
+                                    {item}
+                                </Text>
+
+                                {used && !active && (
+                                    <View style={styles.usedBadge}>
+                                        <Text style={styles.usedBadgeText}>
+                                            Used
+                                        </Text>
+                                    </View>
+                                )}
+
+                            </View>
+
+                            <Text
+                                style={[
+                                    styles.priorityDescription,
+
+                                    used &&
+                                        !active &&
+                                        styles.priorityDescriptionDisabled,
+                                ]}
+                            >
+
+                                {item === "HIGH" &&
+                                    "Fast saving pace"}
+
+                                {item === "MEDIUM" &&
+                                    "Balanced saving plan"}
+
+                                {item === "LOW" &&
+                                    "Flexible saving pace"}
+
+                            </Text>
+
+                        </Pressable>
                     );
                 })}
+
                 </View>
 
             <Text style={styles.name}>Description</Text>
@@ -111,8 +170,6 @@ export default function ProjectFormFields({
                 autoCapitalize="sentences"
                 error={errors.description}
             />
-            
-            
 
         </>
     )

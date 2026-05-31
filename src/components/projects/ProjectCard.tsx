@@ -14,23 +14,49 @@ type Props = {
   onMorePress?: (project: ProjectListItemResponse) => void;
 };
 
+
 export default function ProjectCard({
   project,
   onPress,
   onMorePress,
 }: Props) {
+
+  const priorityStyleMap = {
+  HIGH: {
+    card: styles.highPriorityCard,
+    chip: styles.highPriorityChip,
+    text: styles.highPriorityText,
+  },
+  MEDIUM: {
+    card: styles.mediumPriorityCard,
+    chip: styles.mediumPriorityChip,
+    text: styles.mediumPriorityText,
+  },
+  LOW: {
+    card: styles.lowPriorityCard,
+    chip: styles.lowPriorityChip,
+    text: styles.lowPriorityText,
+  },
+};
+
+const priorityStyle = priorityStyleMap[project.priority];
   const progress = getSafeProgress(project.progressPercent);
   const isPersonal = project.type === "PERSONAL";
   const isCompleted = project.status === "COMPLETED";
-  const isOverdue = project.status === "OVERDUE";
 
   return (
     <Pressable
-      style={styles.projectCard}
+      style={[styles.projectCard, priorityStyle.card]}
       onPress={() => onPress?.(project)}
     >
       <View style={styles.projectCardHeader}>
         <Text style={styles.projectTitle}>{project.name}</Text>
+
+        <View style={[styles.priorityChip, priorityStyle.chip]}>
+          <Text style={[styles.priorityChipText, priorityStyle.text]}>
+            {project.priority}
+          </Text>
+        </View>
 
         <Pressable
           hitSlop={10}
@@ -66,7 +92,10 @@ export default function ProjectCard({
             {project.deadlineLabel}
           </Text>
         </View>
+        
       </View>
+
+      
 
       <View style={styles.amountRow}>
         <Text style={styles.amountLabel}>Saved</Text>
@@ -102,10 +131,9 @@ export default function ProjectCard({
           style={[
             styles.timeLeftText,
             isCompleted && styles.completedText,
-            isOverdue && styles.overdueText,
           ]}
         >
-          {project.statusLabel}
+          {project.deadlineLabel}
         </Text>
       </View>
     </Pressable>

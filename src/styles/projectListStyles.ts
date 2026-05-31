@@ -372,4 +372,54 @@ export const projectListStyles = StyleSheet.create({
     color: "#4B3FD6",
     fontWeight: "700",
   },
+
+  highPriorityCard: {
+    borderLeftWidth: 5,
+    borderLeftColor: "#EF4444",
+  },
+
+  mediumPriorityCard: {
+    borderLeftWidth: 5,
+    borderLeftColor: "#F59E0B",
+  },
+
+  lowPriorityCard: {
+    borderLeftWidth: 5,
+    borderLeftColor: "#10B981",
+  },
+
+  priorityChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+
+  priorityChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  highPriorityChip: {
+    backgroundColor: "#FEE2E2",
+  },
+
+  highPriorityText: {
+    color: "#DC2626",
+  },
+
+  mediumPriorityChip: {
+    backgroundColor: "#FEF3C7",
+  },
+
+  mediumPriorityText: {
+    color: "#D97706",
+  },
+
+  lowPriorityChip: {
+    backgroundColor: "#D1FAE5",
+  },
+
+  lowPriorityText: {
+    color: "#059669",
+  },
 });

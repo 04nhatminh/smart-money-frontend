@@ -1,16 +1,21 @@
 export type ProjectType = "PERSONAL" | "GROUP";
-export type ProjectFilterType = "ALL" | ProjectType;
+
+export type ProjectPriority = | "LOW" | "MEDIUM" | "HIGH";
 
 export type ProjectStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
-export type ProjectStatusFilter = "ALL" | ProjectStatus;
 
 export type SavingPlanMode = "RELAXED" | "URGENT";
+
 export type CreateProjectModalStep = 1 | 2 | 3;
 
-export type ProjectPriority =
-  | "LOW"
-  | "MEDIUM"
-  | "HIGH";
+export type ProjectFilterType = "ALL" | ProjectType;
+export type ProjectStatusFilter = "ALL" | ProjectStatus;
+
+export const PROJECT_PRIORITIES: ProjectPriority[] = [
+  "HIGH",
+  "MEDIUM",
+  "LOW",
+];
 
 export type CreateProjectPayload = {
     name: string;
@@ -22,14 +27,7 @@ export type CreateProjectPayload = {
     deadline: string;
 };
 
-export type UpdateProjectPayload = {
-  name?: string;
-  description?: string;
-  priority?: ProjectPriority;
-  targetAmount?: number;
-  currency?: string;
-  deadline?: string; // yyyy-MM-dd
-};
+export type UpdateProjectPayload = Partial<CreateProjectPayload>;
 
 export type AddProjectContributionPayload = {
   amount: number;
@@ -48,7 +46,6 @@ export type CreateProjectFormValues = {
     deadlineMonths: string;
     type: ProjectType;
     priority: ProjectPriority;
-    status: ProjectStatus;
 };
 
 export type CreateProjectFormErrors = {
@@ -87,38 +84,26 @@ export type ProjectListItemResponse = {
   deadlineLabel: string;
 };
 
-export type ProjectDetailResponse = {
-  projectId: string;
+export type ProjectDetailResponse =
+ProjectListItemResponse & {
   ownerId: string;
-  type: ProjectType;
-  name: string;
   description: string;
-  targetAmount: number;
-  currency: string;
-  totalContributed: number;
   remaining: number;
-  progressPercent: number;
-  deadline: string;
-  monthsLeft: number;
-  deadlineLabel: string;
-  statusLabel: string;
 };
 
 export type ProjectResponse = ProjectDetailResponse;
 
-export type SavingPlanDraft = {
-  payload: CreateProjectPayload;
-  deadlineMonths: number;
-}
+
+export type SavingPlanSuggestionCategory = {
+  key: string;
+  label: string;
+  amount: number;
+};
 
 export type SavingPlanSuggestionResponse = {
   monthlySavingAmount: number;
   estimatedMonths: number;
-  categories: {
-    key: string;
-    label: string;
-    amount: number;
-  }[];
+  categories: SavingPlanSuggestionCategory[];
 }
 
 export type SavingPlanAIResponse = {
@@ -127,10 +112,10 @@ export type SavingPlanAIResponse = {
   suggestion: SavingPlanSuggestionResponse;
 };
 
-export type SavingPlanSuggestionMap = {
-  RELAXED: SavingPlanSuggestionResponse;
-  URGENT: SavingPlanSuggestionResponse;
-};
+export type SavingPlanSuggestionMap = Record<
+  SavingPlanMode,
+  SavingPlanSuggestionResponse
+>;
 
 export type ProjectAdvisorPayload = CreateProjectPayload & {
   mode: SavingPlanMode;

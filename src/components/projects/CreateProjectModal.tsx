@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Alert, Modal, View, ScrollView } from "react-native";
 
 import SuccessModal from "../SuccessModal";
@@ -10,7 +10,9 @@ import {
     CreateProjectModalStep,
     CreateProjectPayload,
     ProjectAdvisorResponse,
+    PROJECT_PRIORITIES,
     SavingPlanMode,
+    ProjectPriority,
 } from "../../types/project.types";
 import { UserIncomeApi } from "../../api/userIncome.api";
 import CreateProjectStep from "./CreateProjectStep";
@@ -42,6 +44,10 @@ export default function CreateProjectModal({
     const [advisorLoading, setAdvisorLoading] = useState(false);
     const [advisorData, setAdvisorData] = useState<ProjectAdvisorResponse | null>(null);
     const [advisorError, setAdvisorError] = useState<string | null>(null);
+
+    const [usedPriorities, setUsedPriorities] = useState<ProjectPriority[]>([]);
+
+    const [checkingPriorities, setCheckingPriorities] = useState(false);
     
     const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
     
@@ -54,6 +60,10 @@ export default function CreateProjectModal({
         loading,
         previewDeadline,
         isDirty,
+     
+        canCreateProject,
+        availablePriorities,
+
         onChangeName,
         onChangeDescription,
         onChangeTargetAmount,
@@ -61,9 +71,90 @@ export default function CreateProjectModal({
         onChangeType,
         onChangePriority,
         buildPayload,
-        buildPayloadWithAdvisorMonths,
+        buildPayloadWithAdvisor,
         resetForm,
-    } = useCreateProject();
+    } = useCreateProject({usedPriorities,});
+
+    const fetchUsedPriorities =
+    async () => {
+
+      try {
+
+        setCheckingPriorities(true);
+
+        const response = await ProjectAPI.getAll({
+            status: "ACTIVE",
+          });
+
+        if (!response?.success || !response?.data) {
+          setUsedPriorities([]);
+          return;
+        }
+
+        const priorities = [
+            ...new Set(
+                response.data
+                    .map(
+                        (project) =>
+                            project.priority
+                    )
+                    .filter(Boolean)
+            ),
+        ] as ProjectPriority[];
+
+        setUsedPriorities(priorities);
+
+      } catch (error) {
+
+        console.log("Fetch priorities error:", error);
+        setUsedPriorities([]);
+
+      } finally {
+        setCheckingPriorities(false);
+      }
+    };
+
+  useEffect(() => {
+    if (visible) {
+        fetchUsedPriorities();
+    }
+  }, [visible]);
+
+  useEffect(() => {
+
+    if (!visible) return;
+
+    if (!canCreateProject) return;
+
+    const currentPriorityUsed =
+        usedPriorities.includes(
+            values.priority
+        );
+
+    if (
+        currentPriorityUsed &&
+        availablePriorities.length > 0
+    ) {
+
+        onChangePriority(
+            availablePriorities[0]
+        );
+    }
+
+    console.log("Available priorities:",
+        availablePriorities,
+        "Used priorities:",
+        usedPriorities
+    );
+
+}, [
+    visible,
+    usedPriorities,
+    availablePriorities,
+    canCreateProject,
+]);
+
+
 
     const resetAll = () => {
         resetForm();
@@ -150,11 +241,6 @@ export default function CreateProjectModal({
         }
     };
 
-    const handleContinueToReview = () => {
-        if (!advisorData) return;
-        setStep(3);
-    };
-
     const handleEditProjectFromAdvisor = () => {
         setAdvisorError(null);
         setAdvisorData(null);
@@ -180,46 +266,63 @@ export default function CreateProjectModal({
         }
     };
 
-    const createProjectWithPayload = async (
-        payload: CreateProjectPayload
-        ) => {
-        try {
-            setConfirmLoading(true);
+    const createProject =
+    async (
+      useAdvisorDeadline:
+        boolean
+    ) => {
 
-            const response = await ProjectAPI.create(payload);
+      try {
 
-            if (!response?.success || !response.data) {
-            throw new Error(
-                response?.message || "Failed to create project"
-            );
-            }
+        setConfirmLoading(true);
 
-            setCreatedProjectId(response.data.projectId);
-            setStep(3);
-        } catch (error: any) {
-            Alert.alert(
-            "Error",
-            error?.message || "Failed to create project"
-            );
-        } finally {
-            setConfirmLoading(false);
+        const payload =
+          useAdvisorDeadline &&
+          advisorData
+            ? buildPayloadWithAdvisor(
+                advisorData
+              )
+            : buildPayload();
+
+        const response =
+          await ProjectAPI.create(
+            payload
+          );
+
+        if (
+          !response?.success
+        ) {
+
+          throw new Error(
+            response?.message ||
+            "Failed to create project"
+          );
         }
-    };
 
-    const handleConfirmAdvisorPlan = async () => {
-        if (!advisorData) return;
+        setStep(3);
 
-        const payload = buildPayloadWithAdvisorMonths(
-            advisorData.numberOfMonths
+      } catch (error: any) {
+
+        Alert.alert(
+          "Create Project Error",
+          error?.message ||
+            "Failed to create project"
         );
 
-        await createProjectWithPayload(payload);
-    };    
+      } finally {
 
-    const handleKeepOriginalPlan = async () => {
-        const payload = buildPayload();
+        setConfirmLoading(false);
+      }
+    };
 
-        await createProjectWithPayload(payload);
+    const handleConfirmAdvisorPlan =
+        async () => {
+        await createProject(true);
+    }; 
+
+    const handleKeepOriginalPlan =
+        async () => {
+        await createProject(false);
     };
 
     // Sau sẽ sửa lại và lưu budget plan
@@ -229,8 +332,8 @@ export default function CreateProjectModal({
         try {
             setConfirmLoading(true);
 
-            const payload = buildPayloadWithAdvisorMonths(
-            advisorData.numberOfMonths
+            const payload = buildPayloadWithAdvisor(
+            advisorData
             );
 
             console.log(
@@ -280,14 +383,13 @@ export default function CreateProjectModal({
                         >
                             {step === 1 && (
                                 <CreateProjectStep
-                                    type={values.type}
-                                    name={values.name}
-                                    description={values.description}
-                                    targetAmount={values.targetAmount}
-                                    deadlineMonths={values.deadlineMonths}
-                                    priority={values.priority}
+                                    values={values}
                                     errors={errors}
                                     previewDeadline={previewDeadline}
+                                    loading={loading}
+                                    checkingPriorities={checkingPriorities}
+                                    canCreateProject={canCreateProject}
+                                    availablePriorities={availablePriorities}
                                     onChangeType={onChangeType}
                                     onChangeName={onChangeName}
                                     onChangeDescription={onChangeDescription}
@@ -296,7 +398,6 @@ export default function CreateProjectModal({
                                     onChangePriority={onChangePriority}
                                     onCancel={handleClose}
                                     onNext={handleNextFromCreate}
-                                    loading={loading}
                                 />
                             )}
 
@@ -308,7 +409,6 @@ export default function CreateProjectModal({
                                     advisorError={advisorError}
                                     onBack={handleBackStep}
                                     onSelectMode={handleSelectMode}
-                                    onContinue={handleContinueToReview}
                                     onEditProject={handleEditProjectFromAdvisor}
                                     onConfirmAdvisorPlan={handleConfirmAdvisorPlan}
                                     onKeepOriginalPlan={handleKeepOriginalPlan}

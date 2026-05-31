@@ -1,22 +1,26 @@
 import React from "react";
-import { Pressable, Text, View} from "react-native";
+import { Text, View} from "react-native";
 import { ButtonSave } from "../ButtonSave";
 import { projectStyles as styles } from "../../styles/projectStyles";
-import { CreateProjectFormErrors, ProjectPriority, ProjectType } from "../../types/project.types";
+import { 
+    CreateProjectFormErrors, 
+    CreateProjectFormValues, 
+    ProjectPriority,
+    ProjectType,
+} from "../../types/project.types";
 import ProjectFormFields from "./ProjectFormFields";
 import ProjectTypeTabs from "./ProjectTypeTabs";
 import { t } from "../../i18n";
 
 type Props = {
-    type: ProjectType;
-    name: string;
-    targetAmount: string;
-    deadlineMonths: string;
-    priority: ProjectPriority;
-    description: string;
+    values: CreateProjectFormValues;
     errors: CreateProjectFormErrors;
     previewDeadline: string;
     loading?: boolean;
+    checkingPriorities?: boolean;
+    canCreateProject?: boolean;
+    availablePriorities?: ProjectPriority[];
+
     onChangeType: (type: ProjectType) => void;
     onChangeName: (name: string) => void;
     onChangeTargetAmount: (amount: string) => void;
@@ -28,15 +32,14 @@ type Props = {
 };
 
 export default function CreateProjectStep({ 
-    type,
-    name,
-    targetAmount,
-    deadlineMonths,
-    priority,
-    description,
+    values,
     errors,
     previewDeadline,
-    loading,
+    loading = false,
+    checkingPriorities = false,
+    canCreateProject = false,
+    availablePriorities,
+
     onChangeType,
     onChangeName,
     onChangeTargetAmount,
@@ -45,7 +48,6 @@ export default function CreateProjectStep({
     onChangeDescription,
     onCancel,
     onNext,
-
 }: Props) {
    
     return (
@@ -53,21 +55,29 @@ export default function CreateProjectStep({
             <Text style={styles.title}>Create Project</Text>
 
             <ProjectTypeTabs
-                value={type}
+                value={values.type}
                 onChange={onChangeType}
             />
 
+            {!checkingPriorities && !canCreateProject && (
+                <View style={styles.warningBox}>
+                <Text style={styles.warningText}>
+                    You already have active projects for all priorities.
+                </Text>
+                </View>
+            )}
                            
             <View style={styles.formCard}>
                 <ProjectFormFields
-                    name={name}
-                    description={description}
-                    targetAmount={targetAmount}
-                    deadlineMonths={deadlineMonths}
-                    priority={priority}
+                    name={values.name}
+                    description={values.description}
+                    targetAmount={values.targetAmount}
+                    deadlineMonths={values.deadlineMonths}
+                    priority={values.priority}
 
                     errors={errors}
                     previewDeadline={previewDeadline}
+                    availablePriorities={availablePriorities}
                     onChangeName={onChangeName}
                     onChangeDescription={onChangeDescription}
                     onChangeTargetAmount={onChangeTargetAmount}
@@ -83,10 +93,9 @@ export default function CreateProjectStep({
                     />
     
                     <ButtonSave
-                        label={loading ? t("common.loading") : t("common.create")}
-                        variant="primary"
+                         label={checkingPriorities ? "Checking..." : "Create"}
                         onPress={onNext}
-                        disabled={loading}
+                        disabled={!canCreateProject || checkingPriorities || loading}
                     />
                 </View>
             </View>
