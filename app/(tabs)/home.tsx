@@ -31,7 +31,7 @@ import { TransactionRequest, Receipt } from "../../src/types/transaction.types";
 import { useRouter } from "expo-router";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
-
+import { panelRef } from "../_layout";
 // Mock data for categories
 const categories = [
   { id: '1', name: 'Groceries', icon: 'cart', color: '#4CAF50' },
@@ -306,6 +306,20 @@ export default function HomePage() {
               contentContainerStyle={styles.categoriesList}
             />
           </View>
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: "black",
+              padding: 12,
+              borderRadius: 10,
+              marginTop: 20,
+            }}
+            onPress={() => panelRef.current?.open()}
+          >
+            <Text style={{ color: "#fff", textAlign: "center" }}>
+              OPEN PENDING PANEL
+            </Text>
+          </TouchableOpacity>
 
           {/* Recent Transactions */}
           <View style={styles.section}>

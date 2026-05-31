@@ -3,39 +3,60 @@ import authApi from "../api/auth.api";
 
 export async function waitForAIResult(
   jobId: string,
-  timeoutMs: number = 60000
+  timeoutMs: number = 10000
 ): Promise<any> {
-  const userRes = await authApi.getCurrentUser();
-  if (!userRes.success || !userRes.data) {
-    throw new Error("Cannot get current user");
-  }
+  try {
+    const userRes = await authApi.getCurrentUser();
 
-  const userId = userRes.data.id;
+    if (!userRes.success || !userRes.data) {
+      throw new Error("Cannot get current user");
+    }
 
-  // ✅ đảm bảo WS đã connect
-  await initWebSocket(userId);
+    const userId = userRes.data.id;
 
-  return new Promise((resolve, reject) => {
-    let done = false;
+    await initWebSocket(userId);
 
-    const unsubscribe = subscribeJob(jobId, (data) => {
-      if (done) return;
-      done = true;
+    return new Promise((resolve) => {
+      let done = false;
 
-      clearTimeout(timeout);
-      unsubscribe();
+      const unsubscribe = subscribeJob(jobId, (data) => {
+        if (done) return;
 
-      resolve(data);
+        done = true;
+
+        clearTimeout(timeout);
+
+        unsubscribe();
+
+        console.log("📨 AI result received:", data);
+
+        resolve({
+          status: "SUCCESS",
+          data,
+        });
+      });
+
+      const timeout = setTimeout(() => {
+        if (done) return;
+
+        done = true;
+
+        unsubscribe();
+
+        console.warn("⏱️ AI timeout:", timeoutMs);
+
+        resolve({
+          status: "TIMEOUT",
+        });
+      }, timeoutMs);
+
+      console.log("⏳ Waiting AI result:", jobId);
     });
+  } catch (error: any) {
+    console.error("❌ waitForAIResult error:", error);
 
-    const timeout = setTimeout(() => {
-      if (done) return;
-      done = true;
-
-      unsubscribe();
-
-
-       resolve({ status: "TIMEOUT" });
-    }, timeoutMs);
-  });
+    throw new Error(
+      `Failed waiting AI result: ${error?.message || "Unknown error"}`
+    );
+  }
 }
