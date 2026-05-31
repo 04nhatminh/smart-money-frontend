@@ -7,7 +7,7 @@ import { TransactionRequest } from "../../../types/transaction.types";
 import { CloudinaryService } from "../../../services/cloudinary.service";
 import AIAPI from "../../../api/ai.api";
 import authApi from "../../../api/auth.api";
-import { connectWebSocket } from "../../../services/websocket";
+import { initWebSocket, subscribeJob } from "../../../services/websocket";
 import WaitScreen from "../../../../app/(wait)/wait";
 
 type Props = {
@@ -88,26 +88,12 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
           reject(new Error("AI voice processing timeout"));
         }, 60000);
 
-        connectWebSocket({
-          userId,
-          jobIds: [jobId],
-          onResult: (resultJobId: string, resultData: any) => {
-            console.log(
-              "🎯 Voice onResult callback called - jobId:",
-              resultJobId,
-              "data:",
-              resultData
-            );
 
-            if (resultJobId !== jobId) {
-              console.log("❌ Job ID mismatch:", resultJobId, "vs", jobId);
-              return;
-            }
-
-            console.log("🔥 AI VOICE RESULT received:", resultData);
-
+        const unsubscribe = subscribeJob(
+          jobId,
+          (resultData) => {
             try {
-              const processedTransaction: TransactionRequest = {
+              const processedTransaction = {
                 amount: Number(resultData.expense) || 0,
                 category: resultData.category || "Other",
                 type: resultData.type || "EXPENSE",
@@ -116,28 +102,26 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
                   resultData.transcript ||
                   resultData.text ||
                   "Voice transaction",
-                date: resultData.date || new Date().toISOString(),
+                date:
+                  resultData.date ||
+                  new Date().toISOString(),
               };
 
-              console.log("✅ Voice transaction processed:", processedTransaction);
               setTransaction(processedTransaction);
-              
-              // 🗑️ Delete voice file from Cloudinary after AI processing
-              CloudinaryService.deleteImage(publicId, "voice");
-              
+
               clearTimeout(timeout);
+
+              unsubscribe();
+
               resolve();
             } catch (err) {
-              console.error("❌ Voice parse error:", err);
               clearTimeout(timeout);
+              unsubscribe();
               reject(err);
             }
-            finally {
-              // 🗑️ Delete voice file from Cloudinary regardless of success or failure
-              CloudinaryService.deleteImage(publicId, "voice");
-            }
-          },
-        });
+          }
+        );
+
       });
 
       await resultPromise;
