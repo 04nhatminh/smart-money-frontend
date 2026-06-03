@@ -480,15 +480,6 @@ export default function HomePage() {
             )}
           </View>
 
-          <TouchableOpacity
-            style={styles.panelButton}
-            onPress={() => panelRef.current?.open()}
-          >
-            <Text style={styles.panelButtonText}>
-              OPEN PENDING PANEL
-            </Text>
-          </TouchableOpacity>
-
           {/* Recent Transactions */}
           <View style={[styles.section, { marginTop: 24 }]}>
             <View style={styles.sectionHeader}>
@@ -519,36 +510,14 @@ export default function HomePage() {
             )}
           </View>
 
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.actionButton}>
-              <View style={[styles.actionIcon, { backgroundColor: '#3629B7' }]}>
-                <Ionicons name="send" size={20} color="#fff" />
-              </View>
-              <Text style={styles.actionText}>Send</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <View style={[styles.actionIcon, { backgroundColor: '#4CAF50' }]}>
-                <Ionicons name="download" size={20} color="#fff" />
-              </View>
-              <Text style={styles.actionText}>Receive</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <View style={[styles.actionIcon, { backgroundColor: '#FF9800' }]}>
-                <Ionicons name="card" size={20} color="#fff" />
-              </View>
-              <Text style={styles.actionText}>Pay</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <View style={[styles.actionIcon, { backgroundColor: '#E91E63' }]}>
-                <Ionicons name="add" size={20} color="#fff" />
-              </View>
-              <Text style={styles.actionText}>Top up</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.panelButton}
+            onPress={() => panelRef.current?.open()}
+          >
+            <Text style={styles.panelButtonText}>
+              OPEN PENDING PANEL
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -804,6 +773,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     marginTop: 20,
+    marginBottom: 20
   },
   panelButtonText: {
     color: "#fff",
