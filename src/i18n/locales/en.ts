@@ -266,6 +266,9 @@ export default {
     unverified: "Unverified",
     see_more: "See more",
     choose: "Choose category",
+    pending_transactions: "Pending Transactions",
+    no_pending: "No pending transactions",
+    approve: "Approve",
   },
   
   camera: {
