@@ -5,7 +5,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useThemeMode } from "../theme/ThemeProvider";
 
-type TabKey = "home" | "stats" | "transaction" | "project" | "wallet" | "profile";
+type TabKey = "home" | "stats" | "transaction" | "project" | "analysis" | "profile";
 
 type NavigationHandlers = {
   onHome: () => void;
@@ -13,7 +13,7 @@ type NavigationHandlers = {
   onAdd: () => void;
   onTransaction: () => void;
   onProject: () => void;
-  onWallet: () => void;
+  onAnalysis: () => void;
   onProfile: () => void;
 };
 
@@ -26,7 +26,7 @@ type Props = {
   onAdd?: () => void;
   onTransaction?: () => void;
   onProject?: () => void;
-  onWallet?: () => void;
+  onAnalysis?: () => void;
   onProfile?: () => void;
   // Add menu option handlers
   onAddByForm?: () => void;
@@ -44,7 +44,7 @@ export function BottomBar({
   onAdd,
   onTransaction,
   onProject,
-  onWallet,
+  onAnalysis,
   onProfile,
   onAddByForm,
   onAddByCamera,
@@ -55,13 +55,13 @@ export function BottomBar({
 
   // Use handlers if provided, otherwise fallback to individual props
   const actualHandlers = handlers || {
-    onHome: onHome || (() => {}),
-    onStats: onStats || (() => {}),
-    onAdd: onAdd || (() => {}),
-    onTransaction: onTransaction || (() => {}),
-    onProject: onProject || (() => {}),
-    onWallet: onWallet || (() => {}),
-    onProfile: onProfile || (() => {}),
+    onHome: onHome || (() => { }),
+    onStats: onStats || (() => { }),
+    onAdd: onAdd || (() => { }),
+    onTransaction: onTransaction || (() => { }),
+    onProject: onProject || (() => { }),
+    onAnalysis: onAnalysis || (() => { }),
+    onProfile: onProfile || (() => { }),
   };
 
   const handleAddPress = () => {
@@ -70,7 +70,7 @@ export function BottomBar({
 
   const handleMenuOptionPress = (option: 'form' | 'camera' | 'voice') => {
     setMenuOpen(false);
-    
+
     switch (option) {
       case 'form':
         onAddByForm?.();
@@ -102,14 +102,14 @@ export function BottomBar({
           },
         ]}
       >
-        <Pressable 
-          style={[styles.item, active === 'home' && styles.activeItem]} 
+        <Pressable
+          style={[styles.item, active === 'home' && styles.activeItem]}
           onPress={actualHandlers.onHome}
         >
-          <Ionicons 
-            name={active === 'home' ? "home" : "home-outline"} 
-            size={22} 
-            color={iconColor("home")} 
+          <Ionicons
+            name={active === 'home' ? "home" : "home-outline"}
+            size={22}
+            color={iconColor("home")}
           />
         </Pressable>
 
@@ -126,19 +126,19 @@ export function BottomBar({
 
         <View style={{ width: 56 }} />
 
-        <Pressable 
-          style={[styles.item, active === 'wallet' && styles.activeItem]} 
-          onPress={actualHandlers.onWallet}
+        <Pressable
+          style={[styles.item, active === 'analysis' && styles.activeItem]}
+          onPress={actualHandlers.onAnalysis}
         >
           <Ionicons
-            name={active === 'wallet' ? "wallet" : "wallet-outline"}
+            name={active === 'analysis' ? "stats-chart" : "stats-chart-outline"}
             size={22}
-            color={iconColor("wallet")}
+            color={iconColor("analysis")}
           />
         </Pressable>
 
-        <Pressable 
-          style={[styles.item, active === 'profile' && styles.activeItem]} 
+        <Pressable
+          style={[styles.item, active === 'profile' && styles.activeItem]}
           onPress={actualHandlers.onProfile}
         >
           <Ionicons
@@ -161,7 +161,7 @@ export function BottomBar({
         onPress={handleAddPress}
       >
         <Feather name="plus" size={28} color="white" />
-     </Pressable>
+      </Pressable>
 
       {/* Menu options - appear in circular arrangement - RENDER LAST FOR TOP Z-ORDER */}
       {menuOpen && (
