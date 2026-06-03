@@ -37,6 +37,7 @@ export default function EditProjectModal({
     onChangeDescription,
     onChangeTargetAmount,
     onChangeDeadlineMonths,
+    onChangePriority,
     handleEditProject,
     resetForm,
   } = useEditProject({
@@ -68,8 +69,8 @@ export default function EditProjectModal({
       const message =
         error?.message ||
         error?.response?.data?.message ||
-        "Failed to update project";
-      Alert.alert("Error", message);
+        t("profile.update_error");
+      Alert.alert(t("common.error"), message);
     }
   };
 
@@ -94,13 +95,14 @@ export default function EditProjectModal({
               contentContainerStyle={styles.scrollContainer}
               showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.title}>Edit Project</Text>
+              <Text style={styles.title}>{t("project.edit_project")}</Text>
 
               <View style={styles.formCard}>
                 <ProjectFormFields
                   name={values.name}
                   targetAmount={values.targetAmount}
                   deadlineMonths={values.deadlineMonths}
+                  priority={values.priority}
                   description={values.description}
                   errors={errors}
                   previewDeadline={previewDeadline}
@@ -108,15 +110,16 @@ export default function EditProjectModal({
                   onChangeTargetAmount={onChangeTargetAmount}
                   onChangeDeadlineMonths={onChangeDeadlineMonths}
                   onChangeDescription={onChangeDescription}
+                  onChangePriority={onChangePriority}
                 />
 
                 <View style={styles.buttonRow}>
                   <Pressable style={styles.cancelButton} onPress={handleClose}>
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
                   </Pressable>
 
                   <ButtonSave
-                    label={loading ? "Saving..." : "Save"}
+                    label={loading ? t("common.saving") : t("common.save")}
                     onPress={onSubmit}
                     disabled={loading}
                     customStyle={styles.createButton}

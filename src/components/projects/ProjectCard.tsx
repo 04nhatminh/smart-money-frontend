@@ -22,31 +22,32 @@ export default function ProjectCard({
 }: Props) {
 
   const priorityStyleMap = {
-  HIGH: {
-    card: styles.highPriorityCard,
-    chip: styles.highPriorityChip,
-    text: styles.highPriorityText,
-  },
-  MEDIUM: {
-    card: styles.mediumPriorityCard,
-    chip: styles.mediumPriorityChip,
-    text: styles.mediumPriorityText,
-  },
-  LOW: {
-    card: styles.lowPriorityCard,
-    chip: styles.lowPriorityChip,
-    text: styles.lowPriorityText,
-  },
-};
+    HIGH: {
+      card: styles.highPriorityCard,
+      chip: styles.highPriorityChip,
+      text: styles.highPriorityText,
+    },
+    MEDIUM: {
+      card: styles.mediumPriorityCard,
+      chip: styles.mediumPriorityChip,
+      text: styles.mediumPriorityText,
+    },
+    LOW: {
+      card: styles.lowPriorityCard,
+      chip: styles.lowPriorityChip,
+      text: styles.lowPriorityText,
+    },
+  };
 
-const priorityStyle = priorityStyleMap[project.priority];
+  const priorityStyle = priorityStyleMap[project.priority];
   const progress = getSafeProgress(project.progressPercent);
   const isPersonal = project.type === "PERSONAL";
   const isCompleted = project.status === "COMPLETED";
+  const isInactive = isCompleted || project.status === "CANCELLED";
 
   return (
     <Pressable
-      style={[styles.projectCard, priorityStyle.card]}
+      style={[styles.projectCard, priorityStyle.card, isInactive && { opacity: 0.6 }]}
       onPress={() => onPress?.(project)}
     >
       <View style={styles.projectCardHeader}>
@@ -89,13 +90,13 @@ const priorityStyle = priorityStyleMap[project.priority];
 
         <View style={styles.deadlineChip}>
           <Text style={styles.deadlineChipText}>
-            {project.deadlineLabel}
+            {project.status}
           </Text>
         </View>
-        
+
       </View>
 
-      
+
 
       <View style={styles.amountRow}>
         <Text style={styles.amountLabel}>Saved</Text>
@@ -133,7 +134,7 @@ const priorityStyle = priorityStyleMap[project.priority];
             isCompleted && styles.completedText,
           ]}
         >
-          {project.deadlineLabel}
+          {project.monthsLeft} {project.monthsLeft > 1 ? "months" : "month"} remaining
         </Text>
       </View>
     </Pressable>

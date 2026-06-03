@@ -84,11 +84,32 @@ export type ProjectListItemResponse = {
   deadlineLabel: string;
 };
 
-export type ProjectDetailResponse =
-ProjectListItemResponse & {
+export type ProjectHistory = {
+  id: string;
+  projectId: string;
+  year: number;
+  month: number;
+  moneySavedBefore: number;
+  moneySavedAfter: number;
+  monthlySaving: number;
+  penalty: number;
+  surplusInvested: number;
+  monthLeftBefore: number;
+  monthLeftAfter: number;
+  createdAt: string;
+};
+
+export type ProjectDetailResponse = ProjectListItemResponse & {
   ownerId: string;
   description: string;
   remaining: number;
+  statusLabel?: string;
+  monthlySaving?: number;
+  durationMonths?: number;
+  currentMonth?: number;
+  createdAt?: string;
+  moneyOwed?: number;
+  histories?: ProjectHistory[];
 };
 
 export type ProjectResponse = ProjectDetailResponse;

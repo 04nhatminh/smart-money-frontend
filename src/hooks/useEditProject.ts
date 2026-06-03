@@ -4,6 +4,7 @@ import {
   CreateProjectFormErrors,
   ProjectDetailResponse,
   UpdateProjectPayload,
+  ProjectPriority,
 } from "../types/project.types";
 import {
   addMonthsFromDate,
@@ -21,6 +22,7 @@ type EditProjectFormValues = {
   description: string;
   targetAmount: string;
   deadlineMonths: string;
+  priority: ProjectPriority;
 };
 
 const initialErrors: CreateProjectFormErrors = {
@@ -48,6 +50,7 @@ export function useEditProject({
     deadlineMonths: project.deadline
       ? getMonthsFromDeadline(project.deadline)
       : "",
+    priority: project.priority || "LOW",
   });
 
   const [errors, setErrors] = useState<CreateProjectFormErrors>(initialErrors);
@@ -66,12 +69,14 @@ export function useEditProject({
     const initialDeadlineMonths = project.deadline
       ? getMonthsFromDeadline(project.deadline)
       : "";
+    const initialPriority = project.priority || "LOW";
 
     return (
       values.name !== initialName ||
       values.description !== initialDescription ||
       values.targetAmount !== initialAmount ||
-      values.deadlineMonths !== initialDeadlineMonths
+      values.deadlineMonths !== initialDeadlineMonths ||
+      values.priority !== initialPriority
     );
   }, [values, project]);
 
@@ -110,6 +115,10 @@ export function useEditProject({
     clearError("deadlineMonths");
   };
 
+  const onChangePriority = (value: ProjectPriority) => {
+    onChangeField("priority", value);
+  };
+
   const validate = () => {
     const nextErrors = validateEditProjectForm(values);
     setErrors(nextErrors);
@@ -122,6 +131,7 @@ export function useEditProject({
       description: values.description.trim(),
       targetAmount: parseCurrencyToNumber(values.targetAmount),
       currency: "VND",
+      priority: values.priority,
       deadline: formatDateToYYYYMMDD(
         addMonthsFromDate(Number(values.deadlineMonths))
       ),
@@ -159,6 +169,7 @@ export function useEditProject({
       deadlineMonths: project.deadline
         ? getMonthsFromDeadline(project.deadline)
         : "",
+      priority: project.priority || "LOW",
     });
     setErrors(initialErrors);
   };
@@ -173,6 +184,7 @@ export function useEditProject({
     onChangeDescription,
     onChangeTargetAmount,
     onChangeDeadlineMonths,
+    onChangePriority,
     handleEditProject,
     resetForm,
   };

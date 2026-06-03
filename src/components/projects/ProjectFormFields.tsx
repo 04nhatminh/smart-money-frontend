@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { InputField } from '../InputField';
 import { projectStyles as styles } from '../../styles/projectStyles';
+import { t } from '../../i18n';
 import { CreateProjectFormErrors } from '../../types/project.types';
 import { ProjectPriority, PROJECT_PRIORITIES } from '../../types/project.types';
 
@@ -42,20 +43,20 @@ export default function ProjectFormFields({
     );
     return (
         <>
-            <Text style={styles.name}>Name</Text>
+            <Text style={styles.name}>{t("project.name")}</Text>
             <InputField
                 iconName="folder-outline"
-                placeholder="Name"
+                placeholder={t("project.placeholder_name")}
                 value={name}
                 onChangeText={onChangeName}
                 autoCapitalize="sentences"
                 error={errors.name}
             />
 
-            <Text style={styles.name}>Target Amount</Text>
+            <Text style={styles.name}>{t("project.target_amount_label")}</Text>
             <InputField
                 iconName="wallet-outline"
-                placeholder="Target Amount"
+                placeholder={t("project.placeholder_target")}
                 value={targetAmount}
                 onChangeText={onChangeTargetAmount}
                 keyboardType="numeric"
@@ -63,20 +64,20 @@ export default function ProjectFormFields({
                 error={errors.targetAmount}
             />
 
-            <Text style={styles.name}>Deadline</Text>
+            <Text style={styles.name}>{t("project.deadline_label")}</Text>
             <InputField
-                placeholder="Deadline (Months)"
+                placeholder={t("project.placeholder_deadline")}
                 value={deadlineMonths}
                 onChangeText={onChangeDeadlineMonths}
-                rightText="months"
+                rightText={t("project.months")}
                 error={errors.deadlineMonths}
             />
 
             {!!previewDeadline && (
-                <Text style={styles.helperText}>Deadline date: {previewDeadline}</Text>
+                <Text style={styles.helperText}>{t("project.deadline_date")}{previewDeadline}</Text>
             )}
 
-            <Text style={styles.name}>Priority</Text>
+            <Text style={styles.name}>{t("project.priority")}</Text>
 
                 <View style={styles.priorityContainer}>
 
@@ -125,7 +126,7 @@ export default function ProjectFormFields({
                                 {used && !active && (
                                     <View style={styles.usedBadge}>
                                         <Text style={styles.usedBadgeText}>
-                                            Used
+                                            {t("project.used")}
                                         </Text>
                                     </View>
                                 )}
@@ -143,13 +144,13 @@ export default function ProjectFormFields({
                             >
 
                                 {item === "HIGH" &&
-                                    "Fast saving pace"}
+                                    t("project.high_priority_desc")}
 
                                 {item === "MEDIUM" &&
-                                    "Balanced saving plan"}
+                                    t("project.medium_priority_desc")}
 
                                 {item === "LOW" &&
-                                    "Flexible saving pace"}
+                                    t("project.low_priority_desc")}
 
                             </Text>
 
@@ -159,10 +160,10 @@ export default function ProjectFormFields({
 
                 </View>
 
-            <Text style={styles.name}>Description</Text>
+            <Text style={styles.name}>{t("project.description")}</Text>
             <InputField
                 iconName="document-text-outline"
-                placeholder="Description"
+                placeholder={t("project.description")}
                 value={description}
                 onChangeText={onChangeDescription}
                 multiline

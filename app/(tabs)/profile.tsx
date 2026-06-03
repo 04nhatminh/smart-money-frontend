@@ -36,6 +36,7 @@ import { ResetPasswordModal } from "../../src/components/profile/ResetPasswordMo
 import { NotificationsModal } from "../../src/components/profile/NotificationsModal";
 import { PrivacyAndSecurityModal } from "../../src/components/profile/PrivacyAndSecurityModal";
 import { ProfileActions } from "../../src/components/profile/ProfileActions";
+import { IncomeProfileModal } from "../../src/components/profile/IncomeProfileModal";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 
 const ProfileScreen: React.FC = () => {
@@ -55,6 +56,7 @@ const ProfileScreen: React.FC = () => {
   const [notificationEnabled, setNotificationEnabled] = useState<boolean>(false);
   const [loadingNotification, setLoadingNotification] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
+  const [incomeProfileModalVisible, setIncomeProfileModalVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
 
@@ -305,6 +307,7 @@ const ProfileScreen: React.FC = () => {
                            setNotificationsModalVisible(true);
                          }}
                          onPrivacy={() => setPrivacyModalVisible(true)}
+                         onIncomeProfile={() => setIncomeProfileModalVisible(true)}
                         />
         <ProfileActions userId={user.id} onLogout={handleLogout} />
       </ScrollView>
@@ -357,6 +360,11 @@ const ProfileScreen: React.FC = () => {
       <PrivacyAndSecurityModal
         visible={privacyModalVisible}
         onClose={() => setPrivacyModalVisible(false)}
+      />
+
+      <IncomeProfileModal
+        visible={incomeProfileModalVisible}
+        onClose={() => setIncomeProfileModalVisible(false)}
       />
 
       {/* Loading overlay khi đang cập nhật avatar */}
