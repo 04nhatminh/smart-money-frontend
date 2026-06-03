@@ -5,7 +5,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useThemeMode } from "../theme/ThemeProvider";
 
-type TabKey = "home" | "stats" | "transaction" | "project" | "wallet" | "profile";
+type TabKey = "home" | "stats" | "transaction" | "project" | "analysis" | "profile" | "wallet";
 
 type NavigationHandlers = {
   onHome: () => void;
@@ -13,7 +13,7 @@ type NavigationHandlers = {
   onAdd: () => void;
   onTransaction: () => void;
   onProject: () => void;
-  onWallet: () => void;
+  onAnalysis: () => void;
   onProfile: () => void;
 };
 
@@ -26,7 +26,7 @@ type Props = {
   onAdd?: () => void;
   onTransaction?: () => void;
   onProject?: () => void;
-  onWallet?: () => void;
+  onAnalysis?: () => void;
   onProfile?: () => void;
   // Add menu option handlers
   onAddByForm?: () => void;
@@ -44,7 +44,7 @@ export function BottomBar({
   onAdd,
   onTransaction,
   onProject,
-  onWallet,
+  onAnalysis,
   onProfile,
   onAddByForm,
   onAddByCamera,
@@ -60,7 +60,7 @@ export function BottomBar({
     onAdd: onAdd || (() => {}),
     onTransaction: onTransaction || (() => {}),
     onProject: onProject || (() => {}),
-    onWallet: onWallet || (() => {}),
+    onAnalysis: onAnalysis || (() => {}),
     onProfile: onProfile || (() => {}),
   };
 
@@ -127,13 +127,13 @@ export function BottomBar({
         <View style={{ width: 56 }} />
 
         <Pressable 
-          style={[styles.item, active === 'wallet' && styles.activeItem]} 
-          onPress={actualHandlers.onWallet}
+          style={[styles.item, active === 'analysis' && styles.activeItem]} 
+          onPress={actualHandlers.onAnalysis}
         >
           <Ionicons
-            name={active === 'wallet' ? "wallet" : "wallet-outline"}
+            name={active === 'analysis' ? "analytics" : "analytics-outline"}
             size={22}
-            color={iconColor("wallet")}
+            color={iconColor("analysis")}
           />
         </Pressable>
 
