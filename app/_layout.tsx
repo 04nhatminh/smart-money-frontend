@@ -99,7 +99,7 @@ function RootLayoutNav() {
     }
 
     // 👉 ĐÃ LOGIN
-    if (!isFirstLaunch && isSignedIn && !inTabs) {
+    if (!isFirstLaunch && isSignedIn && !inTabs && segment !== "(transactions)" && segment !== "(wait)") {
       router.replace("/(tabs)");
       return;
     }
