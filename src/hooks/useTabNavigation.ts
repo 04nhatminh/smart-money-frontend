@@ -20,7 +20,7 @@ export const useTabNavigation = ({
   const activeTab = useMemo<TabKey>(() => {
     if (pathname.includes("profile")) return "profile";
     if (pathname.includes("stats")) return "stats";
-    if (pathname.includes("transaction")) return "transaction";
+    if (pathname.includes("list") || pathname.includes("detail") || pathname.includes("transaction")) return "transaction";
     if (pathname.includes("analysis")) return "analysis";
     return "home";
   }, [pathname]);
@@ -34,7 +34,7 @@ export const useTabNavigation = ({
   }, [router]);
 
   const onTransaction = useCallback(() => {
-    router.navigate("/(tabs)/transaction");
+    router.navigate("/(transactions)/list");
   }, [router]);
 
   const onAnalysis = useCallback(() => {
