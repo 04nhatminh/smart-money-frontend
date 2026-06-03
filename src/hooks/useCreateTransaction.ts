@@ -3,7 +3,6 @@ import { Receipt, TransactionRequest } from "../types/transaction.types";
 import transactionApi from "../api/transaction.api";
 import AIAPI from "../api/ai.api";
 import authApi from "../api/auth.api";
-import { connectWebSocket } from "../services/websocket";
 import { Client } from "@stomp/stompjs";
 import { parseDateStringtoString } from "../utils/dateFormatter";
 
@@ -45,7 +44,7 @@ const mapVoiceTransactionToPayload = (transaction: TransactionRequest) => ({
 
 export const useCreateTransaction = () => {
 
-    const createManualTransaction = async (
+  const createManualTransaction = async (
     payload: TransactionRequest
   ) => {
     try {
