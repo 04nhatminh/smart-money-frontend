@@ -34,6 +34,8 @@ import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
 import LatestProjectsSection, { LatestProjectItem }from "../../src/components/home/LatestProjectsSection";
 import {ProjectAPI} from "../../src/api/project.api";
+import { notificationEmitter } from "../../src/utils/notificationEmitter";
+import { panelRef } from "../_layout";
 
 // Mock data for categories
 const categories = [
@@ -363,6 +365,20 @@ export default function HomePage() {
               contentContainerStyle={styles.categoriesList}
             />
           </View>
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: "black",
+              padding: 12,
+              borderRadius: 10,
+              marginTop: 20,
+            }}
+            onPress={() => panelRef.current?.open()}
+          >
+            <Text style={{ color: "#fff", textAlign: "center" }}>
+              OPEN PENDING PANEL
+            </Text>
+          </TouchableOpacity>
 
           {/* Recent Transactions */}
           <View style={styles.section}>

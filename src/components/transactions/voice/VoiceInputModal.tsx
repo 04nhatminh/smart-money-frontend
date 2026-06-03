@@ -7,8 +7,9 @@ import { TransactionRequest } from "../../../types/transaction.types";
 import { CloudinaryService } from "../../../services/cloudinary.service";
 import AIAPI from "../../../api/ai.api";
 import authApi from "../../../api/auth.api";
-import { initWebSocket, subscribeJob } from "../../../services/websocket";
 import WaitScreen from "../../../../app/(wait)/wait";
+import { waitForAIResult } from "../../../services/aiWebSocketHelper";
+import TransactionParser from "../../../utils/transactionParser";
 
 type Props = {
   visible: boolean;
@@ -81,50 +82,46 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
       // 🔄 Show waiting screen
       setStep("waiting");
 
-      // ⛔ Wait for AI result
-      const resultPromise = new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          console.log("❌ Timeout waiting for AI voice result");
-          reject(new Error("AI voice processing timeout"));
-        }, 60000);
+      const wsResult = await waitForAIResult(jobId, 60000);
+      let finalResult = wsResult;
+      if (wsResult.status === "TIMEOUT") {
+        console.log("⚠️ WS timeout → polling");
+        const fallback = await AIAPI.getResult(jobId);
+        if (!fallback?.success || !fallback.data) {
+          throw new Error("AI processing timeout");
+        }
+        finalResult = {
+          status: "SUCCESS",
+          data: fallback.data,
+        };
+      }
 
+      const resultData = finalResult.data;
 
-        const unsubscribe = subscribeJob(
-          jobId,
-          (resultData) => {
-            try {
-              const processedTransaction = {
-                amount: Number(resultData.expense) || 0,
-                category: resultData.category || "Other",
-                type: resultData.type || "EXPENSE",
-                description:
-                  resultData.description ||
-                  resultData.transcript ||
-                  resultData.text ||
-                  "Voice transaction",
-                date:
-                  resultData.date ||
-                  new Date().toISOString(),
-              };
+      const processedTransaction: TransactionRequest = {
+        type:
+          resultData.type === "INCOME"
+            ? "INCOME"
+            : "EXPENSE",
 
-              setTransaction(processedTransaction);
+        amount:
+          TransactionParser.parseAmount(
+            resultData.expense || resultData.amount || 0
+          ) || 0,
 
-              clearTimeout(timeout);
+        category: resultData.category || "OTHER",
 
-              unsubscribe();
+        description:
+          resultData.description ||
+          resultData.transactionName ||
+          "",
 
-              resolve();
-            } catch (err) {
-              clearTimeout(timeout);
-              unsubscribe();
-              reject(err);
-            }
-          }
-        );
+        date:
+          resultData.date ||
+          new Date().toISOString(),
+      };
 
-      });
-
-      await resultPromise;
+      setTransaction(processedTransaction);
 
       // 🎉 Move to form step
       setStep("form");
@@ -134,6 +131,9 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
       Alert.alert("Error", error?.message || "Failed to process voice");
     } finally {
       setIsSubmitting(false);
+      CloudinaryService.deleteImage(cloudinaryPublicId, "voice").catch((err) => {
+        console.error("❌ Failed to delete Cloudinary audio:", err);
+      });
     }
   };
 
