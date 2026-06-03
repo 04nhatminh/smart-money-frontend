@@ -129,55 +129,35 @@ const parseTextTransaction = (text: string): ParsedTransaction | null => {
  * "500k" → 500000
  * "2 triệu" → 2000000
  */
-  const parseAmount = (amountStr: string | number): number | null => {
-    if (typeof amountStr === "number") {
-      return Math.abs(amountStr);
-    }
+const parseAmount = (amountStr: string | number): number | null => {
+  if (typeof amountStr === "number") return amountStr;
 
-    if (!amountStr) return null;
+  const str = String(amountStr)
+    .trim()
+    .toLowerCase()
+    .replace(/[.,]/g, (match) => (match === "," ? "." : ""));
 
-    let str = String(amountStr)
-      .trim()
-      .toLowerCase();
+  const match = str.match(/^([0-9.]+)\s*([k|triệu|tỷ]?)$/);
+  if (!match) return null;
 
-    // remove currency symbols
-    str = str.replace(/(vnd|vnđ|đ)/g, "").trim();
+  const baseAmount = parseFloat(match[1]);
+  if (isNaN(baseAmount)) return null;
 
-    // detect unit
-    let multiplier = 1;
+  const unit = match[2];
+  const multipliers: Record<string, number> = {
+    k: 1_000,
+    nghìn: 1_000,
 
-    if (str.includes("tỷ") || str.includes("tỉ")) {
-      multiplier = 1_000_000_000;
-    } else if (
-      str.includes("triệu") ||
-      str.includes("tr")
-    ) {
-      multiplier = 1_000_000;
-    } else if (
-      str.includes("k") ||
-      str.includes("nghìn")
-    ) {
-      multiplier = 1_000;
-    }
+    triệu: 1_000_000,
+    tr: 1_000_000,
 
-    // remove all non-digit except dot/comma/minus
-    str = str.replace(/[^\d.,-]/g, "");
+    tỷ: 1_000_000_000,
+    tỉ: 1_000_000_000,
+    ty: 1_000_000_000,
+    };
 
-    // CASE 1:
-    // 10,000 or 10.000 => thousand separator
-    if (/^\d{1,3}([.,]\d{3})+$/.test(str)) {
-      str = str.replace(/[.,]/g, "");
-    } else {
-      // decimal format
-      str = str.replace(",", ".");
-    }
-
-    const value = parseFloat(str);
-
-    if (isNaN(value)) return null;
-
-    return Math.abs(Math.round(value * multiplier));
-  };
+  return Math.round(baseAmount * (multipliers[unit] || 1));
+};
 
 /**
  * Detect transaction type (CHI/THU) từ text
@@ -235,7 +215,6 @@ const formatCurrency = (amount: number): string => {
 };
 
 export default {
-  parseAmount,
   parseTransactionFromNotification,
   formatTransactionDisplay,
 };

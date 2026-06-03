@@ -4,7 +4,7 @@ const { NotificationModule } = NativeModules;
 
 export default {
   hasPermission: (): Promise<boolean> =>
-      NotificationModule.hasPermission(),
+    NotificationModule.hasNotificationListenerPermission(),
 
   openSettings: () =>
     NotificationModule.openNotificationListenerSettings(),

@@ -9,7 +9,6 @@ import authApi from "../../../api/auth.api";
 import { initWebSocket, subscribeJob } from "../../../services/websocket";
 import { CloudinaryService } from "../../../services/cloudinary.service";
 import WaitScreen from "../../../../app/(wait)/wait";
-import { waitForAIResult } from "../../../services/aiWebSocketHelper";
 
 type Props = {
   visible: boolean;
@@ -74,48 +73,59 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
       // 🔄 Show waiting screen
       setStep("waiting");
 
-      const wsResult = await waitForAIResult(jobId, 60000);
+      // ⛔ Create promise to wait for AI result
+      const resultPromise = new Promise<void>(async (resolve, reject) => {
+        let done = false;
 
-      let finalResult = wsResult;
+        // ✅ đảm bảo WS đã connect (chỉ connect 1 lần)
+        await initWebSocket(userId);
 
-      if (wsResult.status === "TIMEOUT") {
-        console.log("⚠️ WS timeout → polling");
+        const unsubscribe = subscribeJob(jobId, (resultData: any) => {
+          if (done) return;
+          done = true;
 
-        const fallback = await AIAPI.getResult(jobId);
+          console.log("🔥 AI RESULT received:", resultData);
 
-        if (!fallback?.success || !fallback.data) {
-          throw new Error("AI processing timeout");
-        }
+          try {
+            const processedReceipt: Receipt = {
+              type: resultData.type === "EXPENSE" ? "EXPENSE" : "INCOME",
+              transactionName:
+                resultData.description || resultData.transactionName || "Receipt",
+              amount: Number(resultData.expense) || 0,
+              category: resultData.category || "Other",
+              date: resultData.date || new Date().toISOString(),
+              description: resultData.description || "",
+            };
 
-        finalResult = {
-          status: "SUCCESS",
-          data: fallback.data,
-        };
-      }
+            setReceipt(processedReceipt);
 
-      const resultData = finalResult.data;
-      const processedReceipt: Receipt = {
-        type: resultData.type === "EXPENSE"
-          ? "EXPENSE"
-          : "INCOME",
+            clearTimeout(timeout);
+            unsubscribe(); // ✅ QUAN TRỌNG
 
-        transactionName:
-          resultData.description ||
-          resultData.transactionName ||
-          "Receipt",
+            resolve();
+          } catch (err) {
+            clearTimeout(timeout);
+            unsubscribe(); // ✅
+            reject(err);
+          } finally {
+            CloudinaryService.deleteImage(publicId, "image");
+          }
+        });
 
-        amount: Number(resultData.expense) || 0,
+        const timeout = setTimeout(() => {
+          if (done) return;
+          done = true;
 
-        category: resultData.category || "Other",
+          console.log("❌ Timeout waiting for AI result");
 
-        date: resultData.date || new Date().toISOString(),
+          unsubscribe(); // ✅ cleanup
+          reject(new Error("AI processing timeout"));
+        }, 60000);
+      });
 
-        description: resultData.description || "",
-      };
+      // Wait for AI to process
+      await resultPromise;
 
-      setReceipt(processedReceipt);
-
-      setStep("receipt");
       // 🎉 Move to receipt step
       setStep("receipt");
 
@@ -125,7 +135,6 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
       Alert.alert("Error", error?.message || "Failed to process image");
     } finally {
       setIsSubmitting(false);
-      await CloudinaryService.deleteImage(cloudinaryPublicId, "image");
     }
   };
 

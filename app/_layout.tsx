@@ -1,39 +1,21 @@
-import React, { useEffect } from "react";
+// app/_layout.tsx
+import React, { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { LanguageProvider } from "../src/i18n/LanguageProvider";
 import { ThemeProvider } from "../src/theme/ThemeProvider";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { OnboardingProvider, useOnboarding } from "../src/context/OnboardingContext";
-import { NotificationUIProvider } from '../src/context/NotificationUIContext';
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from 'expo-notifications';
-import { AppState } from "react-native";
-import { NotificationListenerService } from '../src/notification/NotificationListenerService';
-import NotificationNative from "../src/notification/NotificationNative";
-import NotificationToast from '../src/components/notification/NotificationToast';
-import PendingTransactionPanel, { PendingPanelRef } from "../src/components/transactions/PendingTransactionPanel";
 
-export const panelRef = React.createRef<PendingPanelRef>();
-
-SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
   const { isSignedIn, isLoading: authLoading } = useAuth();
   const { isFirstLaunch, isLoading: onboardingLoading } = useOnboarding();
 
   const router = useRouter();
-  const segments = useSegments();
-
-  const isLoading =
-    isFirstLaunch === null || authLoading || onboardingLoading;
-
-  // ✅ Hide splash
-  useEffect(() => {
-    if (!isLoading) {
-      SplashScreen.hideAsync();
-    }
-  }, [isLoading]);
 
   useEffect(() => {
     Notifications.setNotificationHandler({
@@ -45,90 +27,46 @@ function RootLayoutNav() {
       }),
     });
   }, []);
-
+  
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        setTimeout(async () => {
-          try {
-            if (!NotificationNative || !NotificationNative.hasPermission) {
-              console.warn("⚠️ NotificationNative not available");
-              return;
-            }
-
-            const hasPermission = await NotificationNative.hasPermission();
-
-            if (hasPermission) {
-              NotificationListenerService?.initialize?.();
-              NotificationNative?.notifyJSReady?.();
-            }
-          } catch (e) {
-            console.error("❌ Notification crash:", e);
-          }
-        }, 500);
-      }
-    });
-
-    return () => sub.remove();
-  }, []);
-
-
-  // ✅ 🔥 REDIRECT LOGIC (QUAN TRỌNG NHẤT)
-  useEffect(() => {
-    if (isLoading) return;
-
-    const segment = segments[0];
-
-    const inIntro = segment === "(intro)";
-    const inAuth = segment === "(auth)";
-    const inTabs = segment === "(tabs)";
-
-    console.log("🔍 segments:", segments);
-    console.log("🔍 state:", { isFirstLaunch, isSignedIn });
-
-    // 👉 FIRST LAUNCH
-    if (isFirstLaunch && !inIntro) {
+    if (authLoading || onboardingLoading || isFirstLaunch === null) return;
+    SplashScreen.hideAsync();
+    // 1️⃣ Lần đầu mở app → intro
+    if (isFirstLaunch && !authLoading) {
+      console.log("🚀 First launch detected, navigating to intro...");
       router.replace("/(intro)/intro");
+      SplashScreen.hideAsync();
       return;
     }
 
-    // 👉 CHƯA LOGIN
-    if (!isFirstLaunch && !isSignedIn && !inAuth) {
+    // 2️⃣ Chưa login → auth
+    if (!isSignedIn) {
       router.replace("/(auth)/auth");
+      SplashScreen.hideAsync();
       return;
     }
 
-    // 👉 ĐÃ LOGIN
-    if (!isFirstLaunch && isSignedIn && !inTabs) {
-      router.replace("/(tabs)");
-      return;
-    }
+    // 3️⃣ Login rồi → home
+    router.replace("/(tabs)");
+    SplashScreen.hideAsync();
+  }, [isSignedIn, isFirstLaunch, authLoading, onboardingLoading]);
 
-  }, [isFirstLaunch, isSignedIn, isLoading, segments]);
-
-  // ✅ Loading UI
-  if (isLoading) {
+  if (authLoading || onboardingLoading || isFirstLaunch === null) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator />
+      <View style={{ flex:1, justifyContent:"center", alignItems:"center" }}>
+        <ActivityIndicator size="large" />
       </View>
     );
   }
 
-  // ✅ Stack đơn giản (KHÔNG condition nữa)
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(intro)" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(transactions)" />
-        <Stack.Screen name="(wait)" />
-      </Stack>
-
-      <NotificationToast />
-      <PendingTransactionPanel ref={panelRef} />
-    </>
+    <Stack screenOptions={{ headerShown:false }}>
+      <Stack.Screen name="(wait)" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(intro)" />
+      <Stack.Screen name="(transactions)" />
+    </Stack>
   );
 }
 
@@ -138,9 +76,7 @@ export default function RootLayout() {
       <ThemeProvider>
         <AuthProvider>
           <OnboardingProvider>
-            <NotificationUIProvider>
-              <RootLayoutNav />
-            </NotificationUIProvider>
+            <RootLayoutNav />
           </OnboardingProvider>
         </AuthProvider>
       </ThemeProvider>

@@ -42,6 +42,7 @@
       "expo-secure-store",
       "expo-localization",
       "expo-web-browser",
+      "react-native-reanimated/plugin",
       "@react-native-community/datetimepicker",
       [
         "expo-camera",
