@@ -27,14 +27,16 @@ import AppBottomBar from "../../src/components/AppBottomBar";
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
 import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceInputModal";
-import { TransactionRequest, Receipt } from "../../src/types/transaction.types";
+import { TransactionRequest, Receipt, TransactionResponse } from "../../src/types/transaction.types";
 import { useRouter } from "expo-router";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
 import { panelRef } from "../_layout";
 import { budgetAPI, BudgetItem } from "../../src/api/budget.api";
+import transactionApi from "../../src/api/transaction.api";
 import { CircularProgress } from "../../src/components/CircularProgress";
 import { formatVND } from "../../src/utils/formatCurrency";
+
 // Category icon mapping
 const categoryIconMap: { [key: string]: { icon: string; color: string; displayName: string } } = {
   FOOD: { icon: 'restaurant', color: '#FF9800', displayName: 'Food' },
@@ -48,13 +50,25 @@ const categoryIconMap: { [key: string]: { icon: string; color: string; displayNa
   OTHER: { icon: 'more', color: '#757575', displayName: 'Other' },
 };
 
-// Mock data for recent transactions
-const recentTransactions = [
-  { id: '1', name: 'Supermarket', amount: '-$45.99', date: 'Today', icon: 'cart' },
-  { id: '2', name: 'Starbucks', amount: '-$5.50', date: 'Yesterday', icon: 'cafe' },
-  { id: '3', name: 'Uber', amount: '-$12.75', date: 'Yesterday', icon: 'car' },
-  { id: '4', name: 'Netflix', amount: '-$15.99', date: '2 days ago', icon: 'tv' },
-];
+const getTransactionCategoryInfo = (category: string) => {
+  const normalized = category ? category.toUpperCase() : "OTHER";
+  const map: Record<string, { icon: string; color: string; displayName: string }> = {
+    FOOD: { icon: 'restaurant', color: '#FF9800', displayName: 'Food' },
+    TRANSPORTATION: { icon: 'car', color: '#2196F3', displayName: 'Transport' },
+    CLOTHING: { icon: 'shirt', color: '#E91E63', displayName: 'Clothing' },
+    UTILITIES: { icon: 'flash', color: '#FFC107', displayName: 'Utilities' },
+    ENTERTAINMENT: { icon: 'film', color: '#9C27B0', displayName: 'Entertainment' },
+    HEALTH: { icon: 'heart', color: '#F44336', displayName: 'Health' },
+    EDUCATION: { icon: 'book', color: '#3629B7', displayName: 'Education' },
+    SHOPPING: { icon: 'bag', color: '#4CAF50', displayName: 'Shopping' },
+    SALARY: { icon: 'wallet', color: '#4CAF50', displayName: 'Salary' },
+    BONUS: { icon: 'cash', color: '#00E676', displayName: 'Bonus' },
+    INVESTMENT: { icon: 'trending-up', color: '#00B0FF', displayName: 'Investment' },
+    GIFT: { icon: 'gift', color: '#FF3D00', displayName: 'Gift' },
+    OTHER: { icon: 'ellipsis-horizontal', color: '#757575', displayName: 'Other' },
+  };
+  return map[normalized] || map.OTHER;
+};
 
 export default function HomePage() {
   const router = useRouter();
@@ -68,6 +82,8 @@ export default function HomePage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [budgetsLoading, setBudgetsLoading] = useState(false);
+  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
 
   const { createFromReceipt, createFromVoice } = useCreateTransaction();
 
@@ -80,6 +96,7 @@ export default function HomePage() {
     const init = async () => {
       await loadUserData();
       await loadBudgets();
+      await loadTransactions();
 
       const saved = await notificationStorage.getUnreadCount();
       setUnreadCount(saved);
@@ -156,6 +173,20 @@ export default function HomePage() {
     await loadNotifications();
   };
 
+  const loadTransactions = async () => {
+    try {
+      setTransactionsLoading(true);
+      const result = await transactionApi.getTransactions({ page: 0, size: 5 });
+      if (result.success && result.data) {
+        setTransactions(result.data.transactions || []);
+      }
+    } catch (error) {
+      console.error("Failed to load transactions:", error);
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
+
   const loadBudgets = async () => {
     try {
       setBudgetsLoading(true);
@@ -177,13 +208,18 @@ export default function HomePage() {
     setRefreshing(true);
     await loadUserData();
     await loadBudgets();
+    await loadTransactions();
     setRefreshing(false);
   };
 
   const handleCreateReceiptTransaction = async (receipt: Receipt) => {
     try {
-      await createFromReceipt(receipt); // ✅ chờ AI xong
-      setCameraVisible(false);         // ✅ đóng luôn
+      const success = await createFromReceipt(receipt); // ✅ chờ AI xong
+      if (success) {
+        setCameraVisible(false);         // ✅ đóng luôn
+        loadBudgets();
+        loadTransactions();
+      }
     } catch (err) {
       console.error(err);
     }
@@ -191,7 +227,11 @@ export default function HomePage() {
 
   const handleCreateVoiceTransaction = async (transaction: TransactionRequest) => {
     const success = await createFromVoice(transaction);
-    if (success) setVoiceVisible(false);
+    if (success) {
+      setVoiceVisible(false);
+      loadBudgets();
+      loadTransactions();
+    }
   };
 
   const renderBudgetItem = ({ item }: { item: BudgetItem }) => {
@@ -226,20 +266,40 @@ export default function HomePage() {
     );
   };
 
-  const renderTransactionItem = ({ item }: { item: typeof recentTransactions[0] }) => (
-    <View style={styles.transactionItem}>
-      <View style={styles.transactionLeft}>
-        <View style={styles.transactionIcon}>
-          <Ionicons name={item.icon as any} size={20} color="#666" />
+  const renderTransactionItem = ({ item }: { item: TransactionResponse }) => {
+    const isExpense = item.type === "EXPENSE";
+    const categoryInfo = getTransactionCategoryInfo(item.category);
+    const formattedAmount = `${isExpense ? "-" : "+"}${formatVND(item.amount)}`;
+
+    return (
+      <View style={styles.transactionItem}>
+        <View style={styles.transactionLeft}>
+          <View style={[styles.transactionIcon, { backgroundColor: categoryInfo.color + '15' }]}>
+            <Ionicons name={categoryInfo.icon as any} size={20} color={categoryInfo.color} />
+          </View>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.transactionName} numberOfLines={1}>
+                {item.description ? item.description : categoryInfo.displayName}
+              </Text>
+              {item.verified && (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={14}
+                  color="#10B981"
+                  style={{ marginLeft: 4 }}
+                />
+              )}
+            </View>
+            <Text style={styles.transactionDate}>{item.date}</Text>
+          </View>
         </View>
-        <View>
-          <Text style={styles.transactionName}>{item.name}</Text>
-          <Text style={styles.transactionDate}>{item.date}</Text>
-        </View>
+        <Text style={[styles.transactionAmount, { color: isExpense ? '#F44336' : '#4CAF50' }]}>
+          {formattedAmount}
+        </Text>
       </View>
-      <Text style={styles.transactionAmount}>{item.amount}</Text>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -363,6 +423,36 @@ export default function HomePage() {
             )}
           </View>
 
+          {/* Recent Transactions */}
+          <View style={[styles.section, { marginTop: 24 }]}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Transactions</Text>
+              <TouchableOpacity onPress={handleTransactionsListPress}>
+                <Text style={styles.seeAllText}>
+                  See All
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {transactionsLoading ? (
+              <Text style={styles.loadingText}>Loading transactions...</Text>
+            ) : transactions.length > 0 ? (
+              transactions.map(item => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => router.push({
+                    pathname: "/(transactions)/detail",
+                    params: { id: item.id }
+                  })}
+                >
+                  {renderTransactionItem({ item })}
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>No transactions yet</Text>
+            )}
+          </View>
+
           <TouchableOpacity
             style={{
               backgroundColor: "black",
@@ -376,55 +466,6 @@ export default function HomePage() {
               OPEN PENDING PANEL
             </Text>
           </TouchableOpacity>
-
-          {/* Recent Transactions */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Transactions</Text>
-              <TouchableOpacity onPress={handleTransactionsListPress}>
-                <Text style={styles.seeAllText}>
-                  See All
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {recentTransactions.map(item => (
-              <View key={item.id}>
-                {renderTransactionItem({ item })}
-              </View>
-            ))}
-          </View>
-
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.actionButton}>
-              <View style={[styles.actionIcon, { backgroundColor: '#3629B7' }]}>
-                <Ionicons name="send" size={20} color="#fff" />
-              </View>
-              <Text style={styles.actionText}>Send</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <View style={[styles.actionIcon, { backgroundColor: '#4CAF50' }]}>
-                <Ionicons name="download" size={20} color="#fff" />
-              </View>
-              <Text style={styles.actionText}>Receive</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <View style={[styles.actionIcon, { backgroundColor: '#FF9800' }]}>
-                <Ionicons name="card" size={20} color="#fff" />
-              </View>
-              <Text style={styles.actionText}>Pay</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <View style={[styles.actionIcon, { backgroundColor: '#E91E63' }]}>
-                <Ionicons name="add" size={20} color="#fff" />
-              </View>
-              <Text style={styles.actionText}>Top up</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </ScrollView>
       <NotificationListModal
@@ -462,6 +503,10 @@ export default function HomePage() {
       <AddTransactionModal
         visible={manualVisible}
         onClose={() => setManualVisible(false)}
+        onSaved={() => {
+          loadBudgets();
+          loadTransactions();
+        }}
       />
     </SafeAreaView>
   );
@@ -649,6 +694,7 @@ const styles = StyleSheet.create({
   transactionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   transactionIcon: {
     width: 40,
@@ -674,30 +720,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#F44336',
   },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    marginBottom: 30,
-  },
-  actionButton: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  actionIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  actionText: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-
   notificationDropdown: {
     position: "absolute",
     top: 80,
