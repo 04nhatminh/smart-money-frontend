@@ -19,10 +19,10 @@ import {notificationStorage} from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
 import notificationService from "../../src/notification/notificationService";
 import { Notification } from "../../src/types/notification.type";
-import { setNotificationScreenActive } from "../../src/notification/notificationHandler";
+import { handleIncomingNotification, setNotificationScreenActive } from "../../src/notification/notificationHandler";
 import {registerForPushNotificationsAsync} from "../../src/notification/registerForPushNotificationsAsync";
 import {NotificationListModal} from "../../src/components/notification/NotificationListModal"
-import { initWebSocket, disconnectWebSocket } from "../../src/services/websocket";
+import { connectWebSocket, disconnectWebSocket } from "../../src/services/websocket";
 import AppBottomBar from "../../src/components/AppBottomBar";
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
@@ -30,8 +30,13 @@ import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceIn
 import { TransactionRequest, Receipt } from "../../src/types/transaction.types";
 import { useRouter } from "expo-router";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
+import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
+import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
+import LatestProjectsSection, { LatestProjectItem }from "../../src/components/home/LatestProjectsSection";
+import {ProjectAPI} from "../../src/api/project.api";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
 import { panelRef } from "../_layout";
+
 // Mock data for categories
 const categories = [
   { id: '1', name: 'Groceries', icon: 'cart', color: '#4CAF50' },
@@ -62,32 +67,25 @@ export default function HomePage() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const { createFromReceipt, createFromVoice } = useCreateTransaction();
+  const [isCreateProjectVisible, setCreateProjectVisible] = useState(false);
+
+  const [latestProjects, setLatestProjects] = useState<LatestProjectItem[]>([]);
+  const [latestProjectsLoading, setLatestProjectsLoading] = useState(false);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotification, setShowNotification] = useState(false);
   const [loadingNotification, setLoadingNotification] = useState(false);
 
   useEffect(() => {
-    // load user + unread ban đầu
-    const init = async () => {
-      await loadUserData();
+    loadUserData();
 
-      const saved = await notificationStorage.getUnreadCount();
-      setUnreadCount(saved);
-    };
+    const initUnread = async () => {
+    const saved = await notificationStorage.getUnreadCount();
+    setUnreadCount(saved);
+  };
 
-    init();
-
-    // listener realtime
-    const listener = (count: number) => {
-      setUnreadCount(count);
-    };
-
-    notificationEmitter.on("NEW_NOTIFICATION", listener);
-
-    return () => {
-      notificationEmitter.off("NEW_NOTIFICATION", listener);
-    };
+  initUnread();
+  fetchLatestProjects();
   }, []);
 
   const loadUserData = async () => {
@@ -103,27 +101,37 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user?.id) return;
+  
+      const initPush = async () => {
+        const token = await registerForPushNotificationsAsync();
+        console.log("🔥 PUSH TOKEN:", token);
 
-    let isMounted = true;
+        if (token && user?.id) {
+          await notificationService.savePushTokenToServer(token, user.id);
+        }
+      };
 
-    const init = async () => {
-      // 🔔 Push notification
-      const token = await registerForPushNotificationsAsync();
-      console.log("🔥 PUSH TOKEN:", token);
+      initPush();
 
-      if (token && user?.id) {
-        await notificationService.savePushTokenToServer(token, user.id);
-      }
+      connectWebSocket({
+        userId: user.id,
+        jobIds: ["job-1", "job-2"],
 
-      // ✅ INIT WebSocket DUY NHẤT
-      await initWebSocket(user.id);
-    };
+        onNotification: (newNotification: Notification) => {
+          handleIncomingNotification(newNotification, {
+            existingList: notifications,
+            setList: setNotifications,
+            setUnread: setUnreadCount,
+          });
+        },
 
-    init();
+        onResult: (jobId, data) => {
+          console.log("🔥 AI result:", jobId, data);
+        },
+      });
 
     return () => {
-      isMounted = false;
-      // ❌ KHÔNG disconnect ở đây nếu app còn dùng WS
+      disconnectWebSocket();
     };
   }, [user?.id]);
 
@@ -152,6 +160,24 @@ export default function HomePage() {
     await loadUserData();
     setRefreshing(false);
   };
+
+  const fetchLatestProjects = async () => {
+  try {
+    setLatestProjectsLoading(true);
+
+    const response = await ProjectAPI.getAll();
+
+    const list = response.data || [];
+
+    const latest = list.slice(0, 3);
+
+    setLatestProjects(latest);
+  } catch (error) {
+    console.log('Fetch latest projects error:', error);
+  } finally {
+    setLatestProjectsLoading(false);
+  }
+};
 
   const handleCreateReceiptTransaction = async (receipt: Receipt) => {
     try {
@@ -278,15 +304,48 @@ export default function HomePage() {
 
           {/* Balance Card */}
           <View style={styles.balanceCard}>
-            <Text style={styles.balanceLabel}>Total Balance</Text>
-            <Text style={styles.balanceAmount}>$12,345.67</Text>
-            <View style={styles.balanceFooter}>
-              <View style={styles.balanceChange}>
-                <Ionicons name="arrow-up" size={16} color="#4CAF50" />
-                <Text style={styles.balanceChangeText}>+2.5% from last month</Text>
-              </View>
-            </View>
-          </View>
+  <View style={styles.balanceHeader}>
+    <Text style={styles.balanceAmount}>70,000 USD</Text>
+    <Text style={styles.balanceLabel}>Total Balance</Text>
+  </View>
+
+  <View style={styles.balanceSummaryRow}>
+    <View style={styles.balanceSummaryItem}>
+      <View style={styles.summaryIconBox}>
+        <Ionicons name="arrow-down" size={16} color="#16A34A" />
+      </View>
+
+      <View>
+        <Text style={styles.summaryLabel}>Income</Text>
+        <Text style={styles.summaryAmount}>85,000 USD</Text>
+      </View>
+    </View>
+
+    <View style={styles.summaryDivider} />
+
+    <View style={styles.balanceSummaryItem}>
+      <View style={styles.summaryIconBox}>
+        <Ionicons name="arrow-up" size={16} color="#DC2626" />
+      </View>
+
+      <View>
+        <Text style={styles.summaryLabel}>Expense</Text>
+        <Text style={styles.summaryAmount}>15,000 USD</Text>
+      </View>
+    </View>
+  </View>
+</View>
+
+          {/* Quick Feature Section */}
+          <QuickFeatureSection
+            onOpenCreateProject={() => setCreateProjectVisible(true)}
+          />
+
+          <LatestProjectsSection
+            projects={latestProjects}
+            loading={latestProjectsLoading}
+          />
+            
 
           {/* Categories Section */}
           <View style={styles.section}>
@@ -407,6 +466,11 @@ export default function HomePage() {
         visible={manualVisible}
         onClose={() => setManualVisible(false)}
       />  
+
+      <CreateProjectModal
+        visible={isCreateProjectVisible}
+        onClose={() => setCreateProjectVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -504,40 +568,83 @@ const styles = StyleSheet.create({
     color: '#333',
     paddingVertical: 0,
   },
-  balanceCard: {
-    backgroundColor: '#3629B7',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 25,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: 8,
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 12,
-  },
-  balanceFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  balanceChange: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  balanceChangeText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    marginLeft: 4,
-  },
+ balanceCard: {
+  backgroundColor: '#3629B7',
+  borderRadius: 26,
+  paddingVertical: 22,
+  paddingHorizontal: 20,
+  marginBottom: 18,
+
+  shadowColor: '#0F172A',
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.08,
+  shadowRadius: 16,
+  elevation: 4,
+},
+
+balanceHeader: {
+  marginBottom: 22,
+},
+
+balanceAmount: {
+  fontSize: 34,
+  fontWeight: '900',
+  color: '#ffffff',
+  letterSpacing: -0.8,
+  marginBottom: 4,
+},
+
+balanceLabel: {
+  fontSize: 14,
+  fontWeight: '500',
+  color: '#ebfff3',
+},
+
+balanceSummaryRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#FFFFFF',
+  borderRadius: 18,
+  paddingVertical: 14,
+  paddingHorizontal: 14,
+},
+
+balanceSummaryItem: {
+  flex: 1,
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+summaryIconBox: {
+  width: 34,
+  height: 34,
+  borderRadius: 12,
+  backgroundColor: '#F8FAFC',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginRight: 10,
+},
+
+summaryLabel: {
+  fontSize: 12,
+  fontWeight: '500',
+  color: '#64748B',
+  marginBottom: 2,
+},
+
+summaryAmount: {
+  fontSize: 14,
+  fontWeight: '800',
+  color: '#0F172A',
+},
+
+summaryDivider: {
+  width: 1,
+  height: 36,
+  backgroundColor: '#E2E8F0',
+  marginHorizontal: 12,
+},
+
   section: {
     marginBottom: 25,
   },

@@ -66,6 +66,11 @@ export const projectListStyles = StyleSheet.create({
     alignItems: "center",
   },
 
+  filterIconButtonActive: {
+    backgroundColor: "#F1F0FF",
+    borderRadius: 14,
+  },
+
   content: {
     flex: 1,
     backgroundColor: "#F6F6F8",
@@ -312,6 +317,11 @@ export const projectListStyles = StyleSheet.create({
     fontWeight: "700",
   },
 
+  overdueText: {
+    color: "#DC2626",
+    fontWeight: "700",
+  },
+
   emptyWrap: {
     paddingTop: 40,
     alignItems: "center",
@@ -320,5 +330,96 @@ export const projectListStyles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: "#9CA3AF",
+  },
+
+    filterOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.18)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 145,
+    paddingRight: 18,
+  },
+
+  filterModalCard: {
+    width: 170,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+
+  filterOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+
+  filterOptionActive: {
+    backgroundColor: "#F1F0FF",
+  },
+
+  filterOptionText: {
+    fontSize: 14,
+    color: "#3A3A3C",
+    fontWeight: "500",
+  },
+
+  filterOptionTextActive: {
+    color: "#4B3FD6",
+    fontWeight: "700",
+  },
+
+  highPriorityCard: {
+    borderLeftWidth: 5,
+    borderLeftColor: "#EF4444",
+  },
+
+  mediumPriorityCard: {
+    borderLeftWidth: 5,
+    borderLeftColor: "#F59E0B",
+  },
+
+  lowPriorityCard: {
+    borderLeftWidth: 5,
+    borderLeftColor: "#10B981",
+  },
+
+  priorityChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+
+  priorityChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  highPriorityChip: {
+    backgroundColor: "#FEE2E2",
+  },
+
+  highPriorityText: {
+    color: "#DC2626",
+  },
+
+  mediumPriorityChip: {
+    backgroundColor: "#FEF3C7",
+  },
+
+  mediumPriorityText: {
+    color: "#D97706",
+  },
+
+  lowPriorityChip: {
+    backgroundColor: "#D1FAE5",
+  },
+
+  lowPriorityText: {
+    color: "#059669",
   },
 });

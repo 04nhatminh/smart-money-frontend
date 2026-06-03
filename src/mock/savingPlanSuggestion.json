@@ -1,0 +1,34 @@
+{
+  "RELAXED": {
+    "agreed": true,
+    "message": "AI agrees with your selected relaxed saving plan. This plan is suitable for your goal and timeline.",
+    "suggestion": {
+      "monthlySavingAmount": 3000000,
+      "estimatedMonths": 6,
+      "categories": [
+        { "key": "food", "label": "Food", "amount": 3500000 },
+        { "key": "shopping", "label": "Shopping", "amount": 700000 },
+        { "key": "entertainment", "label": "Entertainment", "amount": 700000 },
+        { "key": "utilities", "label": "Utilities", "amount": 1200000 },
+        { "key": "education", "label": "Education", "amount": 1200000 },
+        { "key": "other", "label": "Other", "amount": 1200000 }
+      ]
+    }
+  },
+  "URGENT": {
+    "agreed": false,
+    "message": "AI suggests a more optimized urgent plan to help you reach your goal faster while controlling spending more effectively.",
+    "suggestion": {
+      "monthlySavingAmount": 4000000,
+      "estimatedMonths": 5,
+      "categories": [
+        { "key": "food", "label": "Food", "amount": 3000000 },
+        { "key": "shopping", "label": "Shopping", "amount": 500000 },
+        { "key": "entertainment", "label": "Entertainment", "amount": 500000 },
+        { "key": "utilities", "label": "Utilities", "amount": 1000000 },
+        { "key": "education", "label": "Education", "amount": 1000000 },
+        { "key": "other", "label": "Other", "amount": 1000000 }
+      ]
+    }
+  }
+}

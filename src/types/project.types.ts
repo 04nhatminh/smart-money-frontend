@@ -1,24 +1,33 @@
 export type ProjectType = "PERSONAL" | "GROUP";
 
+export type ProjectPriority = | "LOW" | "MEDIUM" | "HIGH";
+
+export type ProjectStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
+
+export type SavingPlanMode = "RELAXED" | "URGENT";
+
+export type CreateProjectModalStep = 1 | 2 | 3;
+
 export type ProjectFilterType = "ALL" | ProjectType;
-export type ProjectStatusFilter = "ALL" | "ONGOING" | "COMPLETED" | "OVERDUE";
+export type ProjectStatusFilter = "ALL" | ProjectStatus;
+
+export const PROJECT_PRIORITIES: ProjectPriority[] = [
+  "HIGH",
+  "MEDIUM",
+  "LOW",
+];
 
 export type CreateProjectPayload = {
     name: string;
     description: string;
     type: ProjectType;
+    priority: ProjectPriority;
     targetAmount: number;
     currency: string;
     deadline: string;
 };
 
-export type UpdateProjectPayload = {
-  name?: string;
-  description?: string;
-  targetAmount?: number;
-  currency?: string;
-  deadline?: string; // yyyy-MM-dd
-};
+export type UpdateProjectPayload = Partial<CreateProjectPayload>;
 
 export type AddProjectContributionPayload = {
   amount: number;
@@ -36,6 +45,7 @@ export type CreateProjectFormValues = {
     targetAmount: string;
     deadlineMonths: string;
     type: ProjectType;
+    priority: ProjectPriority;
 };
 
 export type CreateProjectFormErrors = {
@@ -64,24 +74,75 @@ export type ProjectListItemResponse = {
   name: string;
   type: ProjectType;
   targetAmount: number;
+  priority: ProjectPriority;
   currency: string;
   totalContributed: number;
   progressPercent: number;
   deadline: string;
+  status: ProjectStatus;
+  monthsLeft: number;
+  deadlineLabel: string;
 };
 
-export type ProjectDetailResponse = {
+export type ProjectHistory = {
+  id: string;
   projectId: string;
+  year: number;
+  month: number;
+  moneySavedBefore: number;
+  moneySavedAfter: number;
+  monthlySaving: number;
+  penalty: number;
+  surplusInvested: number;
+  monthLeftBefore: number;
+  monthLeftAfter: number;
+  createdAt: string;
+};
+
+export type ProjectDetailResponse = ProjectListItemResponse & {
   ownerId: string;
-  type: ProjectType;
-  name: string;
   description: string;
-  targetAmount: number;
-  currency: string;
-  totalContributed: number;
   remaining: number;
-  progressPercent: number;
-  deadline: string;
+  statusLabel?: string;
+  monthlySaving?: number;
+  durationMonths?: number;
+  currentMonth?: number;
+  createdAt?: string;
+  moneyOwed?: number;
+  histories?: ProjectHistory[];
 };
 
 export type ProjectResponse = ProjectDetailResponse;
+
+
+export type SavingPlanSuggestionCategory = {
+  key: string;
+  label: string;
+  amount: number;
+};
+
+export type SavingPlanSuggestionResponse = {
+  monthlySavingAmount: number;
+  estimatedMonths: number;
+  categories: SavingPlanSuggestionCategory[];
+}
+
+export type SavingPlanAIResponse = {
+  agreed: boolean;
+  message: string;
+  suggestion: SavingPlanSuggestionResponse;
+};
+
+export type SavingPlanSuggestionMap = Record<
+  SavingPlanMode,
+  SavingPlanSuggestionResponse
+>;
+
+export type ProjectAdvisorPayload = CreateProjectPayload & {
+  mode: SavingPlanMode;
+};
+
+export type ProjectAdvisorResponse = {
+  monthlySaving: number;
+  numberOfMonths: number;
+};

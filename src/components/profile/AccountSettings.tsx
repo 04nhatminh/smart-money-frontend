@@ -17,6 +17,7 @@ interface AccountSettingsProps {
   onResetPassword?: () => void;
   onNotifications?: () => void;
   onPrivacy?: () => void;
+  onIncomeProfile?: () => void;
 }
 
 export const AccountSettings: React.FC<AccountSettingsProps> = ({
@@ -25,10 +26,12 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
   onResetPassword,
   onNotifications,
   onPrivacy,
+  onIncomeProfile,
 }) => {
   const { lang } = useLanguage();
   const DEFAULT_MENU_ITEMS: MenuItem[] = [
     { icon: 'create-outline', label: t('profile.edit_profile'), onPress: onEditProfile },
+    { icon: 'cash-outline', label: t('profile.income_profile') || 'Income Profile', onPress: onIncomeProfile },
     { icon: 'key-outline', label: t('profile.change_password'), onPress: onResetPassword },
     { icon: 'notifications-outline', label: t('profile.notifications'), onPress: onNotifications },
     { icon: 'shield-outline', label: t('profile.privacy_security'), onPress: onPrivacy },

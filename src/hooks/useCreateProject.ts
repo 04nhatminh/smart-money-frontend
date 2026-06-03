@@ -4,6 +4,9 @@ import {
     CreateProjectFormErrors,
     CreateProjectFormValues,
     CreateProjectPayload,
+    PROJECT_PRIORITIES,
+    ProjectAdvisorResponse,
+    ProjectPriority,
     ProjectType,
 } from "../types/project.types";
 import {
@@ -22,6 +25,7 @@ const initialFormValues: CreateProjectFormValues = {
     targetAmount: "",
     deadlineMonths: "",
     type: "PERSONAL",
+    priority: "HIGH",
 };
 
 const initialErrors: CreateProjectFormErrors = {
@@ -32,14 +36,26 @@ const initialErrors: CreateProjectFormErrors = {
 };
 
 type UseCreateProjectProps = {
-    onSuccess?: () => void;
+    usedPriorities?: ProjectPriority[];
 }
 
-export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
+export function useCreateProject({  
+    usedPriorities = [], 
+}: UseCreateProjectProps = {}) {
     const [values, setValues] = useState<CreateProjectFormValues>(initialFormValues);
     const [errors, setErrors] = useState<CreateProjectFormErrors>(initialErrors);
     const [loading, setLoading] = useState(false);
 
+    const availablePriorities = useMemo(() => {
+      return PROJECT_PRIORITIES.filter(
+        (priority) =>
+          !usedPriorities.includes(priority)
+      );
+
+    }, [usedPriorities]);
+
+    const canCreateProject = availablePriorities.length > 0;
+    
     const previewDeadline = useMemo(() => {
         return getPreviewDeadline(values.deadlineMonths);
     }, [values.deadlineMonths]);
@@ -50,6 +66,7 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         values.description.trim() !== "" ||
         values.targetAmount.trim() !== "" ||
         values.deadlineMonths.trim() !== "" ||
+        values.priority.trim() !== "" ||
         values.type !== "PERSONAL"
         );
     }, [values]);
@@ -94,10 +111,14 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         onChangeField("type", value);
     };
 
+    const onChangePriority = (value: ProjectPriority) => {
+        onChangeField("priority", value);
+    };
+
     const validate = () => {
         const nextErrors = validateCreateProjectForm(values);
         setErrors(nextErrors);
-        return !hasErrors(nextErrors);
+        return (Object.keys(nextErrors).length === 0);
     };
 
     const buildPayload = (): CreateProjectPayload => {
@@ -107,28 +128,23 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
             targetAmount: parseCurrencyToNumber(values.targetAmount),
             deadline: formatDateToYYYYMMDD(addMonthsFromDate(Number(values.deadlineMonths))),
             type: values.type,
+            priority: values.priority,
             currency: "VND",
         };
     };
 
-    const handleCreateProject = async () => {
-        if (loading) return false;
-        if (!validate()) return false;
-
-        try {
-            setLoading(true);
-            const payload = buildPayload();
-            const response = await ProjectAPI.create(payload);
-            if (!response?.success) {
-                throw new Error(response?.message || "Failed to create project");
-            }
-            onSuccess?.();
-            return true;
-        } finally {
-            setLoading(false);
-
-        }
+    const buildPayloadWithAdvisor =
+        ( 
+            advisor:ProjectAdvisorResponse
+        ): CreateProjectPayload => {
+        return {
+            ...buildPayload(),
+            deadline: formatDateToYYYYMMDD(
+                addMonthsFromDate(advisor.numberOfMonths)
+            ),
+        };
     };
+
 
     const resetForm = () => {
         setValues(initialFormValues);
@@ -146,7 +162,11 @@ export function useCreateProject({ onSuccess }: UseCreateProjectProps = {}) {
         onChangeTargetAmount,
         onChangeDeadlineMonths,
         onChangeType,
-        handleCreateProject,
+        buildPayload,
+        buildPayloadWithAdvisor,
+        canCreateProject,
+        availablePriorities,
         resetForm,
+        onChangePriority,
     };
 }

@@ -5,7 +5,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useThemeMode } from "../theme/ThemeProvider";
 
-type TabKey = "home" | "stats" | "transaction" | "analysis" | "profile";
+type TabKey = "home" | "stats" | "transaction" | "project" | "wallet" | "profile";
 
 type NavigationHandlers = {
   onHome: () => void;
@@ -13,7 +13,7 @@ type NavigationHandlers = {
   onAdd: () => void;
   onTransaction: () => void;
   onProject: () => void;
-  onAnalysis: () => void;
+  onWallet: () => void;
   onProfile: () => void;
 };
 
@@ -26,7 +26,7 @@ type Props = {
   onAdd?: () => void;
   onTransaction?: () => void;
   onProject?: () => void;
-  onAnalysis?: () => void;
+  onWallet?: () => void;
   onProfile?: () => void;
   // Add menu option handlers
   onAddByForm?: () => void;
@@ -43,7 +43,8 @@ export function BottomBar({
   onStats,
   onAdd,
   onTransaction,
-  onAnalysis,
+  onProject,
+  onWallet,
   onProfile,
   onAddByForm,
   onAddByCamera,
@@ -58,7 +59,8 @@ export function BottomBar({
     onStats: onStats || (() => {}),
     onAdd: onAdd || (() => {}),
     onTransaction: onTransaction || (() => {}),
-    onAnalysis: onAnalysis || (() => {}),
+    onProject: onProject || (() => {}),
+    onWallet: onWallet || (() => {}),
     onProfile: onProfile || (() => {}),
   };
 
@@ -116,7 +118,7 @@ export function BottomBar({
           onPress={actualHandlers.onTransaction}
         >
           <Ionicons
-            name={active === "transaction" ? "cash" : "cash-outline"}
+            name={active === "transaction" ? "folder" : "folder-outline"}
             size={22}
             color={iconColor("transaction")}
           />
@@ -125,13 +127,13 @@ export function BottomBar({
         <View style={{ width: 56 }} />
 
         <Pressable 
-          style={[styles.item, active === 'analysis' && styles.activeItem]} 
-          onPress={actualHandlers.onAnalysis}
+          style={[styles.item, active === 'wallet' && styles.activeItem]} 
+          onPress={actualHandlers.onWallet}
         >
           <Ionicons
-            name={active === 'analysis' ? "analytics" : "analytics-outline"}
+            name={active === 'wallet' ? "wallet" : "wallet-outline"}
             size={22}
-            color={iconColor("analysis")}
+            color={iconColor("wallet")}
           />
         </Pressable>
 
