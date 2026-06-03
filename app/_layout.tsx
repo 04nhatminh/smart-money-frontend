@@ -16,7 +16,7 @@ import PendingTransactionPanel, { PendingPanelRef } from "../src/components/tran
 
 export const panelRef = React.createRef<PendingPanelRef>();
 
-SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.preventAutoHideAsync().catch(() => { });
 
 function RootLayoutNav() {
   const { isSignedIn, isLoading: authLoading } = useAuth();
@@ -99,7 +99,7 @@ function RootLayoutNav() {
     }
 
     // 👉 ĐÃ LOGIN
-    if (!isFirstLaunch && isSignedIn && !inTabs) {
+    if (!isFirstLaunch && isSignedIn && !inTabs && segment !== "(transactions)" && segment !== "(wait)") {
       router.replace("/(tabs)");
       return;
     }
