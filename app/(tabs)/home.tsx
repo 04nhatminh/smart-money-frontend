@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  ScrollView, 
-  Image, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Image,
   TextInput,
   TouchableOpacity,
   FlatList,
@@ -15,13 +15,13 @@ import {
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { userStorage } from "../../src/storage/userStorage";
-import {notificationStorage} from "../../src/storage/notificationStorage";
+import { notificationStorage } from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
 import notificationService from "../../src/notification/notificationService";
 import { Notification } from "../../src/types/notification.type";
 import { setNotificationScreenActive } from "../../src/notification/notificationHandler";
-import {registerForPushNotificationsAsync} from "../../src/notification/registerForPushNotificationsAsync";
-import {NotificationListModal} from "../../src/components/notification/NotificationListModal"
+import { registerForPushNotificationsAsync } from "../../src/notification/registerForPushNotificationsAsync";
+import { NotificationListModal } from "../../src/components/notification/NotificationListModal"
 import { initWebSocket, disconnectWebSocket } from "../../src/services/websocket";
 import AppBottomBar from "../../src/components/AppBottomBar";
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
@@ -32,15 +32,21 @@ import { useRouter } from "expo-router";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
 import { panelRef } from "../_layout";
-// Mock data for categories
-const categories = [
-  { id: '1', name: 'Groceries', icon: 'cart', color: '#4CAF50' },
-  { id: '2', name: 'Transport', icon: 'car', color: '#2196F3' },
-  { id: '3', name: 'Food', icon: 'restaurant', color: '#FF9800' },
-  { id: '4', name: 'Shopping', icon: 'bag', color: '#E91E63' },
-  { id: '5', name: 'Entertainment', icon: 'film', color: '#9C27B0' },
-  { id: '6', name: 'Bills', icon: 'document-text', color: '#F44336' },
-];
+import { budgetAPI, BudgetItem } from "../../src/api/budget.api";
+import { CircularProgress } from "../../src/components/CircularProgress";
+import { formatVND } from "../../src/utils/formatCurrency";
+// Category icon mapping
+const categoryIconMap: { [key: string]: { icon: string; color: string; displayName: string } } = {
+  FOOD: { icon: 'restaurant', color: '#FF9800', displayName: 'Food' },
+  TRANSPORTATION: { icon: 'car', color: '#2196F3', displayName: 'Transport' },
+  CLOTHING: { icon: 'shirt', color: '#E91E63', displayName: 'Clothing' },
+  UTILITIES: { icon: 'flash', color: '#FFC107', displayName: 'Utilities' },
+  ENTERTAINMENT: { icon: 'film', color: '#9C27B0', displayName: 'Entertainment' },
+  HEALTH: { icon: 'heart', color: '#F44336', displayName: 'Health' },
+  EDUCATION: { icon: 'book', color: '#3629B7', displayName: 'Education' },
+  SHOPPING: { icon: 'bag', color: '#4CAF50', displayName: 'Shopping' },
+  OTHER: { icon: 'more', color: '#757575', displayName: 'Other' },
+};
 
 // Mock data for recent transactions
 const recentTransactions = [
@@ -60,6 +66,8 @@ export default function HomePage() {
   const [manualVisible, setManualVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
+  const [budgetsLoading, setBudgetsLoading] = useState(false);
 
   const { createFromReceipt, createFromVoice } = useCreateTransaction();
 
@@ -71,6 +79,7 @@ export default function HomePage() {
     // load user + unread ban đầu
     const init = async () => {
       await loadUserData();
+      await loadBudgets();
 
       const saved = await notificationStorage.getUnreadCount();
       setUnreadCount(saved);
@@ -147,9 +156,27 @@ export default function HomePage() {
     await loadNotifications();
   };
 
+  const loadBudgets = async () => {
+    try {
+      setBudgetsLoading(true);
+      const now = new Date();
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
+      const result = await budgetAPI.getBudgets(month, year);
+      if (result.success && result.data) {
+        setBudgets(result.data.items || []);
+      }
+    } catch (error) {
+      console.error("Failed to load budgets:", error);
+    } finally {
+      setBudgetsLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadUserData();
+    await loadBudgets();
     setRefreshing(false);
   };
 
@@ -167,14 +194,37 @@ export default function HomePage() {
     if (success) setVoiceVisible(false);
   };
 
-  const renderCategoryItem = ({ item }: { item: typeof categories[0] }) => (
-    <TouchableOpacity style={styles.categoryItem}>
-      <View style={[styles.categoryIcon, { backgroundColor: item.color + '20' }]}>
-        <Ionicons name={item.icon as any} size={24} color={item.color} />
-      </View>
-      <Text style={styles.categoryName}>{item.name}</Text>
-    </TouchableOpacity>
-  );
+  const renderBudgetItem = ({ item }: { item: BudgetItem }) => {
+    const categoryInfo = categoryIconMap[item.category] || categoryIconMap.OTHER;
+    const progressPercent = Math.min(item.progressPercent, 100);
+    const progressColor =
+      item.alertLevel === 'EXCEEDED' ? '#F44336' :
+        item.alertLevel === 'WARNING' ? '#FF9800' :
+          item.alertLevel === 'CAUTION' ? '#FFC107' :
+            '#4CAF50';
+
+    return (
+      <TouchableOpacity
+        style={styles.categoryItem}
+        onPress={() => router.push('/(tabs)/budgets')}
+      >
+        <CircularProgress
+          percentage={progressPercent}
+          size={60}
+          strokeWidth={4}
+          color={progressColor}
+        >
+          <View style={[styles.budgetIconInner, { width: 44, height: 44, borderRadius: 22, backgroundColor: categoryInfo.color + '20' }]}>
+            <Ionicons name={categoryInfo.icon as any} size={24} color={categoryInfo.color} />
+          </View>
+        </CircularProgress>
+
+        <Text style={styles.categoryName} numberOfLines={1}>
+          {categoryInfo.displayName}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderTransactionItem = ({ item }: { item: typeof recentTransactions[0] }) => (
     <View style={styles.transactionItem}>
@@ -208,7 +258,7 @@ export default function HomePage() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
+
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -241,7 +291,7 @@ export default function HomePage() {
                 <Text style={styles.userName}>{user?.fullName || 'User'}</Text>
               </View>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.notificationBtn}
               onPress={handleToggleNotification}
             >
@@ -288,23 +338,29 @@ export default function HomePage() {
             </View>
           </View>
 
-          {/* Categories Section */}
+          {/* Budgets Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Categories</Text>
-              <TouchableOpacity>
+              <Text style={styles.sectionTitle}>Budgets</Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/budgets')}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>
-            
-            <FlatList
-              data={categories}
-              renderItem={renderCategoryItem}
-              keyExtractor={item => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoriesList}
-            />
+
+            {budgetsLoading ? (
+              <Text style={styles.loadingText}>Loading budgets...</Text>
+            ) : budgets.length > 0 ? (
+              <FlatList
+                data={budgets}
+                renderItem={renderBudgetItem}
+                keyExtractor={item => item.budgetId}
+                horizontal={true}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.budgetsHorizontalList}
+              />
+            ) : (
+              <Text style={styles.emptyText}>No budgets yet</Text>
+            )}
           </View>
 
           <TouchableOpacity
@@ -331,7 +387,7 @@ export default function HomePage() {
                 </Text>
               </TouchableOpacity>
             </View>
-            
+
             {recentTransactions.map(item => (
               <View key={item.id}>
                 {renderTransactionItem({ item })}
@@ -347,21 +403,21 @@ export default function HomePage() {
               </View>
               <Text style={styles.actionText}>Send</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.actionButton}>
               <View style={[styles.actionIcon, { backgroundColor: '#4CAF50' }]}>
                 <Ionicons name="download" size={20} color="#fff" />
               </View>
               <Text style={styles.actionText}>Receive</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.actionButton}>
               <View style={[styles.actionIcon, { backgroundColor: '#FF9800' }]}>
                 <Ionicons name="card" size={20} color="#fff" />
               </View>
               <Text style={styles.actionText}>Pay</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.actionButton}>
               <View style={[styles.actionIcon, { backgroundColor: '#E91E63' }]}>
                 <Ionicons name="add" size={20} color="#fff" />
@@ -376,7 +432,7 @@ export default function HomePage() {
         onClose={() => {
           setNotificationScreenActive(false);
           setShowNotification(false);
-        } }
+        }}
         notifications={notifications}
         loading={loadingNotification}
         onResetUnread={() => {
@@ -406,7 +462,7 @@ export default function HomePage() {
       <AddTransactionModal
         visible={manualVisible}
         onClose={() => setManualVisible(false)}
-      />  
+      />
     </SafeAreaView>
   );
 }
@@ -560,6 +616,10 @@ const styles = StyleSheet.create({
   categoriesList: {
     paddingRight: 20,
   },
+  budgetsHorizontalList: {
+    paddingVertical: 10,
+    paddingRight: 20,
+  },
   categoryItem: {
     alignItems: 'center',
     marginRight: 20,
@@ -576,6 +636,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     fontWeight: '500',
+    marginTop: 6,
   },
   transactionItem: {
     flexDirection: 'row',
@@ -638,65 +699,121 @@ const styles = StyleSheet.create({
   },
 
   notificationDropdown: {
-  position: "absolute",
-  top: 80,
-  right: 20,
-  width: 280,
-  backgroundColor: "#fff",
-  borderRadius: 12,
-  padding: 12,
-  shadowColor: "#000",
-  shadowOpacity: 0.1,
-  shadowRadius: 10,
-  elevation: 5,
-  zIndex: 100,
-},
+    position: "absolute",
+    top: 80,
+    right: 20,
+    width: 280,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+    zIndex: 100,
+  },
 
-notificationTitle: {
-  fontSize: 16,
-  fontWeight: "700",
-  marginBottom: 10,
-},
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
 
-notificationItem: {
-  paddingVertical: 10,
-  borderBottomWidth: 1,
-  borderBottomColor: "#eee",
-},
+  notificationItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
 
-notificationBadge: {
-  position: 'absolute',
-  top: 8,
-  right: 8,
-  minWidth: 18,
-  height: 18,
-  borderRadius: 9,
-  backgroundColor: '#FF4444',
-  justifyContent: 'center',
-  alignItems: 'center',
-  paddingHorizontal: 4,
-},
+  notificationBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
 
-badgeText: {
-  color: '#fff',
-  fontSize: 10,
-  fontWeight: '700',
-},
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
 
-notificationContent: {
-  fontSize: 14,
-  color: "#333",
-},
+  notificationContent: {
+    fontSize: 14,
+    color: "#333",
+  },
 
-notificationTime: {
-  fontSize: 11,
-  color: "#999",
-  marginTop: 4,
-},
+  notificationTime: {
+    fontSize: 11,
+    color: "#999",
+    marginTop: 4,
+  },
 
-notificationEmpty: {
-  textAlign: "center",
-  color: "#999",
-  paddingVertical: 10,
-},
+  notificationEmpty: {
+    textAlign: "center",
+    color: "#999",
+    paddingVertical: 10,
+  },
+  budgetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  budgetIconInner: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  budgetContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  budgetName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  budgetAmount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  budgetInfo: {
+    fontSize: 11,
+    color: '#999',
+    marginBottom: 2,
+  },
+  budgetPercent: {
+    fontSize: 10,
+    color: '#666',
+    fontWeight: '500',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
 });
