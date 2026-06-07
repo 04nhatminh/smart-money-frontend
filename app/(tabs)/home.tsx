@@ -447,6 +447,7 @@ export default function HomePage() {
           {/* Quick Feature Section */}
           <QuickFeatureSection
             onOpenCreateProject={() => setCreateProjectVisible(true)}
+            onOpenClassify={() => panelRef.current?.open()}
           />
 
           {/* Latest Projects */}
@@ -509,15 +510,6 @@ export default function HomePage() {
               <Text style={styles.emptyText}>No transactions yet</Text>
             )}
           </View>
-
-          <TouchableOpacity
-            style={styles.panelButton}
-            onPress={() => panelRef.current?.open()}
-          >
-            <Text style={styles.panelButtonText}>
-              OPEN PENDING PANEL
-            </Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -767,17 +759,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
     marginTop: 6,
-  },
-  panelButton: {
-    backgroundColor: "black",
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 20,
-    marginBottom: 20
-  },
-  panelButtonText: {
-    color: "#fff",
-    textAlign: "center"
   },
   transactionItem: {
     flexDirection: 'row',
