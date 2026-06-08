@@ -10,12 +10,14 @@ let isConnected = false;
 let isConnecting = false;
 let currentUserId: string | null = null;
 
-const jobSubscriptions = new Map<
+// Store job callbacks keyed by jobId
+const jobCallbacks = new Map<
   string,
-  { sub: StompSubscription; callback: (data: any) => void }
+  (data: any) => void
 >();
 
 let notificationSub: StompSubscription | null = null;
+let aiUserSub: StompSubscription | null = null;
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const WS_URL: string | null = BASE_URL ? `${BASE_URL}/ws` : null;
@@ -23,86 +25,59 @@ const WS_URL: string | null = BASE_URL ? `${BASE_URL}/ws` : null;
 // ==============================
 // INIT
 // ==============================
+let connectPromise: Promise<Client> | null = null;
+
 export const initWebSocket = (userId: string): Promise<Client> => {
-  return new Promise((resolve, reject) => {
-    if (!WS_URL) return reject("❌ WS_URL missing");
+  if (!WS_URL) return Promise.reject("❌ WS_URL missing");
 
-    // 🔥 nếu user đổi → reset WS
-    if (currentUserId && currentUserId !== userId) {
-      disconnectWebSocket();
-    }
+  // ✅ nếu đã connect → dùng lại
+  if (stompClient && isConnected) {
+    return Promise.resolve(stompClient);
+  }
 
-    currentUserId = userId;
+  // ✅ nếu đang connect → return promise cũ
+  if (connectPromise) {
+    return connectPromise;
+  }
 
-    if (stompClient && isConnected) {
-      return resolve(stompClient);
-    }
+  currentUserId = userId;
 
-    if (isConnecting) {
-      const interval = setInterval(() => {
-        if (isConnected && stompClient) {
-          clearInterval(interval);
-          resolve(stompClient);
-        }
-      }, 100);
-
-      const timeout = setTimeout(() => {
-        clearInterval(interval);
-        reject("❌ Connection timeout");
-      }, 10000);
-
-      return;
-    }
-
-    isConnecting = true;
-
+  connectPromise = new Promise((resolve, reject) => {
     stompClient = new Client({
       webSocketFactory: () => new SockJS(WS_URL),
       reconnectDelay: 5000,
-
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
-
       debug: (str) => console.log("[WS]", str),
     });
 
-    // ==========================
-    // CONNECT
-    // ==========================
     stompClient.onConnect = () => {
       console.log("✅ WebSocket connected");
 
       isConnected = true;
-      isConnecting = false;
 
-      // 🔔 subscribe notification
       subscribeNotifications();
-
-      // 🔁 resubscribe jobs
-      jobSubscriptions.forEach((value, jobId) => {
-        console.log("🔁 Resubscribe job:", jobId);
-        internalSubscribeJob(jobId, value.callback);
-      });
+      subscribeUserAI();
 
       resolve(stompClient!);
     };
 
-    // ==========================
-    // DISCONNECT
-    // ==========================
     stompClient.onDisconnect = () => {
       console.log("🔌 WebSocket disconnected");
       isConnected = false;
+      connectPromise = null;
     };
 
     stompClient.onWebSocketError = (err) => {
       console.error("❌ WS error", err);
-      isConnecting = false;
+      connectPromise = null;
       reject(err);
     };
 
     stompClient.activate();
   });
+
+  return connectPromise;
 };
 
 // ==============================
@@ -130,51 +105,67 @@ const subscribeNotifications = () => {
 };
 
 // ==============================
-// 🎯 SUBSCRIBE JOB
+// 🎯 USER AI TOPIC SUBSCRIBE
 // ==============================
-const internalSubscribeJob = (
-  jobId: string,
-  callback: (data: any) => void
-) => {
-  if (!stompClient || !isConnected) return;
+const subscribeUserAI = () => {
+  if (!stompClient || !isConnected || !currentUserId) return;
 
-  const sub = stompClient.subscribe(`/topic/ai/${jobId}`, (message) => {
-    try {
-      const data = JSON.parse(message.body);
-      callback(data);
-    } catch (err) {
-      console.error("❌ Parse error", err);
+  if (aiUserSub) {
+    aiUserSub.unsubscribe();
+  }
+
+  aiUserSub = stompClient.subscribe(
+    `/topic/ai/user/${currentUserId}`,
+    (msg: IMessage) => {
+      try {
+        const data = JSON.parse(msg.body);
+        const jobId = data.jobId;
+
+        console.log("🎯 AI result for job:", jobId);
+
+        // Route to the registered callback for this job
+        const callback = jobCallbacks.get(jobId);
+        if (callback) {
+          callback(data);
+          jobCallbacks.delete(jobId); // ✅ Unregister after callback is called
+        } else {
+          console.warn("⚠️ No callback registered for job:", jobId);
+        }
+      } catch (err) {
+        console.error("❌ Parse error", err);
+      }
     }
-  });
-
-  jobSubscriptions.set(jobId, { sub, callback });
+  );
 };
 
-export const subscribeJob = (
+// ==============================
+// 🎯 JOB CALLBACK MANAGEMENT
+// ==============================
+export const subscribeJob = async (
   jobId: string,
   onResult: (data: any) => void
-): (() => void) => {
-  if (!stompClient || !isConnected) {
-    console.warn("⚠️ WS not ready → skip subscribe:", jobId);
+): Promise<() => void> => {
+
+  if (!currentUserId) {
+    console.warn("⚠️ No userId");
     return () => {};
   }
 
-  if (jobSubscriptions.has(jobId)) {
+  // ✅ ĐẢM BẢO WS READY
+  await initWebSocket(currentUserId);
+
+  if (jobCallbacks.has(jobId)) {
     console.log("⚠️ Already subscribed:", jobId);
     return () => {};
   }
 
-  internalSubscribeJob(jobId, onResult);
+  jobCallbacks.set(jobId, onResult);
 
-  console.log("✅ Subscribed job:", jobId);
+  console.log("✅ Registered callback for job:", jobId);
 
   return () => {
-    const item = jobSubscriptions.get(jobId);
-    if (item) {
-      item.sub.unsubscribe();
-      jobSubscriptions.delete(jobId);
-      console.log("🧹 Unsubscribed job:", jobId);
-    }
+    jobCallbacks.delete(jobId);
+    console.log("🧹 Unregistered callback for job:", jobId);
   };
 };
 
@@ -191,12 +182,16 @@ export const disconnectWebSocket = () => {
   isConnecting = false;
   currentUserId = null;
 
-  jobSubscriptions.forEach((item) => item.sub.unsubscribe());
-  jobSubscriptions.clear();
+  jobCallbacks.clear();
 
   if (notificationSub) {
     notificationSub.unsubscribe();
     notificationSub = null;
+  }
+
+  if (aiUserSub) {
+    aiUserSub.unsubscribe();
+    aiUserSub = null;
   }
 
   console.log("🔌 WebSocket fully cleaned");

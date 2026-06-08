@@ -2,14 +2,15 @@ import React, { useState } from "react";
 import { Modal, Alert } from "react-native";
 import { CameraScreen } from "./CameraScreen";
 import { CameraPreview } from "./CameraPreview";
-import { ReceiptPreview } from "./ReceiptPreview";
 import { Receipt } from "../../../types/transaction.types";
 import AIAPI from "../../../api/ai.api";
 import authApi from "../../../api/auth.api";
-import { initWebSocket, subscribeJob } from "../../../services/websocket";
+import { initWebSocket } from "../../../services/websocket";
 import { CloudinaryService } from "../../../services/cloudinary.service";
 import WaitScreen from "../../../../app/(wait)/wait";
-import { waitForAIResult } from "../../../services/aiWebSocketHelper";
+import { userStorage } from "../../../storage/userStorage";
+import PendingStorage from "../../../storage/pendingTransactionStorage";
+import { handleAIResultInBackground, handleFullAIFlowInBackground } from "../../../services/backgroundAIHandler";
 
 type Props = {
   visible: boolean;
@@ -17,20 +18,28 @@ type Props = {
   onCaptureBill: (receipt: Receipt) => void | Promise<void>;
 };
 
-type CameraStep = "camera" | "preview" | "waiting" | "receipt";
+type CameraStep = "camera" | "preview" | "uploading";
 
 export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
   const [step, setStep] = useState<CameraStep>("camera");
   const [photoUri, setPhotoUri] = useState<string>("");
-  const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [cloudinaryPublicId, setCloudinaryPublicId] = useState<string>("");
+
+  // Init WebSocket ngay khi modal mở để sẵn sàng nhận kết quả AI trả về
+  React.useEffect(() => {
+    if (visible) {
+      userStorage.getUser().then((user) => {
+        if (user?.id) {
+          initWebSocket(user.id);
+        }
+      });
+    }
+  }, [visible]);
 
 
   const handleCapture = async (uri: string) => {
     setPhotoUri(uri);
-    setReceipt(null);
     setSubmitError(null);
     setStep("preview");
   };
@@ -43,125 +52,37 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
 
   const handlePreviewConfirm = async () => {
     console.log("🎯 handlePreviewConfirm called");
-    setIsSubmitting(true);
-    setSubmitError(null);
 
     try {
-      // 🔥 Get user first
-      const userRes = await authApi.getCurrentUser();
-      if (!userRes.success || !userRes.data) {
-        throw new Error("Cannot get user");
-      }
-      const userId = userRes.data.id;
+      // ✅ Create pending FIRST
+      const pendingTx = await PendingStorage.add({
+        amount: 0,
+        category: "OTHER",
+        type: "EXPENSE",
+        description: "Processing receipt...",
+        date: new Date().toISOString(),
+      });
 
-      // 📤 Upload image to Cloudinary
-      console.log("📤 Uploading image to Cloudinary...");
-      const cloudinaryResponse = await CloudinaryService.uploadReceiptImage(photoUri);
-
-      const publicId = cloudinaryResponse.publicId; // ✅ giữ local
-
-      setCloudinaryPublicId(publicId);
-
-      // 📤 Submit Cloudinary URL to AI API (LẦN DUY NHẤT)
-      const submitRes = await AIAPI.submitImageReceipt(cloudinaryResponse.fileUrl);
-      if (!submitRes.success || !submitRes.data) {
-        throw new Error(submitRes.message || "Failed to submit image");
-      }
-
-      const jobId = submitRes.data.jobId;
-      console.log("🔥 JOB ID:", jobId);
-
-      // 🔄 Show waiting screen
-      setStep("waiting");
-
-      const wsResult = await waitForAIResult(jobId, 60000);
-
-      let finalResult = wsResult;
-
-      if (wsResult.status === "TIMEOUT") {
-        console.log("⚠️ WS timeout → polling");
-
-        const fallback = await AIAPI.getResult(jobId);
-
-        if (!fallback?.success || !fallback.data) {
-          throw new Error("AI processing timeout");
-        }
-
-        finalResult = {
-          status: "SUCCESS",
-          data: fallback.data,
-        };
-      }
-
-      const resultData = finalResult.data;
-      const processedReceipt: Receipt = {
-        type: resultData.type === "EXPENSE"
-          ? "EXPENSE"
-          : "INCOME",
-
-        transactionName:
-          resultData.description ||
-          resultData.transactionName ||
-          "Receipt",
-
-        amount: Number(resultData.expense) || 0,
-
-        category: resultData.category || "Other",
-
-        date: resultData.date || new Date().toISOString(),
-
-        description: resultData.description || "",
-      };
-
-      setReceipt(processedReceipt);
-
-      setStep("receipt");
-      // 🎉 Move to receipt step
-      setStep("receipt");
-
-    } catch (error: any) {
-      console.error("❌ Error in handlePreviewConfirm:", error);
-      setSubmitError(error?.message || "Failed to process image");
-      Alert.alert("Error", error?.message || "Failed to process image");
-    } finally {
-      setIsSubmitting(false);
-      await CloudinaryService.deleteImage(cloudinaryPublicId, "image");
-    }
-  };
-
-  const handleReceiptConfirm = async (receiptData: Receipt) => {
-    console.log("🎯 CameraModal.handleReceiptConfirm called");
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    try {
-      console.log("📤 Calling onCaptureBill...");
-      await onCaptureBill(receiptData);
+      // 🎬 Close modal NGAY
       setPhotoUri("");
-      setReceipt(null);
       setStep("camera");
       onClose();
+
+      // 🌀 Run EVERYTHING in background
+      handleFullAIFlowInBackground(photoUri, pendingTx.id).catch(console.error);
+
     } catch (error: any) {
-      console.error("Error in handleReceiptConfirm:", error);
-      setSubmitError(error?.message || "Failed to create transaction");
-    } finally {
-      setIsSubmitting(false);
+      Alert.alert("Error", error?.message || "Failed");
     }
   };
+
+
 
   const handleCancel = () => {
     setPhotoUri("");
-    setReceipt(null);
     setStep("camera");
     setSubmitError(null);
     onClose();
-  };
-
-  const handleRetakeFromReceipt = () => {
-    setPhotoUri("");
-    setReceipt(null);
-    setSubmitError(null);
-    setStep("camera");
   };
 
   return (
@@ -174,18 +95,8 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
           onRetake={handleRetake}
           onConfirm={handlePreviewConfirm}
         />
-      ) : step === "waiting" ? (
-        <WaitScreen />
       ) : (
-        <ReceiptPreview
-          imageUri={photoUri}
-          receipt={receipt}
-          onCancel={handleCancel}
-          onRetakePhoto={handleRetakeFromReceipt}
-          onConfirm={handleReceiptConfirm}
-          isSubmitting={isSubmitting}
-          errorMessage={submitError}
-        />
+        <WaitScreen />
       )}
     </Modal>
   );
