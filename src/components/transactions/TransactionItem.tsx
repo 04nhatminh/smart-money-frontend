@@ -5,6 +5,8 @@ import { useThemeMode } from "../../theme/ThemeProvider";
 import { TransactionResponse } from "../../types/transaction.types";
 import { CATEGORY_ICONS_LIST } from "../../constants/categories";
 
+import { formatVND } from "../../utils/formatCurrency";
+
 interface TransactionItemProps {
   transaction: TransactionResponse;
   onPress?: () => void;
@@ -20,12 +22,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
     CATEGORY_ICONS_LIST[transaction.category.toLowerCase()] ||
     CATEGORY_ICONS_LIST.other;
 
-  const formattedAmount = new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(transaction.amount);
+  const formattedAmount = formatVND(transaction.amount);
 
   return (
     <Pressable

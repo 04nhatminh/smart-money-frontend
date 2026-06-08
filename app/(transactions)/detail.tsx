@@ -17,6 +17,7 @@ import { TransactionResponse } from "../../src/types/transaction.types";
 import { transactionStyles as styles } from "../../src/styles/transactionStyles";
 import { ButtonSave } from "../../src/components/ButtonSave";
 import { EditTransactionModal } from "../../src/components/transactions/EditTransactionModal";
+import { formatVND } from "../../src/utils/formatCurrency";
 
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -133,7 +134,7 @@ export default function TransactionDetailScreen() {
 
               <Text style={[styles.amountDetail, { color: amountColor }]} numberOfLines={1}>
                 {transaction.type === "EXPENSE" ? "-" : "+"}
-                {Number(transaction.amount).toLocaleString("vi-VN")} VND
+                {formatVND(Number(transaction.amount))}
               </Text>
             </View>
           </View>

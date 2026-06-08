@@ -21,6 +21,9 @@ export type AnalyticsRequest = {
 export type AnalyticsResponseData = {
   monthlyStats: MonthlyStat[];
   categoryProportions: CategoryProportion[];
+  monthlyTotalTransactions?: number;
+  monthlyTotalExpense?: number;
+  monthlyTotalIncome?: number;
 };
 
 export type AnalyticsResponse = {

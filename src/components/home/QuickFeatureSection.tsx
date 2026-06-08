@@ -4,10 +4,12 @@ import { router } from 'expo-router';
 
 type QuickFeatureSectionProps = {
   onOpenCreateProject: () => void;
+  onOpenClassify: () => void;
 };
 
 export default function QuickFeatureSection({
   onOpenCreateProject,
+  onOpenClassify,
 }: QuickFeatureSectionProps) {
   const quickFeatures = [
     {
@@ -22,14 +24,14 @@ export default function QuickFeatureSection({
       title: 'Budget',
       iconName: 'wallet-outline',
       iconType: 'ion',
-      onPress: () => router.push('/(tabs)/budget'),
+      onPress: () => router.push('/(tabs)/budgets'),
     },
     {
       id: 'classify',
       title: 'Classify',
       iconName: 'tag-multiple-outline',
       iconType: 'material',
-      onPress: () => router.push('/(tabs)/transaction/unclassified'),
+      onPress: onOpenClassify,
     },
   ];
 

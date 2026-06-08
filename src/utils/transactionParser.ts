@@ -227,11 +227,11 @@ export const formatTransactionDisplay = (
  */
 const formatCurrency = (amount: number): string => {
   if (amount >= 1000000) {
-    return `${(amount / 1000000).toLocaleString("vi-VN")}₫`;
+    return `${(amount / 1000000).toLocaleString("en-US")} Tr VND`;
   } else if (amount >= 1000) {
-    return `${(amount / 1000).toLocaleString("vi-VN")}k₫`;
+    return `${(amount / 1000).toLocaleString("en-US")}k VND`;
   }
-  return `${amount.toLocaleString("vi-VN")}₫`;
+  return `${amount.toLocaleString("en-US")} VND`;
 };
 
 export default {
