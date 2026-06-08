@@ -16,22 +16,25 @@ export type LatestProjectItem = {
   currency: string;
   progressPercent?: number;
   status?: string;
+  isPlaceholder?: boolean;
 };
 
 type LatestProjectsSectionProps = {
   projects: LatestProjectItem[];
   loading?: boolean;
+  onAddPress?: () => void;
 };
 
 const cardColors = ['#FFC857', '#E7DAF7', '#D9F3EA', '#DDEBFF'];
 
 const formatMoney = (amount: number, currency: string) => {
-  return `${amount.toLocaleString('vi-VN')} ${currency}`;
+  return `${amount.toLocaleString('en-US')} ${currency}`;
 };
 
 export default function LatestProjectsSection({
   projects,
   loading = false,
+  onAddPress,
 }: LatestProjectsSectionProps) {
   if (loading) {
     return (
@@ -47,22 +50,15 @@ export default function LatestProjectsSection({
     );
   }
 
-  if (!projects.length) {
-    return (
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Projects</Text>
-        </View>
-
-        <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="folder-plus" size={28} color="#64748B" />
-          <Text style={styles.emptyTitle}>No projects yet</Text>
-          <Text style={styles.emptyText}>
-            Create your first saving project to track your goal.
-          </Text>
-        </View>
-      </View>
-    );
+  const displayData = [...projects];
+  if (projects.length < 3) {
+    displayData.push({
+      projectId: 'add_project_placeholder',
+      name: '',
+      targetAmount: 0,
+      currency: '',
+      isPlaceholder: true,
+    } as any);
   }
 
   return (
@@ -79,43 +75,57 @@ export default function LatestProjectsSection({
       </View>
 
       <FlatList
-        data={projects}
+        data={displayData}
         horizontal
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.projectId}
         contentContainerStyle={styles.projectList}
-        renderItem={({ item, index }) => (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[
-              styles.projectCard,
-              {
-                backgroundColor: cardColors[index % cardColors.length],
-              },
-            ]}
-            onPress={() =>
-              router.push(`/(tabs)/project/${item.projectId}` as any)
-            }
-          >
-            <View style={styles.projectIconBox}>
-              <MaterialCommunityIcons
-                name="piggy-bank"
-                size={25}
-                color="#0F172A"
-              />
-            </View>
+        renderItem={({ item, index }) => {
+          if (item.isPlaceholder) {
+            return (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.addCard}
+                onPress={onAddPress}
+              >
+                <MaterialCommunityIcons name="plus" size={32} color="#64748B" />
+              </TouchableOpacity>
+            );
+          }
 
-            <View>
-              <Text style={styles.projectAmount} numberOfLines={1}>
-                {formatMoney(item.targetAmount, item.currency)}
-              </Text>
+          return (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[
+                styles.projectCard,
+                {
+                  backgroundColor: cardColors[index % cardColors.length],
+                },
+              ]}
+              onPress={() =>
+                router.push(`/(tabs)/project/${item.projectId}` as any)
+              }
+            >
+              <View style={styles.projectIconBox}>
+                <MaterialCommunityIcons
+                  name="piggy-bank"
+                  size={25}
+                  color="#0F172A"
+                />
+              </View>
 
-              <Text style={styles.projectName} numberOfLines={1}>
-                {item.name}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
+              <View>
+                <Text style={styles.projectAmount} numberOfLines={1}>
+                  {formatMoney(item.targetAmount, item.currency)}
+                </Text>
+
+                <Text style={styles.projectName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
     </View>
   );
@@ -156,6 +166,18 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
     justifyContent: 'space-between',
+  },
+
+  addCard: {
+    width: 142,
+    height: 160,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   projectIconBox: {

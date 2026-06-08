@@ -441,8 +441,9 @@ export default function HomePage() {
           {/* Balance Card - Combined Detail Format */}
           <View style={styles.balanceCard}>
             <View style={styles.balanceHeader}>
+              <Text style={styles.balanceDate}>This month</Text>
               <Text style={styles.balanceAmount}>{formatVND(monthlyTotalIncome - monthlyTotalExpense)}</Text>
-              <Text style={styles.balanceLabel}>Total Balance (This month)</Text>
+              <Text style={styles.balanceLabel}>Total Balance</Text>
             </View>
 
             <View style={styles.balanceSummaryRow}>
@@ -451,7 +452,7 @@ export default function HomePage() {
                   <Ionicons name="arrow-down" size={16} color="#16A34A" />
                 </View>
                 <View>
-                  <Text style={styles.summaryLabel}>Income (This month)</Text>
+                  <Text style={styles.summaryLabel}>Income</Text>
                   <Text style={styles.summaryAmount}>{formatVND(monthlyTotalIncome)}</Text>
                 </View>
               </View>
@@ -463,7 +464,7 @@ export default function HomePage() {
                   <Ionicons name="arrow-up" size={16} color="#DC2626" />
                 </View>
                 <View>
-                  <Text style={styles.summaryLabel}>Expense (This month)</Text>
+                  <Text style={styles.summaryLabel}>Expense</Text>
                   <Text style={styles.summaryAmount}>{formatVND(monthlyTotalExpense)}</Text>
                 </View>
               </View>
@@ -473,13 +474,14 @@ export default function HomePage() {
           {/* Quick Feature Section */}
           <QuickFeatureSection
             onOpenCreateProject={() => setCreateProjectVisible(true)}
-            onOpenClassify={() => panelRef.current?.open()}
+            onOpenClassify={() => { panelRef.current?.open(); }}
           />
 
           {/* Latest Projects */}
           <LatestProjectsSection
             projects={latestProjects}
             loading={latestProjectsLoading}
+            onAddPress={() => setCreateProjectVisible(true)}
           />
 
           {/* Budgets Section */}
@@ -705,6 +707,11 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     fontSize: 14,
+    fontWeight: '500',
+    color: '#ebfff3',
+  },
+  balanceDate: {
+    fontSize: 12,
     fontWeight: '500',
     color: '#ebfff3',
   },
