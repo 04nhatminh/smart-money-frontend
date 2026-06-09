@@ -35,7 +35,7 @@ export type AddProjectContributionPayload = {
 };
 
 export type InviteProjectMemberPayload = {
-  userId: string;
+  email: string;
   admin: boolean;
 };
 
@@ -99,6 +99,15 @@ export type ProjectHistory = {
   createdAt: string;
 };
 
+export type ProjectMember = {
+  userId: string;
+  username: string;
+  email: string;
+  fullName: string;
+  joinStatus: "INVITED" | "JOINED";
+  admin: boolean;
+};
+
 export type ProjectDetailResponse = ProjectListItemResponse & {
   ownerId: string;
   description: string;
@@ -110,6 +119,7 @@ export type ProjectDetailResponse = ProjectListItemResponse & {
   createdAt?: string;
   moneyOwed?: number;
   histories?: ProjectHistory[];
+  members?: ProjectMember[];
 };
 
 export type ProjectResponse = ProjectDetailResponse;
@@ -146,3 +156,14 @@ export type ProjectAdvisorResponse = {
   monthlySaving: number;
   numberOfMonths: number;
 };
+
+export type InviteResponse = {
+  token: string;
+  deepLinkUrl: string;
+  message: string;
+};
+
+export type AcceptInvitePayload = {
+  token: string;
+  commitmentAmount?: number;
+};

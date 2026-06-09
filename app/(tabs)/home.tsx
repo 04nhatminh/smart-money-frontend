@@ -193,11 +193,12 @@ export default function HomePage() {
     try {
       setLatestProjectsLoading(true);
       const response = await ProjectAPI.getAll();
-      const list = response.data || [];
+      const list = response && response.success && Array.isArray(response.data) ? response.data : [];
       const latest = list.slice(0, 3);
       setLatestProjects(latest);
     } catch (error) {
       console.log('Fetch latest projects error:', error);
+      setLatestProjects([]);
     } finally {
       setLatestProjectsLoading(false);
     }

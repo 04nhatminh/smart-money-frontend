@@ -15,7 +15,8 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import { ProjectAPI } from "../../../src/api/project.api";
 import EditProjectModal from "../../../src/components/projects/EditProjectModal";
-import { ProjectDetailResponse } from "../../../src/types/project.types";
+import InviteMemberModal from "../../../src/components/projects/InviteMemberModal";
+import { ProjectDetailResponse, ContributionSummaryResponse } from "../../../src/types/project.types";
 import { formatCurrencyVND, getSafeProgress } from "../../../src/utils/project";
 import { t } from "../../../src/i18n";
 
@@ -23,9 +24,11 @@ export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [project, setProject] = useState<ProjectDetailResponse | null>(null);
+  const [contributionSummary, setContributionSummary] = useState<ContributionSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
 
   const handleDeleteProject = () => {
     Alert.alert(
@@ -95,6 +98,51 @@ export default function ProjectDetailScreen() {
     fetchProjectDetail();
   }, [id]);
 
+  useEffect(() => {
+    if (!id) return;
+
+    // Helper import from WebSocket service
+    const { subscribeToTopic } = require("../../../src/services/websocket");
+
+    let unsubscribe: (() => void) | null = null;
+
+    try {
+      unsubscribe = subscribeToTopic(
+        `/topic/project/${id}/ledger`,
+        (payload: { newTotal: number; latestContribution?: string }) => {
+          console.log("🟢 [ProjectDetailScreen] WebSocket update received:", payload);
+          setProject((prev) => {
+            if (!prev) return null;
+            // Recalculate contribution summary fields
+            const newTotal = payload.newTotal;
+            const target = prev.targetAmount;
+            const progress = target > 0 ? (newTotal / target) * 100 : 0;
+            const remaining = Math.max(0, target - newTotal);
+
+            return {
+              ...prev,
+              totalContributed: newTotal,
+              progressPercent: progress,
+              remaining: remaining,
+            };
+          });
+
+          if (payload.latestContribution) {
+            Alert.alert("Project Update", payload.latestContribution);
+          }
+        }
+      );
+    } catch (e) {
+      console.warn("⚠️ WebSocket subscription failed in detail screen", e);
+    }
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [id]);
+
   if (loading && !project) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -145,12 +193,22 @@ export default function ProjectDetailScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>
             {project.name}
           </Text>
-          <Pressable
-            style={styles.editButton}
-            onPress={() => setEditModalVisible(true)}
-          >
-            <Ionicons name="create-outline" size={24} color="#FFFFFF" />
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {!isPersonal && (
+              <Pressable
+                style={styles.editButton}
+                onPress={() => setInviteModalVisible(true)}
+              >
+                <Ionicons name="person-add-outline" size={22} color="#FFFFFF" />
+              </Pressable>
+            )}
+            <Pressable
+              style={styles.editButton}
+              onPress={() => setEditModalVisible(true)}
+            >
+              <Ionicons name="create-outline" size={24} color="#FFFFFF" />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -352,6 +410,48 @@ export default function ProjectDetailScreen() {
           )}
         </View>
 
+        {/* Group Project Members List */}
+        {!isPersonal && project.members && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Project Members</Text>
+            {project.members.length > 0 ? (
+              project.members.map((member, index) => (
+                <View key={member.userId || index} style={styles.memberRow}>
+                  <View style={styles.memberInfo}>
+                    <View style={[styles.memberAvatar, member.admin && { backgroundColor: "#EEF2F6" }]}>
+                      <Text style={[styles.memberAvatarText, member.admin && { color: "#475569" }]}>
+                        {member.admin ? "A" : "M"}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.memberEmail}>{member.fullName || member.username}</Text>
+                      <Text style={styles.memberShare}>
+                        {member.email} • {member.admin ? "Admin" : "Member"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[
+                    styles.progressBadge,
+                    member.joinStatus === "INVITED" && { backgroundColor: "#FEF3C7" }
+                  ]}>
+                    <Text style={[
+                      styles.progressBadgeText,
+                      member.joinStatus === "INVITED" && { color: "#D97706" }
+                    ]}>
+                      {member.joinStatus}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyHistoryBox}>
+                <Ionicons name="people-outline" size={32} color="#9CA3AF" />
+                <Text style={styles.emptyHistoryText}>No group members joined yet.</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Delete Project Button */}
         <Pressable
           style={styles.deleteProjectButton}
@@ -371,6 +471,15 @@ export default function ProjectDetailScreen() {
           project={project}
           onClose={() => setEditModalVisible(false)}
           onUpdated={fetchProjectDetail}
+        />
+      )}
+
+      {/* Invite Member Modal */}
+      {inviteModalVisible && (
+        <InviteMemberModal
+          visible={inviteModalVisible}
+          projectId={id}
+          onClose={() => setInviteModalVisible(false)}
         />
       )}
     </SafeAreaView>
@@ -709,5 +818,52 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
+  },
+  memberRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  memberInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EEF0FF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  memberAvatarText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#3F2CCB",
+  },
+  memberEmail: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  memberShare: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  progressBadge: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  progressBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#2563EB",
   },
 });

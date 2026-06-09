@@ -11,6 +11,7 @@ import {
   UpdateProjectPayload,
   ProjectAdvisorPayload,
   ProjectAdvisorResponse,
+  InviteResponse,
 } from "../types/project.types";
 import { ApiResponse } from "../types/auth.types";
 
@@ -239,7 +240,7 @@ export const ProjectAPI = {
   async inviteMember(
     projectId: string,
     data: InviteProjectMemberPayload
-  ): Promise<ApiResponse<ProjectResponse>> {
+  ): Promise<ApiResponse<InviteResponse>> {
     try {
       const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/members/invite`;
       console.log("🔵 [ProjectApi] POST Request:");
@@ -250,6 +251,38 @@ export const ProjectAPI = {
         `/api/v1/projects/${projectId}/members/invite`,
         data
       );
+      console.log("🟢 [ProjectApi] Response Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [ProjectApi] Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+      console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  },
+
+  async acceptInvitation(
+    data: { token: string; commitmentAmount?: number }
+  ): Promise<ApiResponse<ProjectDetailResponse>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/invites/accept`;
+      console.log("🔵 [ProjectApi] POST Request:");
+      console.log("   URL:", fullUrl);
+      console.log("   Payload:", JSON.stringify(data, null, 2));
+
+      const res = await http.post("/api/v1/projects/invites/accept", data);
       console.log("🟢 [ProjectApi] Response Success:", res.data);
       return res.data;
     } catch (error: any) {
@@ -301,4 +334,4 @@ export const ProjectAPI = {
       );
     }
   },
-};
+};
