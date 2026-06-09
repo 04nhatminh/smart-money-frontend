@@ -8,30 +8,30 @@ import { savingPlanStyles as styles } from "../../styles/savingPlanStyles";
 
 type Props = {
   mode: SavingPlanMode | null;
-  onBack: () => void;
-  onSelectMode: (mode: SavingPlanMode) => void;
-  onContinue: () => void;
-  onEditProject?: () => void;
   advisorLoading?: boolean;
   advisorData?: ProjectAdvisorResponse | null;
   advisorError?: string | null;
+  confirmLoading?: boolean;
+
+  onBack: () => void;
+  onSelectMode: (mode: SavingPlanMode) => void;
+  onEditProject?: () => void;
   onConfirmAdvisorPlan: () => void;
   onKeepOriginalPlan: () => void;
-  confirmLoading?: boolean;
 };
 
 export default function SavingPlanModeStep({
   mode,
-  onBack,
-  onSelectMode,
-  onContinue,
-  onEditProject,
   advisorLoading,
   advisorData,
   advisorError,
+  confirmLoading,
+
+  onBack,
+  onSelectMode,
+  onEditProject,
   onConfirmAdvisorPlan,
   onKeepOriginalPlan,
-  confirmLoading,
 }: Props) {
   const showAISection = !!mode;
 

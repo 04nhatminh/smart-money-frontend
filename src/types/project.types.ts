@@ -115,28 +115,29 @@ export type ProjectDetailResponse = ProjectListItemResponse & {
 export type ProjectResponse = ProjectDetailResponse;
 
 
-export type SavingPlanSuggestionCategory = {
-  key: string;
-  label: string;
+export type BudgetAllocationCategory = {
+  category: string;
   amount: number;
 };
 
-export type SavingPlanSuggestionResponse = {
-  monthlySavingAmount: number;
-  estimatedMonths: number;
-  categories: SavingPlanSuggestionCategory[];
-}
-
-export type SavingPlanAIResponse = {
-  agreed: boolean;
-  message: string;
-  suggestion: SavingPlanSuggestionResponse;
+export type BudgetAllocationResult = {
+  totalBudget: number;
+  currency: string;
+  categories: BudgetAllocationCategory[];
 };
 
-export type SavingPlanSuggestionMap = Record<
-  SavingPlanMode,
-  SavingPlanSuggestionResponse
->;
+export type BudgetAllocationAIMessage = {
+  jobId: string;
+  userId: string;
+  duty: string;
+  status: string;
+  type: string;
+  result: BudgetAllocationResult;
+};
+
+export type RawBudgetAllocationAIMessage = Omit<BudgetAllocationAIMessage, "result"> & {
+  result: BudgetAllocationResult | string;
+};
 
 export type ProjectAdvisorPayload = CreateProjectPayload & {
   mode: SavingPlanMode;

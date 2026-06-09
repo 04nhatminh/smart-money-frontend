@@ -4,11 +4,13 @@ import {
   SavingPlanMode,
   ProjectAdvisorResponse,
 } from "../../types/project.types";
+import { BudgetAllocationResult } from "../../types/project.types";
 import { savingPlanStyles as styles } from "../../styles/savingPlanStyles";
 
 type Props = {
   mode: SavingPlanMode | null;
   advisorData: ProjectAdvisorResponse | null;
+  budgetResult?: BudgetAllocationResult | null;
   loading?: boolean;
   onBack: () => void;
   onConfirm: () => void;
@@ -18,12 +20,13 @@ type Props = {
 export default function SavingPlanReviewStep({
   mode,
   advisorData,
+  budgetResult = null,
   loading = false,
   onBack,
   onConfirm,
   onCancel,
 }: Props) {
-  const suggestion = advisorData?? null;
+  const categories = budgetResult?.categories ?? [];
 
   return (
     <>
@@ -38,20 +41,31 @@ export default function SavingPlanReviewStep({
           To reach your goal, AI suggests limiting these categories:
         </Text>
 
-        {/* {suggestion?.categories?.map((item) => (
-          <View key={item.key} style={styles.reviewRow}>
-            <Text style={styles.reviewLabel}>{item.label}</Text>
+        {budgetResult && (
+          <View style={styles.reviewRow}>
+            <Text style={styles.reviewLabel}>Total Budget</Text>
             <Text style={styles.reviewValue}>
-              {item.amount.toLocaleString("de-DE")} VND/month
+              {budgetResult.totalBudget.toLocaleString("vi-VN")}{" "}
+              {budgetResult.currency}
+            </Text>
+          </View>
+        )}
+
+        {categories.map((item) => (
+          <View key={item.category} style={styles.reviewRow}>
+            <Text style={styles.reviewLabel}>{item.category}</Text>
+            <Text style={styles.reviewValue}>
+              {item.amount.toLocaleString("vi-VN")}{" "}
+              {budgetResult?.currency || "VND"}/month
             </Text>
           </View>
         ))}
 
-        {!suggestion && (
+        {!budgetResult && (
           <View style={styles.reviewRow}>
             <Text style={styles.reviewLabel}>No suggestion available</Text>
           </View>
-        )} */}
+        )}
       </View>
 
       <Pressable

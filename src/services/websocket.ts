@@ -1,43 +1,61 @@
 import SockJS from "sockjs-client";
 import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
 import { handleIncomingNotification } from "../notification/notificationHandler";
+import { BudgetAllocationAIMessage, BudgetAllocationResult, RawBudgetAllocationAIMessage } from "../types/project.types";
 
-// ==============================
-// STATE
-// ==============================
 let stompClient: Client | null = null;
 let isConnected = false;
 let isConnecting = false;
-let currentUserId: string | null = null;
+let notificationCallback: ((notification: any) => void) | null = null;
 
-const jobSubscriptions = new Map<
-  string,
-  { sub: StompSubscription; callback: (data: any) => void }
->();
-
-let notificationSub: StompSubscription | null = null;
+// lưu subscriptions
+const jobSubscriptions = new Map<string, StompSubscription>();
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const WS_URL: string | null = BASE_URL ? `${BASE_URL}/ws` : null;
 
+type ConnectWebSocketOptions = {
+  userId: string;
+  jobIds?: string[];
+  onNotification?: (notification: any) => void;
+  onResult?: (jobId: string, data: any) => void;
+};
+
 // ==============================
-// INIT
+// HELPERS
+// ==============================
+
+const parseBudgetAIMessage = (body: string): BudgetAllocationAIMessage => {
+  const data = JSON.parse(body) as RawBudgetAllocationAIMessage;
+
+  const parsedResult =
+    typeof data.result === "string"
+      ? JSON.parse(data.result)
+      : data.result;
+
+  return {
+    ...data,
+    result: parsedResult,
+  };
+};
+
+// ==============================
+// 🚀 INIT (singleton)
 // ==============================
 export const initWebSocket = (userId: string): Promise<Client> => {
   return new Promise((resolve, reject) => {
-    if (!WS_URL) return reject("❌ WS_URL missing");
-
-    // 🔥 nếu user đổi → reset WS
-    if (currentUserId && currentUserId !== userId) {
-      disconnectWebSocket();
+    if (!WS_URL) {
+      reject("❌ WS_URL missing");
+      return;
     }
 
-    currentUserId = userId;
-
+    // ✅ nếu đã connect rồi
     if (stompClient && isConnected) {
-      return resolve(stompClient);
+      resolve(stompClient);
+      return;
     }
 
+    // ✅ nếu đang connect thì chờ
     if (isConnecting) {
       const interval = setInterval(() => {
         if (isConnected && stompClient) {
@@ -45,57 +63,43 @@ export const initWebSocket = (userId: string): Promise<Client> => {
           resolve(stompClient);
         }
       }, 100);
-
-      const timeout = setTimeout(() => {
-        clearInterval(interval);
-        reject("❌ Connection timeout");
-      }, 10000);
-
       return;
     }
 
     isConnecting = true;
 
+    const socket = new SockJS(WS_URL);
+
     stompClient = new Client({
-      webSocketFactory: () => new SockJS(WS_URL),
+      webSocketFactory: () => socket as any,
       reconnectDelay: 5000,
-
-      heartbeatIncoming: 10000,
-      heartbeatOutgoing: 10000,
-
-      debug: (str) => console.log("[WS]", str),
+      debug: (str: string) => console.log("[WS]", str),
     });
 
-    // ==========================
-    // CONNECT
-    // ==========================
     stompClient.onConnect = () => {
       console.log("✅ WebSocket connected");
-
       isConnected = true;
       isConnecting = false;
 
-      // 🔔 subscribe notification
-      subscribeNotifications();
-
-      // 🔁 resubscribe jobs
-      jobSubscriptions.forEach((value, jobId) => {
-        console.log("🔁 Resubscribe job:", jobId);
-        internalSubscribeJob(jobId, value.callback);
+      // 🔔 subscribe notification 1 lần
+      stompClient?.subscribe(`/topic/notifications/${userId}`, (msg: IMessage) => {
+        try {
+          const data = JSON.parse(msg.body);
+          console.log("🔔 Received notification:", data);
+          if (notificationCallback) {
+            notificationCallback(data);
+          } else {
+            handleIncomingNotification(data);
+          }
+        } catch (err) {
+          console.error("❌ Notification parse error", err);
+        }
       });
 
       resolve(stompClient!);
     };
 
-    // ==========================
-    // DISCONNECT
-    // ==========================
-    stompClient.onDisconnect = () => {
-      console.log("🔌 WebSocket disconnected");
-      isConnected = false;
-    };
-
-    stompClient.onWebSocketError = (err) => {
+    stompClient.onWebSocketError = (err: Event) => {
       console.error("❌ WS error", err);
       isConnecting = false;
       reject(err);
@@ -106,74 +110,133 @@ export const initWebSocket = (userId: string): Promise<Client> => {
 };
 
 // ==============================
-// 🔔 NOTIFICATION SUBSCRIBE
+// 🔄 COMPAT API (legacy callers)
 // ==============================
-const subscribeNotifications = () => {
-  if (!stompClient || !isConnected || !currentUserId) return;
-
-  if (notificationSub) {
-    notificationSub.unsubscribe();
+export const connectWebSocket = async ({
+  userId,
+  jobIds = [],
+  onNotification,
+  onResult,
+}: ConnectWebSocketOptions): Promise<() => void> => {
+  if (onNotification) {
+    notificationCallback = onNotification;
   }
 
-  notificationSub = stompClient.subscribe(
-    `/topic/notifications/${currentUserId}`,
-    (msg: IMessage) => {
-      try {
-        const data = JSON.parse(msg.body);
-        console.log("🔔 Notification:", data);
-        handleIncomingNotification(data);
-      } catch (err) {
-        console.error("❌ Notification parse error", err);
-      }
+  await initWebSocket(userId);
+
+  const unsubscribers: Array<() => void> = [];
+  if (onResult) {
+    for (const jobId of jobIds) {
+      unsubscribers.push(subscribeJob(jobId, (data) => onResult(jobId, data)));
     }
-  );
+  }
+
+  return () => {
+    for (const unsubscribe of unsubscribers) {
+      unsubscribe();
+    }
+  };
 };
 
 // ==============================
 // 🎯 SUBSCRIBE JOB
 // ==============================
-const internalSubscribeJob = (
-  jobId: string,
-  callback: (data: any) => void
-) => {
-  if (!stompClient || !isConnected) return;
-
-  const sub = stompClient.subscribe(`/topic/ai/${jobId}`, (message) => {
-    try {
-      const data = JSON.parse(message.body);
-      callback(data);
-    } catch (err) {
-      console.error("❌ Parse error", err);
-    }
-  });
-
-  jobSubscriptions.set(jobId, { sub, callback });
-};
-
 export const subscribeJob = (
   jobId: string,
   onResult: (data: any) => void
 ): (() => void) => {
   if (!stompClient || !isConnected) {
-    console.warn("⚠️ WS not ready → skip subscribe:", jobId);
-    return () => {};
+    throw new Error("WebSocket not connected");
   }
 
+  // ❗ nếu đã subscribe rồi → không tạo lại
   if (jobSubscriptions.has(jobId)) {
     console.log("⚠️ Already subscribed:", jobId);
     return () => {};
   }
 
-  internalSubscribeJob(jobId, onResult);
+  const sub = stompClient.subscribe(`/topic/ai/${jobId}`, (message: IMessage) => {
+    try {
+      console.log("📨 Received job:", jobId);
+      const data = JSON.parse(message.body);
+      onResult(data);
+    } catch (err) {
+      console.error("❌ Parse error", err);
+    }
+  });
+
+  jobSubscriptions.set(jobId, sub);
 
   console.log("✅ Subscribed job:", jobId);
 
+  // ✅ cleanup
   return () => {
-    const item = jobSubscriptions.get(jobId);
-    if (item) {
-      item.sub.unsubscribe();
+    const s = jobSubscriptions.get(jobId);
+    if (s) {
+      s.unsubscribe();
       jobSubscriptions.delete(jobId);
       console.log("🧹 Unsubscribed job:", jobId);
+    }
+  };
+};
+
+// ==============================
+// BUDGET JOB SUBSCRIBE
+// Dùng riêng cho BUDGET_ALLOCATION_PLAN
+// ==============================
+
+export const subscribeBudgetJob = (
+  jobId: string,
+  onResult: (data: BudgetAllocationAIMessage) => void,
+  onError?: (error: unknown) => void
+): (() => void) => {
+  if (!stompClient || !isConnected) {
+    throw new Error("WebSocket not connected");
+  }
+
+  if (jobSubscriptions.has(jobId)) {
+    console.log("⚠️ Already subscribed budget job:", jobId);
+    return () => {};
+  }
+
+  const sub = stompClient.subscribe(`/topic/ai/${jobId}`, (message: IMessage) => {
+    try {
+      console.log("📨 Received budget job:", jobId);
+      console.log("📨 Raw budget message:", message.body);
+
+      const data = parseBudgetAIMessage(message.body);
+
+      if (data.jobId !== jobId) {
+        console.warn("⚠️ Ignore another job:", data.jobId);
+        return;
+      }
+
+      if (data.status !== "COMPLETED") {
+        console.warn("⚠️ Budget job not completed:", data);
+        return;
+      }
+
+      console.log("✅ Parsed budget result:", data);
+
+      onResult(data);
+    } catch (err) {
+      console.error("❌ Budget websocket parse error", err);
+      onError?.(err);
+    }
+  });
+
+  jobSubscriptions.set(jobId, sub);
+
+  console.log("✅ Subscribed budget job:", jobId);
+
+  return () => {
+    const s = jobSubscriptions.get(jobId);
+
+    if (s) {
+      s.unsubscribe();
+      jobSubscriptions.delete(jobId);
+
+      console.log("🧹 Unsubscribed budget job:", jobId);
     }
   };
 };
@@ -185,19 +248,11 @@ export const disconnectWebSocket = () => {
   if (stompClient) {
     stompClient.deactivate();
     stompClient = null;
+    isConnected = false;
+    isConnecting = false;
+    notificationCallback = null;
+    jobSubscriptions.clear();
+
+    console.log("🔌 WebSocket disconnected");
   }
-
-  isConnected = false;
-  isConnecting = false;
-  currentUserId = null;
-
-  jobSubscriptions.forEach((item) => item.sub.unsubscribe());
-  jobSubscriptions.clear();
-
-  if (notificationSub) {
-    notificationSub.unsubscribe();
-    notificationSub = null;
-  }
-
-  console.log("🔌 WebSocket fully cleaned");
 };
