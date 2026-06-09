@@ -196,3 +196,31 @@ export const disconnectWebSocket = () => {
 
   console.log("🔌 WebSocket fully cleaned");
 };
+
+// ==============================
+// 🎯 GENERIC TOPIC SUBSCRIBE
+// ==============================
+export const subscribeToTopic = (
+  topic: string,
+  onMessage: (data: any) => void
+): (() => void) => {
+  if (!stompClient || !isConnected) {
+    console.warn("⚠️ WebSocket not connected, cannot subscribe to:", topic);
+    return () => {};
+  }
+
+  console.log("📡 Subscribing to topic:", topic);
+  const sub = stompClient.subscribe(topic, (msg: IMessage) => {
+    try {
+      const data = JSON.parse(msg.body);
+      onMessage(data);
+    } catch (err) {
+      console.error(`❌ Parse error on topic ${topic}:`, err);
+    }
+  });
+
+  return () => {
+    console.log("🧹 Unsubscribing from topic:", topic);
+    sub.unsubscribe();
+  };
+};
