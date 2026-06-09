@@ -60,7 +60,8 @@ function formatAIDate(dateInput: any): string {
 export async function handleAIResultInBackground(
     jobId: string,
     pendingTxId: string,
-    cloudinaryPublicId: string
+    cloudinaryPublicId: string,
+    source: "camera" | "voice"
 ) {
     let globalTimeout: ReturnType<typeof setTimeout> | null = null;
     let timedOut = false;
@@ -71,6 +72,7 @@ export async function handleAIResultInBackground(
         pendingTxId,
         cloudinaryPublicId,
         createdAt: new Date().toISOString(),
+        source
     };
 
     await AIJobStorage.add(jobRecord);
@@ -91,7 +93,7 @@ export async function handleAIResultInBackground(
             console.log("⚡ AI instant result:", instant.data);
             if (globalTimeout) clearTimeout(globalTimeout);
             await AIJobStorage.remove(jobId); // ✅ Mark job as done
-            return updatePendingTransaction(pendingTxId, instant.data, cloudinaryPublicId);
+            return updatePendingTransaction(pendingTxId, instant.data, cloudinaryPublicId, source);
         }
 
         console.log("⏳ Waiting for WS result...");
@@ -110,7 +112,7 @@ export async function handleAIResultInBackground(
             console.log("⚡ AI result via WS:", wsResult.data);
             if (globalTimeout) clearTimeout(globalTimeout);
             await AIJobStorage.remove(jobId); // ✅ Mark job as done
-            return updatePendingTransaction(pendingTxId, wsResult.data, cloudinaryPublicId);
+            return updatePendingTransaction(pendingTxId, wsResult.data, cloudinaryPublicId, source);
         }
 
         console.log("⚠️ WS timeout → fallback polling");
@@ -127,7 +129,7 @@ export async function handleAIResultInBackground(
                     console.log("⚡ AI result via fallback (attempt:", fallbackAttempts + 1, ")");
                     if (globalTimeout) clearTimeout(globalTimeout);
                     await AIJobStorage.remove(jobId); // ✅ Mark job as done
-                    return updatePendingTransaction(pendingTxId, fallback.data, cloudinaryPublicId);
+                    return updatePendingTransaction(pendingTxId, fallback.data, cloudinaryPublicId, source);
                 }
             } catch (err: any) {
                 if (err?.response?.status !== 404) {
@@ -184,7 +186,8 @@ export async function handleAIResultInBackground(
 async function updatePendingTransaction(
     pendingTxId: string,
     resultData: any,
-    cloudinaryPublicId: string
+    cloudinaryPublicId: string,
+    source: "camera" | "voice"
 ) {
     try {
         const pending = PendingStorage.find(pendingTxId);
@@ -204,6 +207,7 @@ async function updatePendingTransaction(
             type: resultData.type === "EXPENSE" ? "EXPENSE" : "INCOME",
             description: resultData.description || resultData.text || "",
             date: formatAIDate(resultData.date),
+            source: source
         });
 
         console.log("✅ Pending transaction updated:", updatedTx.id);
@@ -234,7 +238,8 @@ export async function resumeUnfinishedJobs() {
             handleAIResultInBackground(
                 job.jobId,
                 job.pendingTxId,
-                job.cloudinaryPublicId
+                job.cloudinaryPublicId,
+                job.source
             ).catch((err) => {
                 console.error("❌ Resume job error:", err);
             });
@@ -247,7 +252,8 @@ export async function resumeUnfinishedJobs() {
 
 export async function handleFullAIFlowInBackground(
     photoUri: string,
-    pendingTxId: string
+    pendingTxId: string,
+    source: "camera" | "voice"
 ) {
     let publicId = "";
 
@@ -267,7 +273,7 @@ export async function handleFullAIFlowInBackground(
         const jobId = submit.data.jobId;
 
         // 🧠 Wait result (reuse code cũ)
-        await handleAIResultInBackground(jobId, pendingTxId, publicId);
+        await handleAIResultInBackground(jobId, pendingTxId, publicId, source);
 
     } catch (err) {
         console.error("❌ Full flow error:", err);
@@ -289,7 +295,8 @@ export async function handleFullAIFlowInBackground(
 
  export async function handleFullVoiceAIFlowInBackground(
         audioUri: string,
-        pendingTxId: string
+        pendingTxId: string,
+        source: "camera" | "voice"
     ) {
         let publicId = "";
 
@@ -310,7 +317,7 @@ export async function handleFullAIFlowInBackground(
             const jobId = submit.data.jobId;
 
             // 🧠 Reuse existing handler
-            await handleAIResultInBackground(jobId, pendingTxId, publicId);
+            await handleAIResultInBackground(jobId, pendingTxId, publicId, source);
 
         } catch (err) {
             console.error("❌ Full voice flow error:", err);

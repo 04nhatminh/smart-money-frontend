@@ -61,6 +61,7 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
         type: "EXPENSE",
         description: "Processing receipt...",
         date: new Date().toISOString(),
+        source: "camera",
       });
 
       // 🎬 Close modal NGAY
@@ -69,7 +70,7 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
       onClose();
 
       // 🌀 Run EVERYTHING in background
-      handleFullAIFlowInBackground(photoUri, pendingTx.id).catch(console.error);
+      handleFullAIFlowInBackground(photoUri, pendingTx.id, "camera").catch(console.error);
 
     } catch (error: any) {
       Alert.alert("Error", error?.message || "Failed");

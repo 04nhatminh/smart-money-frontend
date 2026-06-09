@@ -14,6 +14,7 @@ export type PendingTransaction = {
   type: "INCOME" | "EXPENSE";
   description: string;
   date: string;
+  source: "camera" | "voice" | "notification"; 
 };
 
 class PendingStorage {
@@ -77,6 +78,8 @@ class PendingStorage {
     this.persist();
     pendingEventBus.emit("updated");
   }
+
+  
 }
 
 export default new PendingStorage();

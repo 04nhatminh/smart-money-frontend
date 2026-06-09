@@ -7,6 +7,7 @@ export type AIJobRecord = {
   pendingTxId: string;
   cloudinaryPublicId: string;
   createdAt: string;
+  source: "camera" | "voice" ;
 };
 
 class AIJobStorage {
