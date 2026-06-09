@@ -11,6 +11,9 @@ import {
   UpdateProjectPayload,
   ProjectAdvisorPayload,
   ProjectAdvisorResponse,
+  ProjectType,
+  ProjectPriority,
+  ProjectStatus,
 } from "../types/project.types";
 import { ApiResponse } from "../types/auth.types";
 
@@ -47,24 +50,46 @@ export const ProjectAPI = {
     }
   },
 
-  async getAll(): Promise<ApiResponse<ProjectListItemResponse[]>> {
+  async getAll(
+    params?: {
+      search?: string;
+      type?: ProjectType;
+      status?: ProjectStatus;
+      priority?: ProjectPriority;
+    }
+  ): Promise<ApiResponse<ProjectListItemResponse[]>> {
+
     try {
+
       const fullUrl = `${http.defaults.baseURL}/api/v1/projects`;
+
       console.log("🔵 [ProjectApi] GET Request:");
       console.log("   URL:", fullUrl);
+      console.log("   Params:", params);
 
-      const res = await http.get("/api/v1/projects");
+      const res = await http.get("/api/v1/projects", {
+          params,
+        }
+      );
+
       console.log("🟢 [ProjectApi] Response Success:", res.data);
+
       return res.data;
+
     } catch (error: any) {
+
       const errorMsg = error?.message || "Unknown error";
       const status = error?.response?.status || "No status";
       const responseData = error?.response?.data;
 
       console.error("🔴 [ProjectApi] Error Details:");
+
       console.error("   Message:", errorMsg);
+
       console.error("   Status:", status);
+
       console.error("   Response Data:", responseData);
+
       console.error("   Full Error:", error);
 
       return (

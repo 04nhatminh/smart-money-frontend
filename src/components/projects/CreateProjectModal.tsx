@@ -8,11 +8,10 @@ import { projectStyles as styles } from "../../styles/projectStyles";
 import { useCreateProject } from "../../hooks/useCreateProject";
 import {
     CreateProjectModalStep,
-    CreateProjectPayload,
     ProjectAdvisorResponse,
-    PROJECT_PRIORITIES,
     SavingPlanMode,
     ProjectPriority,
+    BudgetAllocationResult,
 } from "../../types/project.types";
 import { UserIncomeApi } from "../../api/userIncome.api";
 import CreateProjectStep from "./CreateProjectStep";
@@ -21,6 +20,10 @@ import SavingPlanReviewStep from "./SavingPlanReviewStep";
 import SetupIncomeModal from "./SetupIncomeModal";
 import { t } from "../../i18n";
 import { ProjectAPI } from "../../api/project.api";
+import { BudgetAIAPI } from "../../api/budgetAI.api";
+import { budgetAPI } from "../../api/budget.api";
+import { UserFinancialProfileAPI } from "../../api/userFinancialProfile.api";
+import { initWebSocket, subscribeBudgetJob } from "../../services/websocket";
 
 type Props = {
     visible: boolean;
@@ -54,6 +57,10 @@ export default function CreateProjectModal({
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showExitModal, setShowExitModal] = useState(false);
 
+    const [budgetLoading, setBudgetLoading] = useState(false);
+    const [budgetResult, setBudgetResult] = useState<BudgetAllocationResult | null>(null);
+    const [budgetSaveLoading, setBudgetSaveLoading] = useState(false);
+
     const {
         values,
         errors,
@@ -76,84 +83,83 @@ export default function CreateProjectModal({
     } = useCreateProject({usedPriorities,});
 
     const fetchUsedPriorities =
-    async () => {
+        async () => {
 
-      try {
+        try {
 
-        setCheckingPriorities(true);
+            setCheckingPriorities(true);
 
-        const response = await ProjectAPI.getAll({
-            status: "ACTIVE",
-          });
+            const response = await ProjectAPI.getAll({
+                status: "ACTIVE",
+            });
 
-        if (!response?.success || !response?.data) {
-          setUsedPriorities([]);
-          return;
+            if (!response?.success || !response?.data) {
+            setUsedPriorities([]);
+            return;
+            }
+
+            const priorities = [
+                ...new Set(
+                    response.data
+                        .map(
+                            (project) =>
+                                project.priority
+                        )
+                        .filter(Boolean)
+                ),
+            ] as ProjectPriority[];
+
+            setUsedPriorities(priorities);
+
+        } catch (error) {
+
+            console.log("Fetch priorities error:", error);
+            setUsedPriorities([]);
+
+        } finally {
+            setCheckingPriorities(false);
+        }
+        };
+
+    useEffect(() => {
+        if (visible) {
+            fetchUsedPriorities();
+        }
+    }, [visible]);
+
+    useEffect(() => {
+
+        if (!visible) return;
+
+        if (!canCreateProject) return;
+
+        const currentPriorityUsed =
+            usedPriorities.includes(
+                values.priority
+            );
+
+        if (
+            currentPriorityUsed &&
+            availablePriorities.length > 0
+        ) {
+
+            onChangePriority(
+                availablePriorities[0]
+            );
         }
 
-        const priorities = [
-            ...new Set(
-                response.data
-                    .map(
-                        (project) =>
-                            project.priority
-                    )
-                    .filter(Boolean)
-            ),
-        ] as ProjectPriority[];
-
-        setUsedPriorities(priorities);
-
-      } catch (error) {
-
-        console.log("Fetch priorities error:", error);
-        setUsedPriorities([]);
-
-      } finally {
-        setCheckingPriorities(false);
-      }
-    };
-
-  useEffect(() => {
-    if (visible) {
-        fetchUsedPriorities();
-    }
-  }, [visible]);
-
-  useEffect(() => {
-
-    if (!visible) return;
-
-    if (!canCreateProject) return;
-
-    const currentPriorityUsed =
-        usedPriorities.includes(
-            values.priority
+        console.log("Available priorities:",
+            availablePriorities,
+            "Used priorities:",
+            usedPriorities
         );
 
-    if (
-        currentPriorityUsed &&
-        availablePriorities.length > 0
-    ) {
-
-        onChangePriority(
-            availablePriorities[0]
-        );
-    }
-
-    console.log("Available priorities:",
+    }, [
+        visible,
+        usedPriorities,
         availablePriorities,
-        "Used priorities:",
-        usedPriorities
-    );
-
-}, [
-    visible,
-    usedPriorities,
-    availablePriorities,
-    canCreateProject,
-]);
-
+        canCreateProject,
+    ]);
 
 
     const resetAll = () => {
@@ -166,6 +172,9 @@ export default function CreateProjectModal({
         setAdvisorLoading(false);
         setConfirmLoading(false);
         setShowSetupIncome(false);
+        setBudgetLoading(false);
+        setBudgetResult(null);
+        setBudgetSaveLoading(false);
     };
 
     const handleClose = () => {
@@ -325,40 +334,110 @@ export default function CreateProjectModal({
         await createProject(false);
     };
 
-    // Sau sẽ sửa lại và lưu budget plan
-    const handleConfirmCreate = async () => {
-        if (!advisorData) return;
+    const handleSaveBudgetAllocation = async () => {
+        if (!budgetResult) {
+            Alert.alert("Budget", "No budget allocation result to save.");
+            return;
+        }
 
         try {
-            setConfirmLoading(true);
+            setBudgetSaveLoading(true);
 
-            const payload = buildPayloadWithAdvisor(
-            advisorData
-            );
+            const now = new Date();
+
+            const payload = {
+            month: now.getMonth() + 1,
+            year: now.getFullYear(),
+            budgets: budgetResult.categories.map((item) => ({
+                category: item.category,
+                amountLimit: item.amount,
+            })),
+            };
 
             console.log(
-            "🟣 Create project with advisor-confirmed deadline:",
-            JSON.stringify(payload, null, 2)
-            );
+                "🟣 [Budget] Bulk payload:",
+                JSON.stringify(payload, null, 2)
+                );
 
-            const response = await ProjectAPI.create(payload);
+            const response = await budgetAPI.createBulk(payload);
 
             if (!response?.success) {
-            throw new Error(
-                response?.message || "Failed to create project"
-            );
+            throw new Error(response?.message || "Failed to save budget allocation");
             }
 
             setShowSuccessModal(true);
         } catch (error: any) {
             Alert.alert(
-            "Error",
-            error?.message || "Failed to create project"
+            "Budget Allocation",
+            error?.message || "Failed to save budget allocation"
             );
         } finally {
-            setConfirmLoading(false);
+            setBudgetSaveLoading(false);
         }
-    };
+        };
+
+    const handleCreateBudgetAllocation = async () => {
+        try {
+            setBudgetLoading(true);
+            setBudgetResult(null);
+
+            const profileResponse = await UserFinancialProfileAPI.getMe();
+
+            if (!profileResponse?.success || !profileResponse.data) {
+            setBudgetLoading(false);
+
+            Alert.alert(
+                "Financial Profile Required",
+                "Please create your financial profile before generating budget allocation."
+            );
+
+            return;
+            }
+
+            const userId = profileResponse.data.userId;
+
+            await initWebSocket(userId);
+
+            const generateResponse = await BudgetAIAPI.generate();
+
+            if (!generateResponse?.success || !generateResponse.data?.jobId) {
+            throw new Error(
+                generateResponse?.message || "Failed to generate budget allocation"
+            );
+            }
+
+            const jobId = generateResponse.data.jobId;
+
+            console.log("🟣 Budget generate jobId:", jobId);
+
+            await subscribeBudgetJob(
+            jobId,
+            (message) => {
+                console.log("✅ Budget allocation completed:", message);
+
+                setBudgetResult(message.result);
+                setBudgetLoading(false);
+            },
+            (error) => {
+                console.error("❌ Budget allocation socket error:", error);
+
+                setBudgetLoading(false);
+
+                Alert.alert(
+                "Budget Allocation",
+                "Failed to receive budget allocation result."
+                );
+            }
+            );
+        } catch (error: any) {
+            setBudgetLoading(false);
+
+            Alert.alert(
+            "Budget Allocation",
+            error?.message || "Failed to create budget allocation"
+            );
+        }
+        };
 
     const handleSuccessClose = () => {
         setShowSuccessModal(false);
@@ -418,11 +497,12 @@ export default function CreateProjectModal({
 
                             {step === 3 && (
                                 <SavingPlanReviewStep
-                                    mode={mode}
-                                    advisorData={advisorData}
-                                    loading={confirmLoading}
+                                    values={values}
+                                    budgetResult={budgetResult}
+                                    loading={budgetSaveLoading}
                                     onBack={handleBackStep}
-                                    onConfirm={handleConfirmCreate}
+                                    onCreateBudget={handleCreateBudgetAllocation}
+                                    onConfirm={handleSaveBudgetAllocation}
                                     onCancel={handleClose}
                                 />
                             )}
