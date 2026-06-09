@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Alert, Modal, View, ScrollView } from "react-native";
+import { Alert, Modal, View, ScrollView, Text } from "react-native";
 
 import SuccessModal from "../SuccessModal";
 import ConfirmExitModal from "../ConfirmExitModal";
@@ -24,6 +24,7 @@ import { BudgetAIAPI } from "../../api/budgetAI.api";
 import { budgetAPI } from "../../api/budget.api";
 import { UserFinancialProfileAPI } from "../../api/userFinancialProfile.api";
 import { initWebSocket, subscribeBudgetJob } from "../../services/websocket";
+import { ButtonSave } from "../ButtonSave";
 
 type Props = {
     visible: boolean;
@@ -40,6 +41,7 @@ export default function CreateProjectModal({
 
     const [mode, setMode] = useState<SavingPlanMode | null>(null);
 
+    const [showIncomeRequiredModal, setShowIncomeRequiredModal] = useState(false);
     const [showSetupIncome, setShowSetupIncome] = useState(false);
 
     const [confirmLoading, setConfirmLoading] = useState(false);
@@ -194,23 +196,35 @@ export default function CreateProjectModal({
     };
 
     const handleNextFromCreate = async () => {
-
         try {
             const incomeResponse = await UserIncomeApi.getMe();
 
-            const hasIncome = incomeResponse?.success &&
-                !!incomeResponse?.data;
+            const hasIncome =
+            incomeResponse?.success &&
+            !!incomeResponse?.data;
 
             if (!hasIncome) {
-                setShowSetupIncome(true);
-                return;
+            setShowIncomeRequiredModal(true);
+            return;
             }
 
             setStep(2);
-        } catch (error) {
-            setShowSetupIncome(true);
+        } catch (error: any) {
+            const status = error?.response?.status;
+
+            if (status === 404) {
+            setShowIncomeRequiredModal(true);
+            return;
+            }
+
+            Alert.alert(
+            "Income Error",
+            error?.response?.data?.message ||
+                error?.message ||
+                "Failed to check income information"
+            );
         }
-    };
+        };
 
     const handleSelectMode = async (selectedMode: SavingPlanMode) => {
 
@@ -497,7 +511,6 @@ export default function CreateProjectModal({
 
                             {step === 3 && (
                                 <SavingPlanReviewStep
-                                    values={values}
                                     budgetResult={budgetResult}
                                     loading={budgetSaveLoading}
                                     onBack={handleBackStep}
@@ -507,6 +520,41 @@ export default function CreateProjectModal({
                                 />
                             )}
                         </ScrollView>
+
+                       {showIncomeRequiredModal && (
+                            <View style={styles.popupOverlay}>
+                                <View style={styles.popupCard}>
+
+                                <Text style={styles.popupTitle}>
+                                    Income setup required
+                                </Text>
+
+                                <Text style={styles.popupMessage}>
+                                    To generate a suitable saving plan,
+                                    please set up your income information first.
+                                </Text>
+
+                                <View style={styles.popupActions}>
+                                    <ButtonSave
+                                    label="Cancel"
+                                    variant="secondary"
+                                    onPress={() =>
+                                        setShowIncomeRequiredModal(false)
+                                    }
+                                    />
+
+                                    <ButtonSave
+                                    label="Create"
+                                    onPress={() => {
+                                        setShowIncomeRequiredModal(false);
+                                        setShowSetupIncome(true);
+                                    }}
+                                    />
+                                </View>
+
+                                </View>
+                            </View>
+                        )}
                     </View>
 
                 </View>
@@ -519,7 +567,7 @@ export default function CreateProjectModal({
                 description="Your project has been created."
                 buttonText="Done"
             />
-
+                
             <ConfirmExitModal
                 visible={showExitModal}
                 onCancel={() => setShowExitModal(false)}

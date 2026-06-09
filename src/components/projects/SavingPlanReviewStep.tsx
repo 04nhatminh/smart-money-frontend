@@ -5,7 +5,6 @@ import { savingPlanStyles as styles } from "../../styles/savingPlanStyles";
 import { ButtonSave } from "../ButtonSave";
 
 type Props = {
-  values: CreateProjectFormValues;
   budgetResult?: BudgetAllocationResult | null;
   loading?: boolean;
   budgetLoading?: boolean;
@@ -16,7 +15,6 @@ type Props = {
 };
 
 export default function SavingPlanReviewStep({
-  values,
   budgetResult = null,
   loading = false,
   onBack,

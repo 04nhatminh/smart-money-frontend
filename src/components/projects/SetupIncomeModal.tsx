@@ -4,6 +4,7 @@ import {
   ScrollView,
   Text,
   View,
+  Switch,
 } from "react-native";
 
 import { InputField } from "../InputField";
@@ -16,11 +17,9 @@ import {
   parseCurrencyToNumber,
 } from "../../utils/project";
 
-import {
-  UserIncomeApi,
-} from "../../api/userIncome.api";
+import { UserIncomeApi } from "../../api/userIncome.api";
 
-import { CreateIncomePayload, UserIncomeResponse } from "../../types/user.types";
+import { CreateIncomePayload } from "../../types/user.types";
 
 type Props = {
   visible: boolean;
@@ -33,61 +32,36 @@ export default function SetupIncomeModal({
   onClose,
   onSuccess,
 }: Props) {
-  const [netIncome, setNetIncome] =
-    useState("");
-
-  const [usableIncome, setUsableIncome] =
-    useState("");
-
+  const [netIncome, setNetIncome] = useState("");
+  const [usableIncome, setUsableIncome] = useState("");
   const [note, setNote] = useState("");
-
-  const [loading, setLoading] =
-    useState(false);
+  const [autoInvestSurplus, setAutoInvestSurplus] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const handleCurrencyChange = (
     value: string,
     setter: (value: string) => void
   ) => {
-    const numeric =
-      parseCurrencyToNumber(value);
-
-    setter(
-      formatNumberWithDots(numeric)
-    );
+    const numeric = parseCurrencyToNumber(value);
+    setter(formatNumberWithDots(numeric));
   };
 
   const handleSave = async () => {
     try {
       setLoading(true);
 
-      const payload: CreateIncomePayload =
-        {
-          netIncome:
-            parseCurrencyToNumber(
-              netIncome
-            ),
+      const payload: CreateIncomePayload = {
+        netIncome: parseCurrencyToNumber(netIncome),
+        usableIncome: parseCurrencyToNumber(usableIncome),
+        currency: "VND",
+        calculationNote: note,
+        autoInvestSurplus,
+      };
 
-          usableIncome:
-            parseCurrencyToNumber(
-              usableIncome
-            ),
-
-          currency: "VND",
-
-          calculationNote: note,
-
-          autoInvestSurplus: true,
-        };
-
-      const response =
-        await UserIncomeApi.create(
-          payload
-        );
+      const response = await UserIncomeApi.create(payload);
 
       if (!response?.success) {
-        throw new Error(
-          response?.message
-        );
+        throw new Error(response?.message);
       }
 
       onSuccess();
@@ -98,63 +72,40 @@ export default function SetupIncomeModal({
     }
   };
 
-
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-    >
+    <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
-          <ScrollView
-            showsVerticalScrollIndicator={
-              false
-            }
-          >
-            <Text style={styles.title}>
-              Setup Income
-            </Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text style={styles.title}>Setup Income</Text>
 
-            <Text style={styles.name}>
-              Net Income
-            </Text>
+            <Text style={styles.name}>Net Income</Text>
 
             <InputField
               iconName="wallet-outline"
               placeholder="Net Income"
               value={netIncome}
               onChangeText={(value) =>
-                handleCurrencyChange(
-                  value,
-                  setNetIncome
-                )
+                handleCurrencyChange(value, setNetIncome)
               }
               keyboardType="numeric"
               rightText="VND"
             />
 
-            <Text style={styles.name}>
-              Usable Income
-            </Text>
+            <Text style={styles.name}>Usable Income</Text>
 
             <InputField
               iconName="cash-outline"
               placeholder="Usable Income"
               value={usableIncome}
               onChangeText={(value) =>
-                handleCurrencyChange(
-                  value,
-                  setUsableIncome
-                )
+                handleCurrencyChange(value, setUsableIncome)
               }
               keyboardType="numeric"
               rightText="VND"
             />
 
-            <Text style={styles.name}>
-              Calculation Note
-            </Text>
+            <Text style={styles.name}>Calculation Note</Text>
 
             <InputField
               iconName="document-text-outline"
@@ -164,6 +115,33 @@ export default function SetupIncomeModal({
               multiline
               numberOfLines={4}
             />
+
+            <View style={styles.switchGroup}>
+              <View style={styles.switchLabelCol}>
+                <Text style={styles.switchLabel}>
+                  Auto Invest Surplus
+                </Text>
+
+                <Text style={styles.switchSubLabel}>
+                  Automatically use surplus income when generating saving plans and budget suggestions.
+                </Text>
+              </View>
+
+              <Switch
+                value={autoInvestSurplus}
+                onValueChange={setAutoInvestSurplus}
+                disabled={loading}
+                trackColor={{
+                  false: "#D1D5DB",
+                  true: "#3629B7",
+                }}
+                thumbColor={
+                  autoInvestSurplus
+                    ? "#FFFFFF"
+                    : "#F4F4F5"
+                }
+              />
+            </View>
 
             <View
               style={{
@@ -179,11 +157,7 @@ export default function SetupIncomeModal({
               />
 
               <ButtonSave
-                label={
-                  loading
-                    ? "Saving..."
-                    : "Save"
-                }
+                label={loading ? "Saving..." : "Save"}
                 onPress={handleSave}
               />
             </View>
