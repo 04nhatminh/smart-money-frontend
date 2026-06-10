@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Alert, Modal, View, ScrollView } from "react-native";
+import { useRouter } from "expo-router";
 
 import SuccessModal from "../SuccessModal";
 import ConfirmExitModal from "../ConfirmExitModal";
@@ -15,17 +16,22 @@ import {
     ProjectPriority,
 } from "../../types/project.types";
 import { UserIncomeApi } from "../../api/userIncome.api";
+import { UserIncomeResponse } from "../../types/user.types";
 import CreateProjectStep from "./CreateProjectStep";
 import SavingPlanModeStep from "./SavingPlanModeStep";
 import SavingPlanReviewStep from "./SavingPlanReviewStep";
 import SetupIncomeModal from "./SetupIncomeModal";
 import BudgetAllocationSuggestionStep from "./BudgetAllocationSuggestionStep";
+import FinancialProfileDisplayStep from "./FinancialProfileDisplayStep";
 import SetupFinancialProfileModal from "./SetupFinancialProfileModal";
 import CreateBudgetAllocationModal from "./CreateBudgetAllocationModal";
 import { t } from "../../i18n";
 import { ProjectAPI } from "../../api/project.api";
 import { BudgetAllocationApi } from "../../api/budgetAllocation.api";
-import { GenerateBudgetAllocationPayload } from "../../types/budget_allocation.types";
+import {
+    GenerateBudgetAllocationPayload,
+    UserFinancialProfileData,
+} from "../../types/budget_allocation.types";
 
 type Props = {
     visible: boolean;
@@ -38,9 +44,12 @@ export default function CreateProjectModal({
     onClose,
     onCreated
 }: Props) {
+    const router = useRouter();
     const [step, setStep] = useState<CreateProjectModalStep>(1);
     const [mode, setMode] = useState<SavingPlanMode | null>(null);
     const [showSetupIncome, setShowSetupIncome] = useState(false);
+    const [existingIncome, setExistingIncome] = useState<UserIncomeResponse | null>(null);
+    const [incomeCheckLoading, setIncomeCheckLoading] = useState(false);
     const [confirmLoading, setConfirmLoading] = useState(false);
     const [advisorLoading, setAdvisorLoading] = useState(false);
     const [advisorData, setAdvisorData] = useState<ProjectAdvisorResponse | null>(null);
@@ -56,6 +65,7 @@ export default function CreateProjectModal({
     const [showSetupFinancialProfile, setShowSetupFinancialProfile] = useState(false);
     const [showBudgetGeneration, setShowBudgetGeneration] = useState(false);
     const [budgetPayload, setBudgetPayload] = useState<GenerateBudgetAllocationPayload | null>(null);
+    const [existingProfile, setExistingProfile] = useState<UserFinancialProfileData | null>(null);
 
     const {
         values,
@@ -134,10 +144,13 @@ export default function CreateProjectModal({
         setAdvisorLoading(false);
         setConfirmLoading(false);
         setShowSetupIncome(false);
+        setExistingIncome(null);
+        setIncomeCheckLoading(false);
         setBudgetPayload(null);
         setProfileCheckLoading(false);
         setShowSetupFinancialProfile(false);
         setShowBudgetGeneration(false);
+        setExistingProfile(null);
     };
 
     const handleClose = () => {
@@ -158,16 +171,17 @@ export default function CreateProjectModal({
 
     const handleNextFromCreate = async () => {
         try {
+            setIncomeCheckLoading(true);
             const incomeResponse = await UserIncomeApi.getMe();
-            const hasIncome = incomeResponse?.success && !!incomeResponse?.data;
-
-            if (!hasIncome) {
-                setShowSetupIncome(true);
-                return;
-            }
-
-            setStep(2);
-        } catch (error) {
+            const income =
+                incomeResponse?.success && incomeResponse?.data
+                    ? incomeResponse.data
+                    : null;
+            setExistingIncome(income);
+        } catch {
+            setExistingIncome(null);
+        } finally {
+            setIncomeCheckLoading(false);
             setShowSetupIncome(true);
         }
     };
@@ -241,6 +255,17 @@ export default function CreateProjectModal({
             const response = await ProjectAPI.create(payload);
 
             if (!response?.success) {
+                if (response?.errorCode === "PROJECT_ACTIVE_PRIORITY_CONFLICT") {
+                    await fetchUsedPriorities();
+                    setAdvisorData(null);
+                    setMode(null);
+                    setStep(1);
+                    Alert.alert(
+                        "Priority Conflict",
+                        "The selected priority is already used by another active project. Please choose a different priority."
+                    );
+                    return;
+                }
                 throw new Error(
                     response?.message || "Failed to create project"
                 );
@@ -265,37 +290,44 @@ export default function CreateProjectModal({
         await createProject(false);
     };
 
+    // Step 3 "Confirm" — project was already created by createProject() in step 2.
+    // Here we only check the financial profile and route to step 4 or CreateBudgetAllocationModal.
     const handleConfirmCreate = async () => {
-        if (!advisorData) return;
-
         try {
             setConfirmLoading(true);
 
-            const payload = buildPayloadWithAdvisor(advisorData);
+            const profileRes = await BudgetAllocationApi.getUserFinancialProfile();
 
-            console.log(
-                "🟣 Create project with advisor-confirmed deadline:",
-                JSON.stringify(payload, null, 2)
-            );
-
-            const response = await ProjectAPI.create(payload);
-
-            if (!response?.success) {
-                throw new Error(
-                    response?.message || "Failed to create project"
-                );
+            if (profileRes.success && profileRes.data) {
+                // Profile exists — show it in step 4
+                setExistingProfile(profileRes.data);
+                setStep(4);
+            } else {
+                // No profile — show BudgetAllocationSuggestionStep → CreateBudgetAllocationModal
+                setStep(4);
             }
-
-            // Proceed to budget allocation suggestion instead of success modal
-            setStep(4);
         } catch (error: any) {
-            Alert.alert(
-                "Error",
-                error?.message || "Failed to create project"
-            );
+            Alert.alert("Error", error?.message || "Something went wrong");
         } finally {
             setConfirmLoading(false);
         }
+    };
+
+    const handleCreateBudgetFromExistingProfile = () => {
+        if (!existingProfile) return;
+        const payload: GenerateBudgetAllocationPayload = {
+            role: existingProfile.role,
+            living_status: existingProfile.living_status,
+            income_level: existingProfile.income_level,
+            transport_mode: existingProfile.transport_mode,
+            spending_style: existingProfile.spending_style,
+            work_style: existingProfile.work_style,
+            family_status: existingProfile.family_status,
+            study_intensity: existingProfile.study_intensity,
+            health_need: existingProfile.health_need,
+        };
+        setBudgetPayload(payload);
+        setShowBudgetGeneration(true);
     };
 
     // ── Budget allocation handlers ──────────────────────────────────────────
@@ -306,20 +338,9 @@ export default function CreateProjectModal({
             const res = await BudgetAllocationApi.getUserFinancialProfile();
 
             if (res.success && res.data) {
-                // Profile exists — uppercase the values and go straight to generation
-                const payload: GenerateBudgetAllocationPayload = {
-                    role: res.data.role.toUpperCase(),
-                    living_status: res.data.living_status.toUpperCase(),
-                    income_level: res.data.income_level.toUpperCase(),
-                    transport_mode: res.data.transport_mode.toUpperCase(),
-                    spending_style: res.data.spending_style.toUpperCase(),
-                    work_style: res.data.work_style.toUpperCase(),
-                    family_status: res.data.family_status.toUpperCase(),
-                    study_intensity: res.data.study_intensity.toUpperCase(),
-                    health_need: res.data.health_need.toUpperCase(),
-                };
-                setBudgetPayload(payload);
-                setShowBudgetGeneration(true);
+                // Profile exists — show it in FinancialProfileDisplayStep
+                setExistingProfile(res.data);
+                setStep(4);
             } else {
                 // No profile — let the user fill in the form
                 setShowSetupFinancialProfile(true);
@@ -337,6 +358,12 @@ export default function CreateProjectModal({
         setShowSetupFinancialProfile(false);
         setBudgetPayload(payload);
         setShowBudgetGeneration(true);
+    };
+
+    const handleBudgetGenerationSaved = (profile: UserFinancialProfileData) => {
+        setShowBudgetGeneration(false);
+        setExistingProfile(profile);
+        setStep(4);
     };
 
     const handleBudgetGenerationClose = () => {
@@ -376,7 +403,7 @@ export default function CreateProjectModal({
                                     values={values}
                                     errors={errors}
                                     previewDeadline={previewDeadline}
-                                    loading={loading}
+                                    loading={loading || incomeCheckLoading}
                                     checkingPriorities={checkingPriorities}
                                     canCreateProject={canCreateProject}
                                     availablePriorities={availablePriorities}
@@ -417,7 +444,14 @@ export default function CreateProjectModal({
                                 />
                             )}
 
-                            {step === 4 && (
+                            {step === 4 && existingProfile && (
+                                <FinancialProfileDisplayStep
+                                    profile={existingProfile}
+                                    loading={profileCheckLoading}
+                                />
+                            )}
+
+                            {step === 4 && !existingProfile && (
                                 <BudgetAllocationSuggestionStep
                                     loading={profileCheckLoading}
                                     onSkip={handleSkipBudgetAllocation}
@@ -449,6 +483,7 @@ export default function CreateProjectModal({
 
             <SetupIncomeModal
                 visible={showSetupIncome}
+                existingIncome={existingIncome}
                 onClose={() => setShowSetupIncome(false)}
                 onSuccess={() => {
                     setShowSetupIncome(false);
@@ -466,6 +501,7 @@ export default function CreateProjectModal({
                 visible={showBudgetGeneration}
                 payload={budgetPayload}
                 onClose={handleBudgetGenerationClose}
+                onSaved={handleBudgetGenerationSaved}
             />
         </>
     );

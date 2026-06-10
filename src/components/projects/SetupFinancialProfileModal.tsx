@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   ScrollView,
@@ -110,6 +110,13 @@ export default function SetupFinancialProfileModal({
 }: Props) {
   const [values, setValues] =
     useState<FinancialProfileFormValues>(DEFAULT_VALUES);
+  const [step, setStep] = useState<"form" | "success">("form");
+  const [pendingPayload, setPendingPayload] =
+    useState<GenerateBudgetAllocationPayload | null>(null);
+
+  useEffect(() => {
+    if (!visible) setStep("form");
+  }, [visible]);
 
   const set =
     <K extends keyof FinancialProfileFormValues>(key: K) =>
@@ -117,100 +124,126 @@ export default function SetupFinancialProfileModal({
       setValues((prev) => ({ ...prev, [key]: val }));
 
   const handleSubmit = () => {
-    onSubmit(toUpperCasePayload(values));
+    const payload = toUpperCasePayload(values);
+    setPendingPayload(payload);
+    setStep("success");
+  };
+
+  const handleContinue = () => {
+    if (pendingPayload) onSubmit(pendingPayload);
   };
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={styles.dragHandle} />
-
-            <View style={styles.headerRow}>
-              <View>
-                <Text style={styles.title}>Financial Profile</Text>
-                <Text style={styles.subtitle}>
-                  Help AI tailor your budget allocation.
-                </Text>
+          {step === "success" ? (
+            <View style={styles.successContent}>
+              <View style={styles.successIconBox}>
+                <Ionicons name="checkmark-circle" size={64} color="#4B3FD6" />
               </View>
-              <Pressable style={styles.closeBtn} onPress={onClose}>
-                <Ionicons name="close" size={20} color="#6B7280" />
-              </Pressable>
+              <Text style={styles.successTitle}>Profile Ready!</Text>
+              <Text style={styles.successSubtitle}>
+                Your financial profile details have been captured. Continue to save your profile and set up budget allocation.
+              </Text>
+              <View style={styles.buttonRow}>
+                <ButtonSave
+                  label="Cancel"
+                  variant="secondary"
+                  onPress={onClose}
+                />
+                <ButtonSave label="Continue" onPress={handleContinue} />
+              </View>
             </View>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.dragHandle} />
 
-            <Text style={styles.label}>Your role</Text>
-            <OptionGroup
-              options={FINANCIAL_PROFILE_ROLES}
-              value={values.role}
-              onChange={set("role")}
-            />
+              <View style={styles.headerRow}>
+                <View>
+                  <Text style={styles.title}>Financial Profile</Text>
+                  <Text style={styles.subtitle}>
+                    Help AI tailor your budget allocation.
+                  </Text>
+                </View>
+                <Pressable style={styles.closeBtn} onPress={onClose}>
+                  <Ionicons name="close" size={20} color="#6B7280" />
+                </Pressable>
+              </View>
 
-            <Text style={styles.label}>Living situation</Text>
-            <OptionGroup
-              options={FINANCIAL_PROFILE_LIVING_STATUSES}
-              value={values.living_status}
-              onChange={set("living_status")}
-            />
-
-            <Text style={styles.label}>Income level</Text>
-            <OptionGroup
-              options={FINANCIAL_PROFILE_INCOME_LEVELS}
-              value={values.income_level}
-              onChange={set("income_level")}
-            />
-
-            <Text style={styles.label}>Main transport</Text>
-            <OptionGroup
-              options={FINANCIAL_PROFILE_TRANSPORT_MODES}
-              value={values.transport_mode}
-              onChange={set("transport_mode")}
-            />
-
-            <Text style={styles.label}>Spending style</Text>
-            <OptionGroup
-              options={FINANCIAL_PROFILE_SPENDING_STYLES}
-              value={values.spending_style}
-              onChange={set("spending_style")}
-            />
-
-            <Text style={styles.label}>Work style</Text>
-            <OptionGroup
-              options={FINANCIAL_PROFILE_WORK_STYLES}
-              value={values.work_style}
-              onChange={set("work_style")}
-            />
-
-            <Text style={styles.label}>Family status</Text>
-            <OptionGroup
-              options={FINANCIAL_PROFILE_FAMILY_STATUSES}
-              value={values.family_status}
-              onChange={set("family_status")}
-            />
-
-            <Text style={styles.label}>Study intensity</Text>
-            <OptionGroup
-              options={FINANCIAL_PROFILE_STUDY_INTENSITIES}
-              value={values.study_intensity}
-              onChange={set("study_intensity")}
-            />
-
-            <Text style={styles.label}>Health need</Text>
-            <OptionGroup
-              options={FINANCIAL_PROFILE_HEALTH_NEEDS}
-              value={values.health_need}
-              onChange={set("health_need")}
-            />
-
-            <View style={styles.buttonRow}>
-              <ButtonSave
-                label="Cancel"
-                variant="secondary"
-                onPress={onClose}
+              <Text style={styles.label}>Your role</Text>
+              <OptionGroup
+                options={FINANCIAL_PROFILE_ROLES}
+                value={values.role}
+                onChange={set("role")}
               />
-              <ButtonSave label="Continue" onPress={handleSubmit} />
-            </View>
-          </ScrollView>
+
+              <Text style={styles.label}>Living situation</Text>
+              <OptionGroup
+                options={FINANCIAL_PROFILE_LIVING_STATUSES}
+                value={values.living_status}
+                onChange={set("living_status")}
+              />
+
+              <Text style={styles.label}>Income level</Text>
+              <OptionGroup
+                options={FINANCIAL_PROFILE_INCOME_LEVELS}
+                value={values.income_level}
+                onChange={set("income_level")}
+              />
+
+              <Text style={styles.label}>Main transport</Text>
+              <OptionGroup
+                options={FINANCIAL_PROFILE_TRANSPORT_MODES}
+                value={values.transport_mode}
+                onChange={set("transport_mode")}
+              />
+
+              <Text style={styles.label}>Spending style</Text>
+              <OptionGroup
+                options={FINANCIAL_PROFILE_SPENDING_STYLES}
+                value={values.spending_style}
+                onChange={set("spending_style")}
+              />
+
+              <Text style={styles.label}>Work style</Text>
+              <OptionGroup
+                options={FINANCIAL_PROFILE_WORK_STYLES}
+                value={values.work_style}
+                onChange={set("work_style")}
+              />
+
+              <Text style={styles.label}>Family status</Text>
+              <OptionGroup
+                options={FINANCIAL_PROFILE_FAMILY_STATUSES}
+                value={values.family_status}
+                onChange={set("family_status")}
+              />
+
+              <Text style={styles.label}>Study intensity</Text>
+              <OptionGroup
+                options={FINANCIAL_PROFILE_STUDY_INTENSITIES}
+                value={values.study_intensity}
+                onChange={set("study_intensity")}
+              />
+
+              <Text style={styles.label}>Health need</Text>
+              <OptionGroup
+                options={FINANCIAL_PROFILE_HEALTH_NEEDS}
+                value={values.health_need}
+                onChange={set("health_need")}
+              />
+
+              <View style={styles.buttonRow}>
+                <ButtonSave
+                  label="Cancel"
+                  variant="secondary"
+                  onPress={onClose}
+                />
+                <ButtonSave label="Continue" onPress={handleSubmit} />
+              </View>
+            </ScrollView>
+          )}
         </View>
       </View>
     </Modal>
@@ -319,5 +352,38 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 4,
     marginBottom: 8,
+  },
+
+  successContent: {
+    paddingTop: 40,
+    paddingBottom: 32,
+    alignItems: "center",
+  },
+
+  successIconBox: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: "#EFEAF8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+  },
+
+  successTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111111",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+
+  successSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+    textAlign: "center",
+    paddingHorizontal: 8,
+    marginBottom: 32,
   },
 });

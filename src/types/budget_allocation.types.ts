@@ -139,7 +139,30 @@ export interface GenerateBudgetAllocationPayload {
   health_need: string;
 }
 
-export type GenerateBudgetAllocationResponse = ApiResponse<UserFinancialProfileData>;
+/** Response from POST /api/v1/ai/budget/generate — contains async job ID */
+export interface GenerateBudgetJobData {
+  jobId: string;
+}
+
+export type GenerateBudgetAllocationResponse = ApiResponse<GenerateBudgetJobData>;
+
+// ─── WebSocket /topic/ai/{jobId} ─────────────────────────────────────────────
+
+export interface BudgetAllocationCategory {
+  category: string;
+  amountLimit: number;
+  percentage?: number;
+}
+
+export interface BudgetJobWebSocketMessage {
+  status?: string;
+  jobId?: string;
+  budgets?: BudgetAllocationCategory[];
+  data?: BudgetAllocationCategory[] | any;
+  result?: BudgetAllocationCategory[];
+  message?: string;
+  error?: string;
+}
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
 

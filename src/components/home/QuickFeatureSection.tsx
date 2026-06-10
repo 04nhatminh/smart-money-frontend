@@ -22,7 +22,7 @@ export default function QuickFeatureSection({
       title: 'Budget',
       iconName: 'wallet-outline',
       iconType: 'ion',
-      onPress: () => router.push('/(tabs)/budget'),
+      onPress: () => router.push('/(tabs)/budget-allocation'),
     },
     {
       id: 'classify',

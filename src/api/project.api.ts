@@ -47,13 +47,13 @@ export const ProjectAPI = {
     }
   },
 
-  async getAll(): Promise<ApiResponse<ProjectListItemResponse[]>> {
+  async getAll(params?: { status?: string }): Promise<ApiResponse<ProjectListItemResponse[]>> {
     try {
       const fullUrl = `${http.defaults.baseURL}/api/v1/projects`;
       console.log("🔵 [ProjectApi] GET Request:");
       console.log("   URL:", fullUrl);
 
-      const res = await http.get("/api/v1/projects");
+      const res = await http.get("/api/v1/projects", { params });
       console.log("🟢 [ProjectApi] Response Success:", res.data);
       return res.data;
     } catch (error: any) {
