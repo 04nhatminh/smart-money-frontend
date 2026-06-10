@@ -39,6 +39,7 @@ yarn-error.*
 
 # generated native folders
 /ios
-/android
+/android/app/debug.keystore
+/android/gradle
 
 package-lock.json

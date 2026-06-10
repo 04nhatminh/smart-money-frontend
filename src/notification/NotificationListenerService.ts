@@ -370,6 +370,7 @@ export class NotificationListenerService {
             : ("EXPENSE" as TransactionType),
         description: finalResult.description || rawText,
         date: finalResult.date || formatDateTime(new Date()),
+        source: "notification" as const,
       };
 
       await PendingStorage.add(payload);

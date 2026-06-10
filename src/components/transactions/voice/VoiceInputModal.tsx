@@ -58,6 +58,7 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
         type: "EXPENSE",
         description: "Processing voice...",
         date: new Date().toISOString(),
+        source: "voice",
       });
 
       // 🎬 Close modal NGAY
@@ -67,7 +68,7 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
       onClose();
 
       // 🌀 Run full flow in background
-      handleFullVoiceAIFlowInBackground(audioUri, pendingTx.id).catch(console.error);
+      handleFullVoiceAIFlowInBackground(audioUri, pendingTx.id, "voice").catch(console.error);
 
     } catch (error: any) {
       console.error("❌ Error:", error);
