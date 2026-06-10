@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Alert } from "react-native";
+import { View, Text, StyleSheet, Modal, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { ButtonSave } from "../ButtonSave";
@@ -65,16 +65,19 @@ export default function FinancialProfileDisplayStep({
 }: Props) {
   const router = useRouter();
   const [aiLoading, setAiLoading] = useState(false);
+  const [jobCreated, setJobCreated] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const rows = buildRows(profile);
 
   const handleBudgetWithAI = async () => {
+    setErrorMessage(null);
     try {
       setAiLoading(true);
       const res = await BudgetAllocationApi.generateBudget();
       if (res.success) {
-        Alert.alert("Success", res.message ?? "Budget allocation job created");
+        setJobCreated(true);
       } else {
-        Alert.alert("Error", res.message ?? "Failed to generate budget");
+        setErrorMessage(res.message ?? "Failed to generate budget");
       }
     } finally {
       setAiLoading(false);
@@ -82,43 +85,75 @@ export default function FinancialProfileDisplayStep({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.iconBox}>
-        <Ionicons name="person-circle-outline" size={56} color="#4B3FD6" />
-      </View>
+    <>
+      <View style={styles.container}>
+        <View style={styles.iconBox}>
+          <Ionicons name="person-circle-outline" size={56} color="#4B3FD6" />
+        </View>
 
-      <Text style={styles.title}>Financial Profile Found</Text>
-      <Text style={styles.subtitle}>
-        Your project is created! Your existing financial profile will personalise your budget allocation.
-      </Text>
+        <Text style={styles.title}>Financial Profile Found</Text>
+        <Text style={styles.subtitle}>
+          Your project is created! Your existing financial profile will personalise your budget allocation.
+        </Text>
 
-      <View style={styles.profileCard}>
-        {rows.map((row) => (
-          <View key={row.title} style={styles.profileRow}>
-            <View style={styles.rowLeft}>
-              <Ionicons name={row.icon as any} size={15} color="#4B3FD6" />
-              <Text style={styles.rowLabel}>{row.title}</Text>
+        <View style={styles.profileCard}>
+          {rows.map((row) => (
+            <View key={row.title} style={styles.profileRow}>
+              <View style={styles.rowLeft}>
+                <Ionicons name={row.icon as any} size={15} color="#4B3FD6" />
+                <Text style={styles.rowLabel}>{row.title}</Text>
+              </View>
+              <Text style={styles.rowValue}>{row.value}</Text>
             </View>
-            <Text style={styles.rowValue}>{row.value}</Text>
+          ))}
+        </View>
+
+        {errorMessage && (
+          <View style={styles.errorCard}>
+            <Ionicons name="alert-circle" size={18} color="#DC2626" />
+            <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
-        ))}
+        )}
+
+        <View style={styles.buttonRow}>
+          <ButtonSave
+            label="Cancel"
+            variant="secondary"
+            onPress={() => router.push("/(tabs)/home")}
+            disabled={aiLoading || loading}
+          />
+          <ButtonSave
+            label="Budget with AI"
+            onPress={handleBudgetWithAI}
+            loading={aiLoading}
+            loadingText="Loading..."
+          />
+        </View>
       </View>
 
-      <View style={styles.buttonRow}>
-        <ButtonSave
-          label="Cancel"
-          variant="secondary"
-          onPress={() => router.push("/(tabs)/home")}
-          disabled={aiLoading || loading}
-        />
-        <ButtonSave
-          label="Budget with AI"
-          onPress={handleBudgetWithAI}
-          loading={aiLoading}
-          loadingText="Loading..."
-        />
-      </View>
-    </View>
+      {/* ── Success popup ── */}
+      <Modal visible={jobCreated} transparent animationType="fade">
+        <View style={styles.popupOverlay}>
+          <View style={styles.popupCard}>
+            <View style={styles.popupIconWrap}>
+              <View style={styles.popupIconCircle}>
+                <Ionicons name="checkmark-circle" size={52} color="#059669" />
+              </View>
+            </View>
+            <Text style={styles.popupTitle}>Budget Allocation Job Created!</Text>
+            <Text style={styles.popupSubtitle}>
+              Your budget is being processed by AI. Check the Budgets tab shortly.
+            </Text>
+            <Pressable
+              style={styles.popupBtn}
+              onPress={() => router.push("/(tabs)/home")}
+            >
+              <Text style={styles.popupBtnText}>Exit</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -158,7 +193,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     gap: 10,
-    marginBottom: 28,
+    marginBottom: 20,
   },
   profileRow: {
     flexDirection: "row",
@@ -179,6 +214,92 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#4B3FD6",
     fontWeight: "600",
+  },
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  popupCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    paddingTop: 52,
+    paddingBottom: 28,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    width: "100%",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  popupIconWrap: {
+    position: "absolute",
+    top: -40,
+    alignItems: "center",
+  },
+  popupIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#D1FAE5",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 4,
+    borderColor: "#FFFFFF",
+    shadowColor: "#059669",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  popupTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111111",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  popupSubtitle: {
+    fontSize: 13,
+    color: "#6B7280",
+    lineHeight: 19,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  popupBtn: {
+    backgroundColor: "#4B3FD6",
+    borderRadius: 25,
+    paddingVertical: 13,
+    paddingHorizontal: 48,
+  },
+  popupBtnText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+  },
+  errorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    backgroundColor: "#FEE2E2",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#991B1B",
+    flex: 1,
   },
   buttonRow: {
     flexDirection: "row",
