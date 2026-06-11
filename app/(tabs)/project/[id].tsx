@@ -231,21 +231,6 @@ export default function ProjectDetailScreen() {
               <View
                 style={[
                   styles.chip,
-                  isPersonal ? styles.personalChip : styles.groupChip,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    isPersonal ? styles.personalChipText : styles.groupChipText,
-                  ]}
-                >
-                  {isPersonal ? "Personal" : "Group"}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.chip,
                   {
                     backgroundColor: currentPriority.bg,
                     borderColor: currentPriority.border,

@@ -100,7 +100,7 @@ function RootLayoutNav() {
 
     // 👉 ĐÃ LOGIN
     // 👉 ĐẠT TRẠNG THÁI KHÁC
-    if (!isFirstLaunch && isSignedIn && !inTabs && segment !== "(transactions)" && segment !== "(wait)" && segment !== "accept-invite") {
+    if (!isFirstLaunch && isSignedIn && !inTabs && segment !== "(transactions)" && segment !== "(wait)" && segment !== "accept-invite" && segment !== "group" && segment !== "group-project") {
       router.replace("/(tabs)");
       return;
     }
@@ -126,6 +126,8 @@ function RootLayoutNav() {
         <Stack.Screen name="(transactions)" />
         <Stack.Screen name="(wait)" />
         <Stack.Screen name="accept-invite" />
+        <Stack.Screen name="group" />
+        <Stack.Screen name="group-project" />
       </Stack>
 
       <NotificationToast />

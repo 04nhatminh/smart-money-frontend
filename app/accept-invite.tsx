@@ -6,13 +6,13 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { ProjectAPI } from "../src/api/project.api";
+import { GroupAPI } from "../src/api/group.api";
+import { groupStorage } from "../src/storage/groupStorage";
 import { useAuth } from "../src/context/AuthContext";
 import { t } from "../src/i18n";
 import { formatCurrencyVND } from "../src/utils/project";
@@ -21,66 +21,85 @@ export default function AcceptInviteScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const { isSignedIn } = useAuth();
 
-  const [loading, setLoading] = useState(false);
-  const [commitmentAmount, setCommitmentAmount] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [declining, setDeclining] = useState(false);
 
   useEffect(() => {
     if (!isSignedIn) {
       Alert.alert(
         t("common.name_app"),
-        "You must be signed in to accept a project invitation. Please log in first.",
+        "You must be signed in to accept a group invitation. Please log in first.",
         [
           {
             text: t("common.confirm"),
-            onPress: () => {
-              router.replace("/(auth)/auth");
-            },
+            onPress: () => router.replace("/(auth)/auth"),
           },
         ]
       );
     }
   }, [isSignedIn]);
 
-  const handleAcceptInvite = async () => {
+  const handleAccept = async () => {
     if (!token) {
       Alert.alert(t("common.error"), "Invalid or missing invitation token.");
       return;
     }
-
     setProcessing(true);
     try {
-      const amount = commitmentAmount ? parseFloat(commitmentAmount) : undefined;
-      const res = await ProjectAPI.acceptInvitation({
-        token,
-        commitmentAmount: amount,
-      });
-
+      const res = await GroupAPI.acceptInvite(token);
       if (res.success && res.data) {
+        const group = res.data;
+        await groupStorage.addId(group.groupId);
+        const myMember = group.members.find((m) => m.inviteStatus === "JOINED");
+        const capacityText = myMember
+          ? `\nYour monthly contribution: ${formatCurrencyVND(myMember.capacitySnapshot)} VND`
+          : "";
         Alert.alert(
           t("common.name_app"),
-          "Successfully joined the project!",
+          `You've joined the group "${group.name}"!${capacityText}`,
           [
             {
-              text: "Go to Project",
-              onPress: () => {
+              text: "View Group",
+              onPress: () =>
                 router.replace({
-                  pathname: "/(tabs)/project/[id]",
-                  params: { id: res.data?.projectId || "" },
-                });
-              },
+                  pathname: "/group/[id]",
+                  params: { id: group.groupId },
+                }),
             },
           ]
         );
       } else {
         Alert.alert(t("common.error"), res.message || "Failed to accept the invitation.");
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       Alert.alert(t("common.error"), t("common.error"));
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleDecline = async () => {
+    if (!token) return;
+    Alert.alert(
+      "Decline Invitation",
+      "Are you sure you want to decline this group invitation?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Decline",
+          style: "destructive",
+          onPress: async () => {
+            setDeclining(true);
+            try {
+              await GroupAPI.declineInvite(token);
+            } finally {
+              setDeclining(false);
+              router.replace("/(tabs)/project");
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (!isSignedIn) {
@@ -94,7 +113,6 @@ export default function AcceptInviteScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable
           style={styles.backButton}
@@ -102,59 +120,53 @@ export default function AcceptInviteScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </Pressable>
-        <Text style={styles.headerTitle}>Accept Project Invite</Text>
+        <Text style={styles.headerTitle}>Group Invitation</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.content}>
         <View style={styles.card}>
           <View style={styles.iconContainer}>
-            <MaterialCommunityIcons name="email-open-outline" size={60} color="#3F2CCB" />
+            <MaterialCommunityIcons name="account-group-outline" size={60} color="#3F2CCB" />
           </View>
-          <Text style={styles.title}>You are invited!</Text>
+          <Text style={styles.title}>You're Invited!</Text>
           <Text style={styles.description}>
-            You have been invited to join a collaborative saving project. Enter an optional custom monthly commitment amount below to accept.
+            You've been invited to join a collaborative savings group. Accept to see your monthly contribution and group details.
           </Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Monthly Commitment Amount (Optional)</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 500,000"
-                keyboardType="numeric"
-                value={commitmentAmount}
-                onChangeText={setCommitmentAmount}
-                placeholderTextColor="#9CA3AF"
-              />
-              <Text style={styles.currencyTag}>VND</Text>
-            </View>
-          </View>
 
           <Pressable
             style={({ pressed }) => [
               styles.acceptButton,
               pressed && styles.buttonPressed,
-              processing && styles.buttonDisabled,
+              (processing || declining) && styles.buttonDisabled,
             ]}
-            onPress={handleAcceptInvite}
-            disabled={processing}
+            onPress={handleAccept}
+            disabled={processing || declining}
           >
             {processing ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={styles.acceptButtonText}>Accept & Join Project</Text>
+                <Text style={styles.acceptButtonText}>Accept & Join Group</Text>
               </>
             )}
           </Pressable>
 
           <Pressable
-            style={styles.declineButton}
-            onPress={() => router.replace("/(tabs)/project")}
+            style={({ pressed }) => [
+              styles.declineButton,
+              pressed && { opacity: 0.7 },
+              (processing || declining) && styles.buttonDisabled,
+            ]}
+            onPress={handleDecline}
+            disabled={processing || declining}
           >
-            <Text style={styles.declineButtonText}>Cancel</Text>
+            {declining ? (
+              <ActivityIndicator color="#EF4444" size="small" />
+            ) : (
+              <Text style={styles.declineButtonText}>Decline Invitation</Text>
+            )}
           </Pressable>
         </View>
       </View>
@@ -163,22 +175,9 @@ export default function AcceptInviteScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F6F6F8",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F6F6F8",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
+  container: { flex: 1, backgroundColor: "#F6F6F8" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F6F6F8" },
+  loadingText: { marginTop: 12, fontSize: 16, color: "#6B7280", fontWeight: "500" },
   header: {
     backgroundColor: "#3F2CCB",
     paddingHorizontal: 20,
@@ -191,124 +190,37 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center", alignItems: "center",
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-    justifyContent: "center",
-  },
+  headerTitle: { fontSize: 20, fontWeight: "800", color: "#FFFFFF" },
+  content: { flex: 1, padding: 20, justifyContent: "center" },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 24,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    backgroundColor: "#FFFFFF", borderRadius: 24, padding: 24, alignItems: "center",
+    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 15,
+    shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
   iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 100, height: 100, borderRadius: 50,
     backgroundColor: "#EEF0FF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
+    justifyContent: "center", alignItems: "center", marginBottom: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "900",
-    color: "#0F172A",
-    marginBottom: 10,
-  },
-  description: {
-    fontSize: 14,
-    color: "#64748B",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  inputGroup: {
-    width: "100%",
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 13,
-    color: "#475569",
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-  },
-  input: {
-    flex: 1,
-    height: 48,
-    fontSize: 16,
-    color: "#0F172A",
-    fontWeight: "600",
-  },
-  currencyTag: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#64748B",
-  },
+  title: { fontSize: 24, fontWeight: "900", color: "#0F172A", marginBottom: 10 },
+  description: { fontSize: 14, color: "#64748B", textAlign: "center", lineHeight: 22, marginBottom: 28 },
   acceptButton: {
-    width: "100%",
-    height: 52,
-    backgroundColor: "#3F2CCB",
-    borderRadius: 16,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#3F2CCB",
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-    marginBottom: 12,
+    width: "100%", height: 52, backgroundColor: "#3F2CCB", borderRadius: 16,
+    flexDirection: "row", justifyContent: "center", alignItems: "center",
+    shadowColor: "#3F2CCB", shadowOpacity: 0.25, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 }, elevation: 3, marginBottom: 12,
   },
-  buttonPressed: {
-    opacity: 0.9,
-  },
-  buttonDisabled: {
-    backgroundColor: "#9CA3AF",
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  acceptButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
+  buttonPressed: { opacity: 0.9 },
+  buttonDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
+  acceptButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   declineButton: {
-    width: "100%",
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
+    width: "100%", height: 50,
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 1, borderColor: "#EF4444", borderRadius: 16,
   },
-  declineButtonText: {
-    color: "#64748B",
-    fontSize: 15,
-    fontWeight: "600",
-  },
+  declineButtonText: { color: "#EF4444", fontSize: 15, fontWeight: "600" },
 });

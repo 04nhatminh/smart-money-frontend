@@ -41,7 +41,6 @@ export default function ProjectCard({
 
   const priorityStyle = priorityStyleMap[project.priority];
   const progress = getSafeProgress(project.progressPercent);
-  const isPersonal = project.type === "PERSONAL";
   const isCompleted = project.status === "COMPLETED";
   const isInactive = isCompleted || project.status === "CANCELLED";
 
@@ -72,28 +71,9 @@ export default function ProjectCard({
       </View>
 
       <View style={styles.projectTagRow}>
-        <View
-          style={[
-            styles.typeChip,
-            isPersonal ? styles.personalChip : styles.groupChip,
-          ]}
-        >
-          <Text
-            style={[
-              styles.typeChipText,
-              isPersonal ? styles.personalChipText : styles.groupChipText,
-            ]}
-          >
-            {isPersonal ? "Personal" : "Group"}
-          </Text>
-        </View>
-
         <View style={styles.deadlineChip}>
-          <Text style={styles.deadlineChipText}>
-            {project.status}
-          </Text>
+          <Text style={styles.deadlineChipText}>{project.status}</Text>
         </View>
-
       </View>
 
 
