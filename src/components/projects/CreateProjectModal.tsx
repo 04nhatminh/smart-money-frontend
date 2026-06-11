@@ -373,7 +373,7 @@ export default function CreateProjectModal({
                 JSON.stringify(payload, null, 2)
                 );
 
-            const response = await budgetAPI.createBulk(payload);
+            const response = await budgetAPI.saveBulk(payload);
 
             if (!response?.success) {
             throw new Error(response?.message || "Failed to save budget allocation");
