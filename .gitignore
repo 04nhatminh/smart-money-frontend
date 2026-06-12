@@ -40,5 +40,5 @@ yarn-error.*
 # generated native folders
 /ios
 /android
-
+/claude
 package-lock.json

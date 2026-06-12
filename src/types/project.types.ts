@@ -6,7 +6,7 @@ export type ProjectStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
 
 export type SavingPlanMode = "RELAXED" | "URGENT";
 
-export type CreateProjectModalStep = 1 | 2 | 3;
+export type CreateProjectModalStep = 1 | 2 | 3 | 4;
 
 export type ProjectFilterType = "ALL" | ProjectType;
 export type ProjectStatusFilter = "ALL" | ProjectStatus;

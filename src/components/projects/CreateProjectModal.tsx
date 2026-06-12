@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Alert, Modal, View, ScrollView, Text } from "react-native";
+import { useRouter } from "expo-router";
 
 import SuccessModal from "../SuccessModal";
 import ConfirmExitModal from "../ConfirmExitModal";
@@ -14,10 +15,14 @@ import {
     BudgetAllocationResult,
 } from "../../types/project.types";
 import { UserIncomeApi } from "../../api/userIncome.api";
+import { UserIncomeResponse } from "../../types/user.types";
 import CreateProjectStep from "./CreateProjectStep";
 import SavingPlanModeStep from "./SavingPlanModeStep";
 import SavingPlanReviewStep from "./SavingPlanReviewStep";
 import SetupIncomeModal from "./SetupIncomeModal";
+import BudgetAllocationSuggestionStep from "./BudgetAllocationSuggestionStep";
+import FinancialProfileDisplayStep from "./FinancialProfileDisplayStep";
+import SetupFinancialProfileModal from "./SetupFinancialProfileModal";
 import { t } from "../../i18n";
 import { ProjectAPI } from "../../api/project.api";
 import { BudgetAIAPI } from "../../api/budgetAI.api";
@@ -25,6 +30,10 @@ import { budgetAPI } from "../../api/budget.api";
 import { UserFinancialProfileAPI } from "../../api/userFinancialProfile.api";
 import { initWebSocket, subscribeBudgetJob } from "../../services/websocket";
 import { ButtonSave } from "../ButtonSave";
+import {
+    GenerateBudgetAllocationPayload,
+    UserFinancialProfileData,
+} from "../../types/budget_allocation.types";
 
 type Props = {
     visible: boolean;
@@ -32,30 +41,26 @@ type Props = {
     onCreated?: () => void;
 };
 
-export default function CreateProjectModal({ 
-    visible, 
-    onClose, 
-    onCreated 
+export default function CreateProjectModal({
+    visible,
+    onClose,
+    onCreated
 }: Props) {
+    const router = useRouter();
     const [step, setStep] = useState<CreateProjectModalStep>(1);
-
     const [mode, setMode] = useState<SavingPlanMode | null>(null);
 
     const [showIncomeRequiredModal, setShowIncomeRequiredModal] = useState(false);
     const [showSetupIncome, setShowSetupIncome] = useState(false);
-
+    const [existingIncome, setExistingIncome] = useState<UserIncomeResponse | null>(null);
+    const [incomeCheckLoading, setIncomeCheckLoading] = useState(false);
     const [confirmLoading, setConfirmLoading] = useState(false);
-
     const [advisorLoading, setAdvisorLoading] = useState(false);
     const [advisorData, setAdvisorData] = useState<ProjectAdvisorResponse | null>(null);
     const [advisorError, setAdvisorError] = useState<string | null>(null);
-
     const [usedPriorities, setUsedPriorities] = useState<ProjectPriority[]>([]);
-
     const [checkingPriorities, setCheckingPriorities] = useState(false);
-    
     const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
-    
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showExitModal, setShowExitModal] = useState(false);
 
@@ -63,16 +68,21 @@ export default function CreateProjectModal({
     const [budgetResult, setBudgetResult] = useState<BudgetAllocationResult | null>(null);
     const [budgetSaveLoading, setBudgetSaveLoading] = useState(false);
 
+    // Budget allocation state
+    const [profileCheckLoading, setProfileCheckLoading] = useState(false);
+    const [showSetupFinancialProfile, setShowSetupFinancialProfile] = useState(false);
+    const [showBudgetGeneration, setShowBudgetGeneration] = useState(false);
+    const [budgetPayload, setBudgetPayload] = useState<GenerateBudgetAllocationPayload | null>(null);
+    const [existingProfile, setExistingProfile] = useState<UserFinancialProfileData | null>(null);
+
     const {
         values,
         errors,
         loading,
         previewDeadline,
         isDirty,
-     
         canCreateProject,
         availablePriorities,
-
         onChangeName,
         onChangeDescription,
         onChangeTargetAmount,
@@ -128,6 +138,11 @@ export default function CreateProjectModal({
             fetchUsedPriorities();
         }
     }, [visible]);
+    useEffect(() => {
+        if (visible) {
+            fetchUsedPriorities();
+        }
+    }, [visible]);
 
     useEffect(() => {
 
@@ -177,6 +192,13 @@ export default function CreateProjectModal({
         setBudgetLoading(false);
         setBudgetResult(null);
         setBudgetSaveLoading(false);
+        setExistingIncome(null);
+        setIncomeCheckLoading(false);
+        setBudgetPayload(null);
+        setProfileCheckLoading(false);
+        setShowSetupFinancialProfile(false);
+        setShowBudgetGeneration(false);
+        setExistingProfile(null);
     };
 
     const handleClose = () => {
@@ -197,37 +219,22 @@ export default function CreateProjectModal({
 
     const handleNextFromCreate = async () => {
         try {
+            setIncomeCheckLoading(true);
             const incomeResponse = await UserIncomeApi.getMe();
-
-            const hasIncome =
-            incomeResponse?.success &&
-            !!incomeResponse?.data;
-
-            if (!hasIncome) {
-            setShowIncomeRequiredModal(true);
-            return;
-            }
-
-            setStep(2);
-        } catch (error: any) {
-            const status = error?.response?.status;
-
-            if (status === 404) {
-            setShowIncomeRequiredModal(true);
-            return;
-            }
-
-            Alert.alert(
-            "Income Error",
-            error?.response?.data?.message ||
-                error?.message ||
-                "Failed to check income information"
-            );
+            const income =
+                incomeResponse?.success && incomeResponse?.data
+                    ? incomeResponse.data
+                    : null;
+            setExistingIncome(income);
+        } catch {
+            setExistingIncome(null);
+        } finally {
+            setIncomeCheckLoading(false);
+            setShowSetupIncome(true);
         }
         };
 
     const handleSelectMode = async (selectedMode: SavingPlanMode) => {
-
         try {
             setMode(selectedMode);
             setAdvisorLoading(true);
@@ -246,7 +253,7 @@ export default function CreateProjectModal({
             });
 
             if (!response?.success || !response?.data) {
-                 setAdvisorError(
+                setAdvisorError(
                     response?.message || "Failed to get AI suggestion"
                 );
                 return;
@@ -255,9 +262,8 @@ export default function CreateProjectModal({
             setAdvisorData(response.data);
         } catch (error: any) {
             Alert.alert(
-            "Advisor Error",
-            error?.message ||
-                "Failed to get AI suggestion"
+                "Advisor Error",
+                error?.message || "Failed to get AI suggestion"
             );
         } finally {
             setAdvisorLoading(false);
@@ -272,80 +278,77 @@ export default function CreateProjectModal({
     };
 
     const handleBackStep = () => {
-        if (step === 1) {
-            return;
-        }
-
+        if (step === 1) return;
         if (step === 2) {
             setAdvisorData(null);
             setMode(null);
             setStep(1);
             return;
         }
-
         if (step === 3) {
             setStep(2);
             return;
         }
     };
 
-    const createProject =
-    async (
-      useAdvisorDeadline:
-        boolean
-    ) => {
+    const createProject = async (useAdvisorDeadline: boolean) => {
+        try {
+            setConfirmLoading(true);
 
-      try {
+            const payload =
+                useAdvisorDeadline && advisorData
+                    ? buildPayloadWithAdvisor(advisorData)
+                    : buildPayload();
 
-        setConfirmLoading(true);
+            const response = await ProjectAPI.create(payload);
 
-        const payload =
-          useAdvisorDeadline &&
-          advisorData
-            ? buildPayloadWithAdvisor(
-                advisorData
-              )
-            : buildPayload();
+            if (!response?.success) {
+                if (response?.errorCode === "PROJECT_ACTIVE_PRIORITY_CONFLICT") {
+                    await fetchUsedPriorities();
+                    setAdvisorData(null);
+                    setMode(null);
+                    setStep(1);
+                    Alert.alert(
+                        "Priority Conflict",
+                        "The selected priority is already used by another active project. Please choose a different priority."
+                    );
+                    return;
+                }
+                throw new Error(
+                    response?.message || "Failed to create project"
+                );
+            }
 
-        const response =
-          await ProjectAPI.create(
-            payload
-          );
-
-        if (
-          !response?.success
-        ) {
-
-          throw new Error(
-            response?.message ||
-            "Failed to create project"
-          );
+            setStep(3);
+        } catch (error: any) {
+            Alert.alert(
+                "Create Project Error",
+                error?.message || "Failed to create project"
+            );
+        } finally {
+            setConfirmLoading(false);
         }
-
-        setStep(3);
-
-      } catch (error: any) {
-
-        Alert.alert(
-          "Create Project Error",
-          error?.message ||
-            "Failed to create project"
-        );
-
-      } finally {
-
-        setConfirmLoading(false);
-      }
     };
 
-    const handleConfirmAdvisorPlan =
-        async () => {
+    const handleConfirmAdvisorPlan = async () => {
         await createProject(true);
-    }; 
+        setShowBudgetGeneration(true);
+        setStep(3);
+    };
 
-    const handleKeepOriginalPlan =
-        async () => {
+    const handleKeepOriginalPlan = async () => {
         await createProject(false);
+        setShowBudgetGeneration(true);
+        setStep(3);
+    };
+
+    const handleBudgetGenerationClose = () => {
+        setShowBudgetGeneration(false);
+        setShowSuccessModal(true);
+    };
+
+    const handleSkipBudgetAllocation = () => {
+        setShowSuccessModal(true);
     };
 
     const handleSaveBudgetAllocation = async () => {
@@ -382,8 +385,8 @@ export default function CreateProjectModal({
             setShowSuccessModal(true);
         } catch (error: any) {
             Alert.alert(
-            "Budget Allocation",
-            error?.message || "Failed to save budget allocation"
+            "Error",
+            error?.message || "Failed to create project"
             );
         } finally {
             setBudgetSaveLoading(false);
@@ -394,6 +397,7 @@ export default function CreateProjectModal({
         try {
             setBudgetLoading(true);
             setBudgetResult(null);
+            setProfileCheckLoading(true);
 
             const profileResponse = await UserFinancialProfileAPI.getMe();
 
@@ -453,6 +457,18 @@ export default function CreateProjectModal({
         }
         };
 
+
+    const handleFinancialProfileSubmit = (
+        payload: GenerateBudgetAllocationPayload
+    ) => {
+        setShowSetupFinancialProfile(false);
+        setBudgetPayload(payload);
+        setShowBudgetGeneration(true);
+    };
+
+
+    // ── Success close ───────────────────────────────────────────────────────
+
     const handleSuccessClose = () => {
         setShowSuccessModal(false);
         resetAll();
@@ -479,7 +495,7 @@ export default function CreateProjectModal({
                                     values={values}
                                     errors={errors}
                                     previewDeadline={previewDeadline}
-                                    loading={loading}
+                                    loading={loading || incomeCheckLoading}
                                     checkingPriorities={checkingPriorities}
                                     canCreateProject={canCreateProject}
                                     availablePriorities={availablePriorities}
@@ -509,7 +525,21 @@ export default function CreateProjectModal({
                                 />
                             )}
 
-                            {step === 3 && (
+                            {step === 3 && showBudgetGeneration && (
+                                <BudgetAllocationSuggestionStep
+                                    loading={profileCheckLoading}
+                                    onCreate={handleBudgetGenerationClose}
+                                />
+                            )}
+
+                            {step === 4 && existingProfile && (
+                                <FinancialProfileDisplayStep
+                                    profile={existingProfile}
+                                    loading={profileCheckLoading}
+                                />
+                            )}
+
+                            {step === 5 && (
                                 <SavingPlanReviewStep
                                     budgetResult={budgetResult}
                                     loading={budgetSaveLoading}
@@ -519,6 +549,8 @@ export default function CreateProjectModal({
                                     onCancel={handleClose}
                                 />
                             )}
+
+                    
                         </ScrollView>
 
                        {showIncomeRequiredModal && (
@@ -556,7 +588,6 @@ export default function CreateProjectModal({
                             </View>
                         )}
                     </View>
-
                 </View>
             </Modal>
 
@@ -580,12 +611,22 @@ export default function CreateProjectModal({
 
             <SetupIncomeModal
                 visible={showSetupIncome}
+                existingIncome={existingIncome}
                 onClose={() => setShowSetupIncome(false)}
                 onSuccess={() => {
                     setShowSetupIncome(false);
                     setStep(2);
                 }}
             />
+
+            <SetupFinancialProfileModal
+                visible={showSetupFinancialProfile}
+                onClose={() => setShowSetupFinancialProfile(false)}
+                onSubmit={handleFinancialProfileSubmit}
+            />
+
+
+
         </>
-    )
+    );
 }

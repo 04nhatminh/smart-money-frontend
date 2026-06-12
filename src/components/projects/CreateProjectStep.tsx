@@ -93,7 +93,10 @@ export default function CreateProjectStep({
                     />
     
                     <ButtonSave
-                         label={checkingPriorities ? "Checking..." : "Create"}
+                        label={
+                            checkingPriorities ? "Checking..." :
+                            loading ? "Loading..." : "Next"
+                        }
                         onPress={onNext}
                         disabled={!canCreateProject || checkingPriorities || loading}
                     />

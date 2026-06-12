@@ -67,11 +67,7 @@ export const ProjectAPI = {
       console.log("   URL:", fullUrl);
       console.log("   Params:", params);
 
-      const res = await http.get("/api/v1/projects", {
-          params,
-        }
-      );
-
+      const res = await http.get("/api/v1/projects", { params });
       console.log("🟢 [ProjectApi] Response Success:", res.data);
 
       return res.data;

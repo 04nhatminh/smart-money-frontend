@@ -1,11 +1,5 @@
-import React, { useState } from "react";
-import {
-  Modal,
-  ScrollView,
-  Text,
-  View,
-  Switch,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { Alert, Modal, ScrollView, Text, View, Switch} from "react-native";
 
 import { InputField } from "../InputField";
 import { ButtonSave } from "../ButtonSave";
@@ -19,16 +13,18 @@ import {
 
 import { UserIncomeApi } from "../../api/userIncome.api";
 
-import { CreateIncomePayload } from "../../types/user.types";
+import { CreateIncomePayload, UserIncomeResponse } from "../../types/user.types";
 
 type Props = {
   visible: boolean;
+  existingIncome?: UserIncomeResponse | null;
   onClose: () => void;
   onSuccess: () => void;
 };
 
 export default function SetupIncomeModal({
   visible,
+  existingIncome,
   onClose,
   onSuccess,
 }: Props) {
@@ -38,35 +34,59 @@ export default function SetupIncomeModal({
   const [autoInvestSurplus, setAutoInvestSurplus] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  const handleCurrencyChange = (
-    value: string,
-    setter: (value: string) => void
-  ) => {
-    const numeric = parseCurrencyToNumber(value);
-    setter(formatNumberWithDots(numeric));
+  const isUpdate = !!existingIncome;
+
+  // Pre-fill form when existing income is provided
+  useEffect(() => {
+    if (visible) {
+      if (existingIncome) {
+        setNetIncome(formatNumberWithDots(existingIncome.netIncome));
+        setUsableIncome(formatNumberWithDots(existingIncome.usableIncome));
+        setNote(existingIncome.calculationNote || "");
+      } else {
+        setNetIncome("");
+        setUsableIncome("");
+        setNote("");
+      }
+    }
+  }, [visible, existingIncome]);
+
+  const handleCurrencyChange = (value: string, setter: (v: string) => void) => {
+    setter(formatNumberWithDots(parseCurrencyToNumber(value)));
   };
 
   const handleSave = async () => {
+    const net = parseCurrencyToNumber(netIncome);
+    const usable = parseCurrencyToNumber(usableIncome);
+
+    if (!net || !usable) {
+      Alert.alert("Validation", "Please enter both Net Income and Usable Income.");
+      return;
+    }
+
     try {
       setLoading(true);
 
       const payload: CreateIncomePayload = {
-        netIncome: parseCurrencyToNumber(netIncome),
-        usableIncome: parseCurrencyToNumber(usableIncome),
+        netIncome: net,
+        usableIncome: usable,
         currency: "VND",
         calculationNote: note,
-        autoInvestSurplus,
+        autoInvestSurplus: true,
       };
 
-      const response = await UserIncomeApi.create(payload);
+      const response = isUpdate
+        ? await UserIncomeApi.update(payload)
+        : await UserIncomeApi.create(payload);
 
       if (!response?.success) {
-        throw new Error(response?.message);
+        Alert.alert("Error", response?.message || "Failed to save income");
+        return;
       }
 
       onSuccess();
-    } catch (error) {
-      console.log(error);
+    } catch (error: any) {
+      Alert.alert("Error", error?.message || "Failed to save income");
     } finally {
       setLoading(false);
     }
@@ -79,24 +99,28 @@ export default function SetupIncomeModal({
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={styles.title}>Setup Income</Text>
 
-            <Text style={styles.name}>Net Income</Text>
+            {isUpdate && (
+              <View style={incomeStyles.infoBanner}>
+                <Text style={incomeStyles.infoBannerText}>
+                  Review and update your income details before proceeding.
+                </Text>
+              </View>
+            )}
 
+            <Text style={styles.name}>Net Income</Text>
             <InputField
               iconName="wallet-outline"
-              placeholder="Net Income"
+              placeholder="e.g. 15,000,000"
               value={netIncome}
-              onChangeText={(value) =>
-                handleCurrencyChange(value, setNetIncome)
-              }
+              onChangeText={(v) => handleCurrencyChange(v, setNetIncome)}
               keyboardType="numeric"
               rightText="VND"
             />
 
             <Text style={styles.name}>Usable Income</Text>
-
             <InputField
               iconName="cash-outline"
-              placeholder="Usable Income"
+              placeholder="e.g. 10,000,000"
               value={usableIncome}
               onChangeText={(value) =>
                 handleCurrencyChange(value, setUsableIncome)
@@ -113,7 +137,7 @@ export default function SetupIncomeModal({
               value={note}
               onChangeText={setNote}
               multiline
-              numberOfLines={4}
+              numberOfLines={3}
             />
 
             <View style={styles.switchGroup}>
@@ -143,22 +167,17 @@ export default function SetupIncomeModal({
               />
             </View>
 
-            <View
-              style={{
-                flexDirection: "row",
-                gap: 12,
-                marginTop: 24,
-              }}
-            >
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 24 }}>
               <ButtonSave
-                label="Cancel"
+                label="Back"
                 variant="secondary"
                 onPress={onClose}
+                disabled={loading}
               />
-
               <ButtonSave
-                label={loading ? "Saving..." : "Save"}
+                label={loading ? "Saving..." : isUpdate ? "Update & Continue" : "Save & Continue"}
                 onPress={handleSave}
+                disabled={loading}
               />
             </View>
           </ScrollView>
@@ -167,3 +186,22 @@ export default function SetupIncomeModal({
     </Modal>
   );
 }
+
+import { StyleSheet } from "react-native";
+
+const incomeStyles = StyleSheet.create({
+  infoBanner: {
+    backgroundColor: "#EEF2FF",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: "#4B3FD6",
+  },
+  infoBannerText: {
+    fontSize: 13,
+    color: "#3730A3",
+    lineHeight: 18,
+  },
+});

@@ -21,6 +21,23 @@ import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceIn
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { Receipt } from "../../src/types/transaction.types";
+import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
+import { UserFinancialProfileData } from "../../src/types/budget_allocation.types";
+import EditFinancialProfileModal from "../../src/components/projects/EditFinancialProfileModal";
+
+const PROFILE_LABELS: Record<string, string> = {
+    BUSINESS_OWNER: "Business Owner", FREELANCER: "Freelancer",
+    OFFICE_WORKER: "Office Worker", STUDENT: "Student",
+    DORM: "Dorm", OWN_HOUSE: "Own House", RENT_ROOM: "Rent Room", WITH_FAMILY: "With Family",
+    HIGH: "High", LOW: "Low", MEDIUM: "Medium",
+    BUS: "Bus", CAR: "Car", MOTORBIKE: "Motorbike", RIDE_HAILING: "Ride-hailing",
+    BALANCED: "Balanced", FRUGAL: "Frugal", SPENDER: "Spender",
+    HYBRID: "Hybrid", NONE: "None", ONSITE: "On-site", PART_TIME: "Part-time", REMOTE: "Remote",
+    MARRIED: "Married", SINGLE: "Single",
+    COURSE_HEAVY: "Course Heavy", NORMAL: "Normal",
+};
+
+const fmt = (v: string) => PROFILE_LABELS[v?.toUpperCase?.()] ?? v;
 
 // Category icon mapping
 const categoryIconMap: { [key: string]: { icon: string; color: string; displayName: string } } = {
@@ -41,6 +58,10 @@ export default function BudgetListPage() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    const [financialProfile, setFinancialProfile] = useState<UserFinancialProfileData | null>(null);
+    const [profileLoading, setProfileLoading] = useState(true);
+    const [showEditProfile, setShowEditProfile] = useState(false);
+
     // States for Quick Action Modals
     const [cameraVisible, setCameraVisible] = useState(false);
     const [voiceVisible, setVoiceVisible] = useState(false);
@@ -50,7 +71,24 @@ export default function BudgetListPage() {
 
     useEffect(() => {
         loadBudgets();
+        loadProfile();
     }, []);
+
+    const loadProfile = async () => {
+        try {
+            setProfileLoading(true);
+            const res = await BudgetAllocationApi.getUserFinancialProfile();
+            if (res.success && res.data) {
+                setFinancialProfile(res.data);
+            } else {
+                setFinancialProfile(null);
+            }
+        } catch {
+            setFinancialProfile(null);
+        } finally {
+            setProfileLoading(false);
+        }
+    };
 
     const loadBudgets = async () => {
         try {
@@ -71,7 +109,7 @@ export default function BudgetListPage() {
 
     const handleRefresh = async () => {
         setRefreshing(true);
-        await loadBudgets();
+        await Promise.all([loadBudgets(), loadProfile()]);
         setRefreshing(false);
     };
 
@@ -159,6 +197,76 @@ export default function BudgetListPage() {
         );
     };
 
+    const renderFinancialProfileSection = () => {
+        if (profileLoading) {
+            return (
+                <View style={styles.profileCard}>
+                    <ActivityIndicator size="small" color="#4B3FD6" />
+                </View>
+            );
+        }
+
+        if (!financialProfile) {
+            return (
+                <View style={styles.profileCard}>
+                    <View style={styles.profileCardHeader}>
+                        <View style={styles.profileCardTitleRow}>
+                            <Ionicons name="person-circle-outline" size={22} color="#4B3FD6" />
+                            <Text style={styles.profileCardTitle}>Financial Profile</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.profileEmptyText}>No financial profile set up yet.</Text>
+                    <TouchableOpacity
+                        style={styles.profileSetupBtn}
+                        onPress={() => router.push('/(tabs)/budget-allocation')}
+                    >
+                        <Ionicons name="sparkles" size={15} color="#FFFFFF" />
+                        <Text style={styles.profileSetupBtnText}>Set Up Profile</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        const profileRows = [
+            { label: "Role", value: fmt(financialProfile.role) },
+            { label: "Living", value: fmt(financialProfile.living_status) },
+            { label: "Income", value: fmt(financialProfile.income_level) },
+            { label: "Transport", value: fmt(financialProfile.transport_mode) },
+            { label: "Spending", value: fmt(financialProfile.spending_style) },
+            { label: "Work Style", value: fmt(financialProfile.work_style) },
+            { label: "Family", value: fmt(financialProfile.family_status) },
+            { label: "Study", value: fmt(financialProfile.study_intensity) },
+            { label: "Health", value: fmt(financialProfile.health_need) },
+        ];
+
+        return (
+            <View style={styles.profileCard}>
+                <View style={styles.profileCardHeader}>
+                    <View style={styles.profileCardTitleRow}>
+                        <Ionicons name="person-circle-outline" size={22} color="#4B3FD6" />
+                        <Text style={styles.profileCardTitle}>Financial Profile</Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.editBtn}
+                        onPress={() => setShowEditProfile(true)}
+                    >
+                        <Ionicons name="pencil-outline" size={16} color="#4B3FD6" />
+                        <Text style={styles.editBtnText}>Edit</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.profileGrid}>
+                    {profileRows.map((row) => (
+                        <View key={row.label} style={styles.profileGridItem}>
+                            <Text style={styles.profileGridLabel}>{row.label}</Text>
+                            <Text style={styles.profileGridValue}>{row.value}</Text>
+                        </View>
+                    ))}
+                </View>
+            </View>
+        );
+    };
+
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
@@ -168,7 +276,12 @@ export default function BudgetListPage() {
                         <Ionicons name="arrow-back" size={24} color="#333" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Budgets</Text>
-                    <View style={{ width: 40 }} />
+                    <TouchableOpacity
+                        onPress={() => router.push('/(tabs)/budget-allocation')}
+                        style={styles.generateButton}
+                    >
+                        <Ionicons name="sparkles" size={18} color="#3629B7" />
+                    </TouchableOpacity>
                 </View>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#3629B7" />
@@ -192,7 +305,12 @@ export default function BudgetListPage() {
                     <Ionicons name="arrow-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Budgets</Text>
-                <View style={{ width: 40 }} />
+                <TouchableOpacity
+                    onPress={() => router.push('/(tabs)/budget-allocation')}
+                    style={styles.generateButton}
+                >
+                    <Ionicons name="sparkles" size={18} color="#3629B7" />
+                </TouchableOpacity>
             </View>
 
             <ScrollView
@@ -208,6 +326,8 @@ export default function BudgetListPage() {
                 }
             >
                 <View style={styles.content}>
+                    {renderFinancialProfileSection()}
+
                     {budgets.length > 0 ? (
                         <>
                             {budgets.map((budget) => renderBudgetCard(budget))}
@@ -216,7 +336,14 @@ export default function BudgetListPage() {
                         <View style={styles.emptyContainer}>
                             <Ionicons name="wallet-outline" size={60} color="#CCC" />
                             <Text style={styles.emptyText}>No budgets yet</Text>
-                            <Text style={styles.emptySubText}>Create your first budget to get started</Text>
+                            <Text style={styles.emptySubText}>Use AI to create your first budget allocation</Text>
+                            <TouchableOpacity
+                                style={styles.emptyButton}
+                                onPress={() => router.push('/(tabs)/budget-allocation')}
+                            >
+                                <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                                <Text style={styles.emptyButtonText}>Generate Budget</Text>
+                            </TouchableOpacity>
                         </View>
                     )}
                 </View>
@@ -227,6 +354,16 @@ export default function BudgetListPage() {
                 onCameraOpen={() => setCameraVisible(true)}
                 onVoiceOpen={() => setVoiceVisible(true)}
                 onFormOpen={() => setManualVisible(true)}
+            />
+
+            <EditFinancialProfileModal
+                visible={showEditProfile}
+                profile={financialProfile}
+                onClose={() => setShowEditProfile(false)}
+                onSaved={(updated) => {
+                    setFinancialProfile(updated);
+                    setShowEditProfile(false);
+                }}
             />
 
             {/* Modals for App Bottom Bar Quick Actions */}
@@ -398,5 +535,114 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#999',
         marginTop: 8,
+        textAlign: 'center',
+    },
+    emptyButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#3629B7',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 25,
+        marginTop: 20,
+    },
+    emptyButtonText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    generateButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#EFEAF8',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    profileCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.07,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    profileCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    profileCardTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    profileCardTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#111111',
+    },
+    editBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#EFEAF8',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    editBtnText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#4B3FD6',
+    },
+    profileGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    profileGridItem: {
+        backgroundColor: '#F5F3FF',
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    profileGridLabel: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#9CA3AF',
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+        marginBottom: 2,
+    },
+    profileGridValue: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#4B3FD6',
+    },
+    profileEmptyText: {
+        fontSize: 14,
+        color: '#6B7280',
+        marginBottom: 12,
+    },
+    profileSetupBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        alignSelf: 'flex-start',
+        backgroundColor: '#4B3FD6',
+        paddingHorizontal: 16,
+        paddingVertical: 9,
+        borderRadius: 20,
+    },
+    profileSetupBtnText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 13,
     },
 });
