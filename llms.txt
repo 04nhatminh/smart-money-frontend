@@ -1,0 +1,107 @@
+# Smart Money Frontend - Business Logic Reference (llms.txt)
+
+Overview
+- The system is a consumer-facing financial app focused on budgeting, spending analytics, and secure account management. It orchestrates authentication and onboarding, tabbed navigation, transaction workflows (including receipts and media), project/budget management, and analytics with real-time and AI-assisted capabilities.
+- Core guarantee: consistent business flows across authenticated surfaces, with extensible data contracts and UI theming.
+
+Data model overview and relationships
+- User and authentication
+  - Auth surface governs login, signup, OTP, social logins, password reset.
+  - Key contracts: auth/types define UserState, UserResponse, tokens, and multipart payloads (RegisterRequest -> FormData).
+  - Token storage underpins the session boundary between client and backend.
+- Projects (budget/portfolio)
+  - Types define PERSONAL vs GROUP projects, with create/update payloads and contributor management.
+  - Project utilities compute currency formatting, deadlines, progress, and filtering; support for invitations and contributions.
+  - Project list/detail shapes drive multi-view budgeting/reporting.
+  - A personal project that belongs to a group project carries a groupProjectId on its detail; this marks it as a "sub-personal" project and changes its lifecycle controls (abandon-then-delete instead of direct delete).
+- Groups and group projects (collaborative saving)
+  - Types in group.types.ts model groups, members, invites, and group projects (GroupDetailResponse, GroupMemberResponse, GroupProjectDetailResponse, GroupProjectMemberDetail, and suggestion/create/join payloads).
+  - Group lifecycle: FORMING (admin invites members) -> LOCKED (admin manually locks once at least one member has joined) -> DISSOLVED. Locking gates group-project creation.
+  - Group project creation is admin-only, allowed only on days 1-7 of the month (date gate, bypassable in dev via EXPO_PUBLIC_BYPASS_DATE_GATE); target amount and deadline are fixed after creation. A two-way suggestions calculator estimates by target amount or by months from members' combined monthly capacity.
+  - Members join a group project by picking a unique priority (HIGH/MEDIUM/LOW), which spins up their sub-personal project; each member has at most one sub-project per group project.
+  - Per-member sub-project status is ACTIVE | FROZEN | COMPLETED | ABANDONED; abandoned rows are de-emphasized (blurred) in the group-project detail. Member identities display username with a userId fallback; per-member monetary capacity is intentionally hidden from everyone, including the admin.
+  - API surface (group.api.ts): create/list/detail groups, invite/accept/decline/remove members, lock group, group-project suggestions/create/detail, join, and dissolve. group.api.ts and groupStorage.ts provide local fallbacks (known group IDs, groupId -> groupProjectId map) for fields the backend may not yet return.
+- Transactions
+  - Transactions are EXPENSE or INCOME, with create/update, and list queries.
+  - Attach receipts (media assets) via cloud storage and receipts API.
+  - Category picker and date-range filtering shape analytics and reporting.
+  - Supporting types include TransactionQuery, TransactionListResponse, TransactionDateRange, Receipt.
+- Receipts and media
+  - Cloudinary contracts model receipt/image upload lifecycle and payloads (SaveReceiptPayload, ReceiptResponse).
+  - Media ingest supports receipts linked to transactions.
+- Analytics
+  - Analytics contracts (AnalyticsRequest/Data/Response) support time-series and category breakdowns for transactions.
+  - UI surfaces analytics over time (monthly trends, category proportions).
+- Notifications
+  - Push tokens, notification entities, and create/list operations drive in-app alerts and toasts.
+  - Notification service, listener, and native bridge handle delivery and UI feedback.
+  - Notification state persisted in storage for consistency across sessions.
+- AI integration
+  - AI job response type (AIJobResponse) models results from asynchronous AI processing feeding into workflows (analyses, recommendations, enrichment).
+- Theme and internationalization
+  - Theming is two-tier: ThemeProvider exposes ThemeMode ("light" | "dark"); useThemeMode reads mode; tokens.ts defines per-mode Theme palettes.
+  - i18n provides translations (en/vi) with LanguageProvider controlling locale.
+- Core utilities and contracts
+  - dateFormatter.ts governs display and parsing formats.
+  - transactionParser.ts converts raw event data into UI-friendly transactions.
+  - Validation contracts enforce client-side checks for forms (auth_login validation).
+
+Key end-to-end workflows (high level)
+- User onboarding and authentication
+  - User arrives at intro screens, proceeds to auth surface, chooses login or signup, optionally uses social login.
+  - OTP verification and RememberMe decisions drive session persistence; upon success, user lands in the main tabbed UI.
+- Main app navigation and surfaces
+  - Post-auth, a root layout renders authentication-, onboarding-, and main-tab chrome; Tab navigation routes to Home, Analytics, Transactions, Profile.
+- Transactions lifecycle
+  - Create: user opens AddTransactionModal, enters amount/date/category/type; optionally attaches a receipt (Cloudinary) or a voice/note; submit persists via transaction API.
+  - Read/Review: list view groups transactions by sections (TransactionSection); detail view opens for edits or deletes via EditTransactionModal.
+  - Media flow: receipts flow through camera or upload, preview, and final association.
+- Projects, groups, and collaborative saving
+  - Personal project: created via a multi-step modal where a saving-plan advisor (ProjectAPI.advisor -> /projects/project-advisor) suggests a monthly contribution and duration for the chosen mode; the project tab toggles between Personal and Group lists.
+  - Group flow: an admin creates a group, invites members by email (deep-link accept/decline), and manually locks it once members have joined. From a locked group the admin opens the suggestions calculator and creates a group project (days 1-7 only).
+  - Join flow: a joined member opens the group project, picks an unused priority, and the backend creates their sub-personal project mirroring the group target.
+  - Teardown: an individual member abandons their own sub-personal project first (status -> ABANDONED), after which a delete becomes available; an admin can dissolve the whole group project, which also removes every member's sub-personal project.
+- Receipts and media management
+  - Images/receipts uploaded to Cloudinary; SaveReceiptPayload persists linkage to the corresponding transaction and asset metadata.
+- Analytics and insights
+  - Analytics API fetches time-series (monthly) and category breakdowns; frontend derives recent months for display and renders charts.
+- Notifications and real-time updates
+  - Push token registration enables delivery; notification service funnels events to toasts or in-app banners; WebSocket service delivers real-time hooks for active sessions.
+- Preferences and settings
+  - Profile and Settings surface enable sign-out, privacy/security, preferences (language, theme), and notification controls; language toggles affect translations globally.
+
+Primary external dependencies and what they’re used for
+- Backend API and HTTP client
+  - src/api/* and http.ts provide service calls for auth, transactions, receipts, projects, analytics, and notifications.
+- Supabase backend binding
+  - lib/supabase.ts underpins auth, data storage, and real-time capabilities.
+- Cloud storage for media
+  - cloudinary.api.ts and cloudinary.service.ts handle image/receipt uploads and asset management.
+- Push notifications and native bridges
+  - Notification-related modules, registerForPushNotificationsAsync.ts, and NotificationNative.ts manage device tokens and delivery.
+- WebSocket and real-time
+  - websocket.ts and aiWebSocketHelper.ts enable persistent connections and async AI/result streaming.
+- AI services
+  - src/api/ai.api.ts and ai.types.ts model AI-driven tasks and their typed responses.
+- Internationalization and theming
+  - i18n/index.ts, LanguageProvider.tsx, tokens.ts, ThemeProvider.tsx govern language and theme tokens; ThemeMode drives light/dark palettes.
+- Assets, inputs, and validation
+  - Components like InputField.tsx, SignInForm.tsx, SignUpForm.tsx, and validation.ts support user entry, validation feedback, and UX safety.
+
+Dominant architectural patterns
+- Layered, modular frontend
+  - Clear separation of UI (screens/components), domain logic (types, hooks), and data (API/services, storage).
+- Event-driven UI feedback
+  - Global notificationEmitter enables decoupled cross-component signaling for alerts and status changes.
+- State and context orchestration
+  - AuthContext, OnboardingContext, NotificationUIContext centralize state and behavior across screens.
+- Real-time and asynchronous flows
+  - WebSocket and AI/WebSocket helpers coordinate live updates and AI-augmented steps within flows (e.g., waiting for AI results).
+- Theming and localization
+  - Two-tier theming with runtime mode switching and token-based palettes ensure consistent visuals and translations.
+
+Notes on data contracts and boundaries
+- Data contracts (auth.types.ts, project.types.ts, group.types.ts, transaction.types.ts, notification.type.ts, cloudinary.types.ts, ai.types.ts) codify the shapes of payloads, API responses, and UI-facing structures.
+- The system enforces boundaries between UI forms, backend payloads, and storage/state, enabling predictable naming, validation, and error handling across modules.
+
+This document aggregates the business logic surface from authentication, onboarding, tabbed navigation, transactions with media, analytics, projects, and notification systems, emphasizing end-to-end workflows, data contracts, external dependencies, and architectural patterns for a cohesive llms.txt reference.

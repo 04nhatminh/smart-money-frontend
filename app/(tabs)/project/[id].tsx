@@ -61,6 +61,37 @@ export default function ProjectDetailScreen() {
     );
   };
 
+  const handleAbandonProject = () => {
+    Alert.alert(
+      t("project.abandon_project"),
+      t("project.abandon_confirm_desc"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("project.abandon_project"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const res = await ProjectAPI.abandon(id);
+              if (res.success) {
+                Alert.alert(t("common.name_app"), t("project.abandon_success"));
+                await fetchProjectDetail();
+              } else {
+                Alert.alert(t("common.error"), res.message || t("project.abandon_failed"));
+              }
+            } catch (err) {
+              console.error(err);
+              Alert.alert(t("common.error"), t("common.error"));
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const fetchProjectDetail = async () => {
     if (!id) return;
     try {
@@ -170,6 +201,8 @@ export default function ProjectDetailScreen() {
   const progress = getSafeProgress(project.progressPercent);
   const isPersonal = project.type === "PERSONAL";
   const isCompleted = project.status === "COMPLETED";
+  const isSubPersonal = !!project.groupProjectId;
+  const isAbandoned = (project.status as string) === "ABANDONED";
 
   const priorityColors = {
     HIGH: { bg: "#FEE2E2", text: "#DC2626", border: "#FCA5A5" },
@@ -437,14 +470,27 @@ export default function ProjectDetailScreen() {
           </View>
         )}
 
-        {/* Delete Project Button */}
-        <Pressable
-          style={styles.deleteProjectButton}
-          onPress={handleDeleteProject}
-        >
-          <Ionicons name="trash-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-          <Text style={styles.deleteProjectText}>{t("project.delete_project")}</Text>
-        </Pressable>
+        {/* Danger zone: abandon (sub-personal, still active) → delete */}
+        {isSubPersonal && !isAbandoned ? (
+          <>
+            <Pressable
+              style={styles.abandonProjectButton}
+              onPress={handleAbandonProject}
+            >
+              <Ionicons name="hand-left-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.deleteProjectText}>{t("project.abandon_project")}</Text>
+            </Pressable>
+            <Text style={styles.dangerHintText}>{t("project.delete_locked_hint")}</Text>
+          </>
+        ) : (
+          <Pressable
+            style={styles.deleteProjectButton}
+            onPress={handleDeleteProject}
+          >
+            <Ionicons name="trash-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.deleteProjectText}>{t("project.delete_project")}</Text>
+          </Pressable>
+        )}
 
         <View style={{ height: 60 }} />
       </ScrollView>
@@ -798,6 +844,28 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+  },
+  abandonProjectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#D97706",
+    borderRadius: 16,
+    paddingVertical: 16,
+    marginHorizontal: 4,
+    marginBottom: 8,
+    shadowColor: "#D97706",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  dangerHintText: {
+    fontSize: 12,
+    color: "#92400E",
+    textAlign: "center",
+    marginBottom: 16,
+    paddingHorizontal: 8,
   },
   deleteProjectText: {
     color: "#FFFFFF",

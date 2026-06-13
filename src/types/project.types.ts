@@ -120,6 +120,8 @@ export type ProjectDetailResponse = ProjectListItemResponse & {
   moneyOwed?: number;
   histories?: ProjectHistory[];
   members?: ProjectMember[];
+  // Present only when this personal project is a sub-project of a group project.
+  groupProjectId?: string | null;
 };
 
 export type ProjectResponse = ProjectDetailResponse;

@@ -139,6 +139,35 @@ export const ProjectAPI = {
     }
   },
 
+  async abandon(projectId: string): Promise<ApiResponse<ProjectResponse>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/abandon`;
+      console.log("🔵 [ProjectApi] POST Abandon Request:");
+      console.log("   URL:", fullUrl);
+
+      const res = await http.post(`/api/v1/projects/${projectId}/abandon`);
+      console.log("🟢 [ProjectApi] Response Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [ProjectApi] Abandon Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+      console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  },
+
   async delete(projectId: string): Promise<ApiResponse<null>> {
     try {
       const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}`;
