@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { GroupAPI } from "../../api/group.api";
 import { GroupDetailResponse } from "../../types/group.types";
 import { formatCurrencyVND, parseCurrencyToNumber } from "../../utils/project";
+import { getGroupProjectErrorMessage } from "../../utils/groupProjectErrors";
 
 type Props = {
   visible: boolean;
@@ -69,7 +70,11 @@ export default function CreateGroupProjectModal({
       if (res.success && res.data) {
         onCreated(res.data.groupProjectId);
       } else {
-        Alert.alert("Error", res.message || "Failed to create group project.");
+        const msg =
+          getGroupProjectErrorMessage(res.errorCode, "create-project") ??
+          res.message ??
+          "Failed to create group project.";
+        Alert.alert("Error", msg);
       }
     } catch {
       Alert.alert("Error", "Something went wrong.");

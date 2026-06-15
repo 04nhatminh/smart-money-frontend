@@ -57,9 +57,13 @@ export const handleIncomingNotification = async (
         title: "🔔 New Notification",
         body: newNotification.content,
         data: {
-        id: newNotification.id,
-        content: newNotification.content,
-        }
+          id: newNotification.id,
+          content: newNotification.content,
+          // Backend sends the deep link as `deepLink` over REST/WebSocket; the
+          // OS notification payload carries it under the `url` key so the tap
+          // listener in _layout can feed it to the deep-link resolver.
+          ...(newNotification.deepLink ? { url: newNotification.deepLink } : {}),
+        },
       },
       trigger: null,
     });

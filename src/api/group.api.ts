@@ -143,7 +143,7 @@ export const GroupAPI = {
 
   async dissolveGroupProject(groupProjectId: string): Promise<ApiResponse<null>> {
     try {
-      const res = await http.post(`/api/v1/group-projects/${groupProjectId}/dissolve`);
+      const res = await http.delete(`/api/v1/group-projects/${groupProjectId}`);
       return res.data;
     } catch (e) {
       return handleError(e);

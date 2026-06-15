@@ -16,6 +16,7 @@ import { groupStorage } from "../src/storage/groupStorage";
 import { useAuth } from "../src/context/AuthContext";
 import { t } from "../src/i18n";
 import { formatCurrencyVND } from "../src/utils/project";
+import { getGroupProjectErrorMessage } from "../src/utils/groupProjectErrors";
 
 export default function AcceptInviteScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
@@ -69,7 +70,11 @@ export default function AcceptInviteScreen() {
           ]
         );
       } else {
-        Alert.alert(t("common.error"), res.message || "Failed to accept the invitation.");
+        const msg =
+          getGroupProjectErrorMessage(res.errorCode, "accept-invite") ??
+          res.message ??
+          "Failed to accept the invitation.";
+        Alert.alert(t("common.error"), msg);
       }
     } catch {
       Alert.alert(t("common.error"), t("common.error"));

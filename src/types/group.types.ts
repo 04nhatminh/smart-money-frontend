@@ -46,6 +46,7 @@ export type GroupProjectMemberDetail = {
   userId: string;
   username?: string;
   personalProjectId: string;
+  priority?: GroupProjectPriority;
   moneySaved: number;
   targetAmount: number;
   progressPercent: number;

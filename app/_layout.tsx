@@ -1,18 +1,18 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, AppState } from "react-native";
+import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from 'expo-notifications';
 import { LanguageProvider } from "../src/i18n/LanguageProvider";
 import { ThemeProvider } from "../src/theme/ThemeProvider";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { OnboardingProvider, useOnboarding } from "../src/context/OnboardingContext";
 import { NotificationUIProvider } from '../src/context/NotificationUIContext';
-import * as SplashScreen from "expo-splash-screen";
-import * as Notifications from 'expo-notifications';
-import { AppState } from "react-native";
 import { NotificationListenerService } from '../src/notification/NotificationListenerService';
 import NotificationNative from "../src/notification/NotificationNative";
 import NotificationToast from '../src/components/notification/NotificationToast';
 import PendingTransactionPanel, { PendingPanelRef } from "../src/components/transactions/PendingTransactionPanel";
+import { resolveDeepLink } from "../src/utils/notificationDeepLink";
 
 export const panelRef = React.createRef<PendingPanelRef>();
 
@@ -21,12 +21,18 @@ SplashScreen.preventAutoHideAsync().catch(() => { });
 function RootLayoutNav() {
   const { isSignedIn, isLoading: authLoading } = useAuth();
   const { isFirstLaunch, isLoading: onboardingLoading } = useOnboarding();
+  const isSignedInRef = useRef(isSignedIn);
+  const hasColdStartChecked = useRef(false);
 
   const router = useRouter();
   const segments = useSegments();
 
   const isLoading =
     isFirstLaunch === null || authLoading || onboardingLoading;
+
+  useEffect(() => {
+    isSignedInRef.current = isSignedIn;
+  }, [isSignedIn]);
 
   // ✅ Hide splash
   useEffect(() => {
@@ -44,6 +50,29 @@ function RootLayoutNav() {
         shouldSetBadge: true,
       }),
     });
+  }, []);
+
+  // Cold-start: app was killed, user tapped notification → listener isn't attached yet,
+  // so the response is only available via getLastNotificationResponseAsync.
+  // Fire once, after auth finishes loading and the user is confirmed signed in.
+  useEffect(() => {
+    if (isLoading || hasColdStartChecked.current || !isSignedIn) return;
+    hasColdStartChecked.current = true;
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const url = response.notification.request.content.data?.url as string | undefined;
+      if (url) resolveDeepLink(url);
+    });
+  }, [isLoading, isSignedIn]);
+
+  // Live listener: foreground banner tap + background→foreground tap.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (!isSignedInRef.current) return;
+      const url = response.notification.request.content.data?.url as string | undefined;
+      if (url) resolveDeepLink(url);
+    });
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {
@@ -100,7 +129,7 @@ function RootLayoutNav() {
 
     // 👉 ĐÃ LOGIN
     // 👉 ĐẠT TRẠNG THÁI KHÁC
-    if (!isFirstLaunch && isSignedIn && !inTabs && segment !== "(transactions)" && segment !== "(wait)" && segment !== "accept-invite" && segment !== "group" && segment !== "group-project") {
+    if (!isFirstLaunch && isSignedIn && !inTabs && segment !== "(transactions)" && segment !== "(wait)" && segment !== "accept-invite" && segment !== "group-invite" && segment !== "group" && segment !== "group-project") {
       router.replace("/(tabs)");
       return;
     }
@@ -126,6 +155,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(transactions)" />
         <Stack.Screen name="(wait)" />
         <Stack.Screen name="accept-invite" />
+        <Stack.Screen name="group-invite" />
         <Stack.Screen name="group" />
         <Stack.Screen name="group-project" />
       </Stack>

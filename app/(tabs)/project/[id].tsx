@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { ProjectAPI } from "../../../src/api/project.api";
+import { GroupAPI } from "../../../src/api/group.api";
 import EditProjectModal from "../../../src/components/projects/EditProjectModal";
 import InviteMemberModal from "../../../src/components/projects/InviteMemberModal";
 import { ProjectDetailResponse, ContributionSummaryResponse } from "../../../src/types/project.types";
@@ -25,6 +26,8 @@ export default function ProjectDetailScreen() {
 
   const [project, setProject] = useState<ProjectDetailResponse | null>(null);
   const [contributionSummary, setContributionSummary] = useState<ContributionSummaryResponse | null>(null);
+  const groupProjectIdRef = useRef<string | null>(null);
+  const completionAlertedRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -130,6 +133,10 @@ export default function ProjectDetailScreen() {
   }, [id]);
 
   useEffect(() => {
+    groupProjectIdRef.current = project?.groupProjectId ?? null;
+  }, [project?.groupProjectId]);
+
+  useEffect(() => {
     if (!id) return;
 
     // Helper import from WebSocket service
@@ -144,12 +151,10 @@ export default function ProjectDetailScreen() {
           console.log("🟢 [ProjectDetailScreen] WebSocket update received:", payload);
           setProject((prev) => {
             if (!prev) return null;
-            // Recalculate contribution summary fields
             const newTotal = payload.newTotal;
             const target = prev.targetAmount;
             const progress = target > 0 ? (newTotal / target) * 100 : 0;
             const remaining = Math.max(0, target - newTotal);
-
             return {
               ...prev,
               totalContributed: newTotal,
@@ -160,6 +165,30 @@ export default function ProjectDetailScreen() {
 
           if (payload.latestContribution) {
             Alert.alert("Project Update", payload.latestContribution);
+          }
+
+          const gid = groupProjectIdRef.current;
+          if (gid && !completionAlertedRef.current) {
+            GroupAPI.getGroupProjectDetail(gid)
+              .then((gpRes) => {
+                if (gpRes.success && gpRes.data?.status === "COMPLETED" && !completionAlertedRef.current) {
+                  completionAlertedRef.current = true;
+                  Alert.alert(
+                    "Group Goal Reached!",
+                    "Your group has reached its savings goal together!",
+                    [
+                      {
+                        text: "View Group Project",
+                        onPress: () => router.push(`/group-project/${gid}` as any),
+                      },
+                      { text: "OK", style: "cancel" },
+                    ]
+                  );
+                }
+              })
+              .catch(() => {
+                // Non-critical — group project status check failed silently
+              });
           }
         }
       );

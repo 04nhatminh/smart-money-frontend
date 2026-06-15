@@ -20,6 +20,7 @@ import {
   GroupProjectMemberDetail,
 } from "../../src/types/group.types";
 import { formatCurrencyVND } from "../../src/utils/project";
+import { getGroupProjectErrorMessage } from "../../src/utils/groupProjectErrors";
 import PriorityPickerModal from "../../src/components/groups/PriorityPickerModal";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -117,7 +118,7 @@ export default function GroupProjectDetailScreen() {
     if (!project) return;
     Alert.alert(
       "Dissolve Group Project",
-      "This will permanently dissolve the group project and all sub-projects. This cannot be undone.",
+      "This will permanently dissolve the group project. Active sub-projects will be abandoned; completed ones are kept. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -129,10 +130,18 @@ export default function GroupProjectDetailScreen() {
               const res = await GroupAPI.dissolveGroupProject(project.groupProjectId);
               if (res.success) {
                 Alert.alert("Dissolved", "The group project has been dissolved.", [
-                  { text: "OK", onPress: () => router.back() },
+                  {
+                    text: "OK",
+                    onPress: () =>
+                      router.canGoBack() ? router.back() : router.replace("/(tabs)/project"),
+                  },
                 ]);
               } else {
-                Alert.alert("Error", res.message || "Could not dissolve project.");
+                const msg =
+                  getGroupProjectErrorMessage(res.errorCode, "join-project") ??
+                  res.message ??
+                  "Could not dissolve project.";
+                Alert.alert("Error", msg);
               }
             } finally {
               setDissolving(false);
@@ -175,7 +184,12 @@ export default function GroupProjectDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace("/(tabs)/project")
+          }
+        >
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{project.name}</Text>
@@ -189,6 +203,20 @@ export default function GroupProjectDetailScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
+        {/* Completion celebration */}
+        {project.status === "COMPLETED" && (
+          <View style={styles.celebrationCard}>
+            <View style={styles.celebrationIcon}>
+              <Ionicons name="trophy" size={32} color="#B45309" />
+            </View>
+            <Text style={styles.celebrationTitle}>Goal Reached! 🎉</Text>
+            <Text style={styles.celebrationText}>
+              "{project.name}" hit its {formatCurrencyVND(project.targetAmount)} VND target.
+              Congratulations to everyone who contributed!
+            </Text>
+          </View>
+        )}
+
         {/* Aggregate Progress */}
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Aggregate Progress</Text>
@@ -292,6 +320,16 @@ const styles = StyleSheet.create({
     shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
+  celebrationCard: {
+    backgroundColor: "#FEF9C3", borderRadius: 18, padding: 20, alignItems: "center",
+    borderWidth: 1, borderColor: "#FDE68A",
+  },
+  celebrationIcon: {
+    width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7",
+    justifyContent: "center", alignItems: "center", marginBottom: 12,
+  },
+  celebrationTitle: { fontSize: 18, fontWeight: "900", color: "#92400E", marginBottom: 6 },
+  celebrationText: { fontSize: 13, color: "#78350F", textAlign: "center", lineHeight: 20 },
   sectionLabel: { fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 12 },
   progressBg: { height: 10, backgroundColor: "#E5E7EB", borderRadius: 999, overflow: "hidden", marginBottom: 8 },
   progressFill: { height: "100%", backgroundColor: "#3629B7", borderRadius: 999 },

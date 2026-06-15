@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,7 +10,9 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { GroupAPI } from "../../api/group.api";
+import { ProjectAPI } from "../../api/project.api";
 import { GroupProjectDetailResponse, GroupProjectPriority } from "../../types/group.types";
+import { getGroupProjectErrorMessage } from "../../utils/groupProjectErrors";
 
 type Props = {
   visible: boolean;
@@ -35,18 +37,40 @@ export default function PriorityPickerModal({
 }: Props) {
   const [selected, setSelected] = useState<GroupProjectPriority | null>(null);
   const [loading, setLoading] = useState(false);
+  const [takenPriorities, setTakenPriorities] = useState<Set<GroupProjectPriority>>(new Set());
+  const [checkingPriorities, setCheckingPriorities] = useState(false);
 
-  const takenPriorities = new Set(
-    groupProject.members
-      .filter((m) => m.userId !== currentUserId)
-      .map((m) => {
-        // Priority isn't in the member detail — we infer from the personal project target amounts
-        // The BE doesn't expose priority directly in the detail response, so all slots are open until
-        // the backend enforces uniqueness on join. We mark slots taken if user already joined.
-        return null;
-      })
-      .filter(Boolean)
-  );
+  // A priority is "taken" when THIS user already has another active project using
+  // it — each of the user's active projects must hold a distinct priority level.
+  // It has nothing to do with what other group members picked. A user with no
+  // active projects has nothing taken, so all three slots are available.
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    (async () => {
+      setCheckingPriorities(true);
+      setSelected(null);
+      try {
+        const res = await ProjectAPI.getAll();
+        if (cancelled) return;
+        if (res.success && Array.isArray(res.data)) {
+          const used = res.data
+            .filter((p) => p.status === "ACTIVE")
+            .map((p) => p.priority as GroupProjectPriority);
+          setTakenPriorities(new Set(used));
+        } else {
+          setTakenPriorities(new Set());
+        }
+      } catch {
+        if (!cancelled) setTakenPriorities(new Set());
+      } finally {
+        if (!cancelled) setCheckingPriorities(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
 
   // Mark current user as already joined
   const alreadyJoined = groupProject.members.some((m) => m.userId === currentUserId);
@@ -63,7 +87,11 @@ export default function PriorityPickerModal({
         setSelected(null);
         onJoined();
       } else {
-        Alert.alert("Error", res.message || "Could not join project.");
+        const msg =
+          getGroupProjectErrorMessage(res.errorCode, "join-project") ??
+          res.message ??
+          "Could not join project.";
+        Alert.alert("Error", msg);
       }
     } catch {
       Alert.alert("Error", "Something went wrong.");
@@ -86,9 +114,14 @@ export default function PriorityPickerModal({
           </View>
 
           <Text style={styles.subtitle}>
-            Your priority determines your monthly savings contribution. Each level must be unique within the group.
+            Your priority determines your monthly savings contribution. Each of your active projects must use a different level.
           </Text>
 
+          {checkingPriorities ? (
+            <View style={styles.checkingRow}>
+              <ActivityIndicator color="#3629B7" />
+            </View>
+          ) : (
           <View style={styles.tilesRow}>
             {PRIORITY_CONFIG.map((p) => {
               const isTaken = takenPriorities.has(p.value);
@@ -118,15 +151,16 @@ export default function PriorityPickerModal({
               );
             })}
           </View>
+          )}
 
           <Pressable
             style={({ pressed }) => [
               styles.confirmBtn,
               pressed && { opacity: 0.85 },
-              (!selected || loading || alreadyJoined) && styles.btnDisabled,
+              (!selected || loading || checkingPriorities || alreadyJoined) && styles.btnDisabled,
             ]}
             onPress={handleConfirm}
-            disabled={!selected || loading || alreadyJoined}
+            disabled={!selected || loading || checkingPriorities || alreadyJoined}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -151,6 +185,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
   subtitle: { fontSize: 13, color: "#64748B", lineHeight: 20, marginBottom: 20 },
   tilesRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
+  checkingRow: { height: 100, alignItems: "center", justifyContent: "center", marginBottom: 24 },
   tile: {
     flex: 1, borderRadius: 16, padding: 14, borderWidth: 2,
     alignItems: "center", minHeight: 100, justifyContent: "center",
