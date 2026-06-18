@@ -34,6 +34,7 @@ const SUB_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   FROZEN: { bg: "#FEF9C3", text: "#92400E" },
   COMPLETED: { bg: "#DBEAFE", text: "#1E40AF" },
   ABANDONED: { bg: "#FEE2E2", text: "#991B1B" },
+  EXPIRED: { bg: "#FEE2E2", text: "#991B1B" },
 };
 
 function ProgressBar({ percent }: { percent: number }) {
@@ -55,9 +56,12 @@ function MemberRow({
   onPress: () => void;
 }) {
   const statusStyle = SUB_STATUS_COLORS[member.projectStatus] ?? SUB_STATUS_COLORS.ACTIVE;
-  const isAbandoned = member.projectStatus === "ABANDONED";
+  // EXPIRED and ABANDONED members have dropped out — dim them.
+  const isDroppedOut = member.projectStatus === "ABANDONED" || member.projectStatus === "EXPIRED";
+  const memberNetSaved = member.netSaved ?? member.moneySaved;
+  const memberOwed = member.moneyOwed ?? 0;
   return (
-    <Pressable style={[styles.memberRow, isCurrentUser && styles.memberRowHighlight, isAbandoned && styles.memberRowAbandoned]} onPress={onPress}>
+    <Pressable style={[styles.memberRow, isCurrentUser && styles.memberRowHighlight, isDroppedOut && styles.memberRowAbandoned]} onPress={onPress}>
       <View style={styles.memberAvatar}>
         <Ionicons name="person" size={16} color="#3629B7" />
       </View>
@@ -72,8 +76,17 @@ function MemberRow({
         </View>
         <ProgressBar percent={member.progressPercent} />
         <View style={styles.memberAmountRow}>
+          <Text style={styles.memberAmountText}>
+            {formatCurrencyVND(memberNetSaved)} / {formatCurrencyVND(member.targetAmount)}
+          </Text>
           <Text style={styles.memberPercentText}>{Math.round(member.progressPercent)}%</Text>
         </View>
+        {memberOwed > 0 && (
+          <View style={styles.memberDebtRow}>
+            <Ionicons name="alert-circle-outline" size={12} color="#DC2626" />
+            <Text style={styles.memberDebtText}>{formatCurrencyVND(memberOwed)} debt</Text>
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -181,6 +194,16 @@ export default function GroupProjectDetailScreen() {
   const isAdmin = groupAdminId !== null && currentUserId === groupAdminId;
   const showDissolve = project.status === "ACTIVE" && isAdmin;
 
+  // Progress is driven off the dynamic requiredTarget (shrinks as members drop out),
+  // falling back to the original targetAmount when the backend doesn't send it yet.
+  const requiredTarget = project.requiredTarget ?? project.targetAmount;
+  const aggregateProgress =
+    requiredTarget > 0
+      ? (project.aggregateMoneySaved / requiredTarget) * 100
+      : project.progressPercent;
+  const showOriginalGoal =
+    project.requiredTarget != null && project.requiredTarget !== project.targetAmount;
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -220,13 +243,18 @@ export default function GroupProjectDetailScreen() {
         {/* Aggregate Progress */}
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Aggregate Progress</Text>
-          <ProgressBar percent={project.progressPercent} />
+          <ProgressBar percent={aggregateProgress} />
           <View style={styles.aggregateRow}>
             <Text style={styles.aggregateAmount}>
-              {formatCurrencyVND(project.aggregateMoneySaved)} / {formatCurrencyVND(project.targetAmount)} VND
+              {formatCurrencyVND(project.aggregateMoneySaved)} / {formatCurrencyVND(requiredTarget)} VND
             </Text>
-            <Text style={styles.aggregatePercent}>{Math.round(project.progressPercent)}%</Text>
+            <Text style={styles.aggregatePercent}>{Math.round(aggregateProgress)}%</Text>
           </View>
+          {showOriginalGoal && (
+            <Text style={styles.originalGoalText}>
+              Original goal: {formatCurrencyVND(project.targetAmount)} VND
+            </Text>
+          )}
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <Ionicons name="calendar-outline" size={14} color="#64748B" />
@@ -336,6 +364,7 @@ const styles = StyleSheet.create({
   aggregateRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   aggregateAmount: { fontSize: 13, color: "#0F172A", fontWeight: "600" },
   aggregatePercent: { fontSize: 18, fontWeight: "900", color: "#3629B7" },
+  originalGoalText: { fontSize: 11, color: "#94A3B8", marginBottom: 10 },
   metaRow: { flexDirection: "row", gap: 16, flexWrap: "wrap" },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   metaText: { fontSize: 12, color: "#64748B" },
@@ -369,6 +398,8 @@ const styles = StyleSheet.create({
   memberAmountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
   memberAmountText: { fontSize: 11, color: "#64748B" },
   memberPercentText: { fontSize: 11, fontWeight: "700", color: "#3629B7" },
+  memberDebtRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  memberDebtText: { fontSize: 11, fontWeight: "700", color: "#DC2626" },
   dissolveBtn: {
     backgroundColor: "#EF4444", borderRadius: 14, height: 48,
     flexDirection: "row", justifyContent: "center", alignItems: "center",

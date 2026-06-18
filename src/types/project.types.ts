@@ -2,7 +2,21 @@ export type ProjectType = "PERSONAL" | "GROUP";
 
 export type ProjectPriority = | "LOW" | "MEDIUM" | "HIGH";
 
-export type ProjectStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
+// Domain statuses come back on the list endpoint; the detail endpoint may also
+// emit the derived display statuses ONGOING / OVERDUE for genuinely-live projects.
+// EXPIRED and ABANDONED are terminal/failed states (no resume/contribute actions).
+export type ProjectStatus =
+  | "ACTIVE"
+  | "ONGOING"
+  | "COMPLETED"
+  | "OVERDUE"
+  | "CANCELLED" // deprecated
+  | "FROZEN"
+  | "ABANDONED"
+  | "EXPIRED";
+
+// Statuses that are terminal AND represent failure (target never reached).
+export const TERMINAL_FAILED_STATUSES: ProjectStatus[] = ["EXPIRED", "ABANDONED", "CANCELLED"];
 
 export type SavingPlanMode = "RELAXED" | "URGENT";
 
@@ -29,11 +43,6 @@ export type CreateProjectPayload = {
 
 export type UpdateProjectPayload = Partial<CreateProjectPayload>;
 
-export type AddProjectContributionPayload = {
-  amount: number;
-  note?: string;
-};
-
 export type InviteProjectMemberPayload = {
   email: string;
   admin: boolean;
@@ -55,20 +64,6 @@ export type CreateProjectFormErrors = {
     deadlineMonths: string;
 };
 
-export type ContributorResponse = {
-  userId: string;
-  totalAmount: number;
-  percentOfTarget: number;
-  createdAt: string;
-};
-
-export type ContributionSummaryResponse = {
-  totalContributed: number;
-  remaining: number;
-  progressPercent: number;
-  contributors: ContributorResponse[];
-};
-
 export type ProjectListItemResponse = {
   projectId: string;
   name: string;
@@ -76,7 +71,12 @@ export type ProjectListItemResponse = {
   targetAmount: number;
   priority: ProjectPriority;
   currency: string;
+  // All-auto model: `totalContributed` is now NET saved = max(0, moneySaved - moneyOwed),
+  // not a sum of manual deposits. `netSaved` is the explicit field for the same value.
   totalContributed: number;
+  netSaved?: number;
+  moneyOwed?: number;
+  frozenMonths?: number;
   progressPercent: number;
   deadline: string;
   status: ProjectStatus;
@@ -118,6 +118,8 @@ export type ProjectDetailResponse = ProjectListItemResponse & {
   currentMonth?: number;
   createdAt?: string;
   moneyOwed?: number;
+  netSaved?: number;
+  frozenMonths?: number;
   histories?: ProjectHistory[];
   members?: ProjectMember[];
   // Present only when this personal project is a sub-project of a group project.

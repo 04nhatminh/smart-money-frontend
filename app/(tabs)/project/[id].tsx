@@ -17,7 +17,7 @@ import { ProjectAPI } from "../../../src/api/project.api";
 import { GroupAPI } from "../../../src/api/group.api";
 import EditProjectModal from "../../../src/components/projects/EditProjectModal";
 import InviteMemberModal from "../../../src/components/projects/InviteMemberModal";
-import { ProjectDetailResponse, ContributionSummaryResponse } from "../../../src/types/project.types";
+import { ProjectDetailResponse, TERMINAL_FAILED_STATUSES } from "../../../src/types/project.types";
 import { formatCurrencyVND, getSafeProgress } from "../../../src/utils/project";
 import { t } from "../../../src/i18n";
 
@@ -25,7 +25,6 @@ export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [project, setProject] = useState<ProjectDetailResponse | null>(null);
-  const [contributionSummary, setContributionSummary] = useState<ContributionSummaryResponse | null>(null);
   const groupProjectIdRef = useRef<string | null>(null);
   const completionAlertedRef = useRef(false);
   const [loading, setLoading] = useState(true);
@@ -231,7 +230,24 @@ export default function ProjectDetailScreen() {
   const isPersonal = project.type === "PERSONAL";
   const isCompleted = project.status === "COMPLETED";
   const isSubPersonal = !!project.groupProjectId;
-  const isAbandoned = (project.status as string) === "ABANDONED";
+  // EXPIRED / ABANDONED / CANCELLED are terminal failed states — no resume actions.
+  const isTerminalFailed = TERMINAL_FAILED_STATUSES.includes(project.status);
+  const isFrozen = project.status === "FROZEN";
+  const netSaved = project.netSaved ?? project.totalContributed;
+  const moneyOwed = project.moneyOwed ?? 0;
+
+  // Status -> badge colors. Falls back to neutral grey for anything unmapped.
+  const statusColors: Record<string, { bg: string; text: string }> = {
+    ACTIVE: { bg: "#EFF6FF", text: "#2563EB" },
+    ONGOING: { bg: "#EFF6FF", text: "#2563EB" },
+    COMPLETED: { bg: "#DCFCE7", text: "#15803D" },
+    OVERDUE: { bg: "#FEF3C7", text: "#B45309" },
+    FROZEN: { bg: "#FEF9C3", text: "#92400E" },
+    EXPIRED: { bg: "#FEE2E2", text: "#991B1B" },
+    ABANDONED: { bg: "#FEE2E2", text: "#991B1B" },
+    CANCELLED: { bg: "#F3F4F6", text: "#6B7280" },
+  };
+  const currentStatusColor = statusColors[project.status] ?? { bg: "#F3F4F6", text: "#6B7280" };
 
   const priorityColors = {
     HIGH: { bg: "#FEE2E2", text: "#DC2626", border: "#FCA5A5" },
@@ -305,10 +321,21 @@ export default function ProjectDetailScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.statusLabelText}>
+            <Text style={[styles.statusLabelText, { backgroundColor: currentStatusColor.bg, color: currentStatusColor.text }]}>
               {project.status}
             </Text>
           </View>
+
+          {isFrozen && (
+            <View style={styles.frozenBanner}>
+              <Ionicons name="snow-outline" size={14} color="#92400E" />
+              <Text style={styles.frozenBannerText}>
+                {project.frozenMonths != null
+                  ? t("project.frozen_months_warning").replace("{count}", String(project.frozenMonths))
+                  : t("project.frozen_warning")}
+              </Text>
+            </View>
+          )}
 
           <Text style={styles.targetLabel}>{t("project.target_amount")}</Text>
           <Text style={styles.targetValue}>
@@ -331,9 +358,9 @@ export default function ProjectDetailScreen() {
 
           <View style={styles.detailsGrid}>
             <View style={styles.detailCol}>
-              <Text style={styles.gridLabel}>{t("project.saved")}</Text>
+              <Text style={styles.gridLabel}>{t("project.net_saved")}</Text>
               <Text style={styles.gridValue}>
-                {formatCurrencyVND(project.totalContributed)}
+                {formatCurrencyVND(netSaved)}
               </Text>
             </View>
             <View style={styles.detailCol}>
@@ -343,6 +370,13 @@ export default function ProjectDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {moneyOwed > 0 && (
+            <View style={styles.netSavedHintRow}>
+              <Ionicons name="information-circle-outline" size={13} color="#92400E" />
+              <Text style={styles.netSavedHintText}>{t("project.net_saved_hint")}</Text>
+            </View>
+          )}
 
           {/* New Project Info Grid */}
           <View style={styles.metaInfoGrid}>
@@ -500,7 +534,7 @@ export default function ProjectDetailScreen() {
         )}
 
         {/* Danger zone: abandon (sub-personal, still active) → delete */}
-        {isSubPersonal && !isAbandoned ? (
+        {isSubPersonal && !isTerminalFailed ? (
           <>
             <Pressable
               style={styles.abandonProjectButton}
@@ -858,6 +892,34 @@ const styles = StyleSheet.create({
   },
   owedText: {
     color: "#EF4444",
+  },
+  frozenBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FEF9C3",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 12,
+  },
+  frozenBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#92400E",
+    fontWeight: "600",
+  },
+  netSavedHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 10,
+  },
+  netSavedHintText: {
+    flex: 1,
+    fontSize: 11,
+    color: "#92400E",
+    lineHeight: 16,
   },
   deleteProjectButton: {
     flexDirection: "row",

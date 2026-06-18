@@ -40,7 +40,7 @@ export type GroupInviteResponse = {
 // Group Projects
 export type GroupProjectStatus = "ACTIVE" | "COMPLETED" | "DISSOLVED";
 export type GroupProjectPriority = "LOW" | "MEDIUM" | "HIGH";
-export type SubProjectStatus = "ACTIVE" | "FROZEN" | "COMPLETED" | "ABANDONED";
+export type SubProjectStatus = "ACTIVE" | "FROZEN" | "COMPLETED" | "ABANDONED" | "EXPIRED";
 
 export type GroupProjectMemberDetail = {
   userId: string;
@@ -48,6 +48,9 @@ export type GroupProjectMemberDetail = {
   personalProjectId: string;
   priority?: GroupProjectPriority;
   moneySaved: number;
+  // All-auto model: overspend debt and net saved (moneySaved - moneyOwed) per member.
+  moneyOwed?: number;
+  netSaved?: number;
   targetAmount: number;
   progressPercent: number;
   projectStatus: SubProjectStatus;
@@ -58,6 +61,10 @@ export type GroupProjectDetailResponse = {
   groupId: string;
   name: string;
   targetAmount: number;
+  // Dynamic target = sum of still-participating members' sub-targets. Shrinks as
+  // members drop out (EXPIRED/ABANDONED). Drive the group progress bar off this,
+  // not targetAmount (which is the original/reference goal).
+  requiredTarget?: number;
   totalCapacity: number;
   currency: string;
   totalMonths: number;
