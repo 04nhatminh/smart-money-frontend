@@ -1,19 +1,21 @@
 import http from "./http";
 import { ApiResponse } from "../types/auth.types";
 
+export type BudgetCategory =
+  | "FOOD"
+  | "TRANSPORTATION"
+  | "CLOTHING"
+  | "UTILITIES"
+  | "ENTERTAINMENT"
+  | "HEALTH"
+  | "EDUCATION"
+  | "SHOPPING"
+  | "OTHER";
+
 export interface BudgetItem {
   budgetId: string;
   userId: string;
-  category:
-    | "FOOD"
-    | "TRANSPORTATION"
-    | "CLOTHING"
-    | "UTILITIES"
-    | "ENTERTAINMENT"
-    | "HEALTH"
-    | "EDUCATION"
-    | "SHOPPING"
-    | "OTHER";
+  category: BudgetCategory;
   amountLimit: number;
   month: number;
   year: number;
@@ -32,7 +34,7 @@ export interface BudgetListResponse {
 }
 
 export type BudgetBulkItem = {
-  category: string;
+  category: BudgetCategory;
   amountLimit: number;
 };
 
@@ -43,7 +45,7 @@ export type CreateBudgetBulkPayload = {
 };
 
 export type BudgetCreationError = {
-  category: string;
+  category: BudgetCategory;
   error: string;
 };
 
@@ -125,6 +127,8 @@ class BudgetAPI {
       );
     }
   }
+
+  
 
   async saveBulk(
     data: CreateBudgetBulkPayload

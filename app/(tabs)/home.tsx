@@ -14,7 +14,6 @@ import {
   Alert
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { userStorage } from "../../src/storage/userStorage";
 import { notificationStorage } from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
 import notificationService from "../../src/notification/notificationService";
@@ -33,6 +32,8 @@ import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
 import LatestProjectsSection, { LatestProjectItem } from "../../src/components/home/LatestProjectsSection";
+import SetupIncomeModal from "../../src/components/home/SetupIncomeModal";
+import SetupFinancialProfileModal from "../../src/components/home/SetupFinancialProfileModal";
 import { ProjectAPI } from "../../src/api/project.api";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
 import { panelRef } from "../_layout";
@@ -40,6 +41,9 @@ import { budgetAPI, BudgetItem } from "../../src/api/budget.api";
 import transactionApi from "../../src/api/transaction.api";
 import { CircularProgress } from "../../src/components/CircularProgress";
 import { formatVND } from "../../src/utils/formatCurrency";
+import { useAuth } from "../../src/context/AuthContext";
+import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
+import { GenerateBudgetAllocationPayload } from "../../src/types/budget_allocation.types";
 
 // Category icon mapping
 const categoryIconMap: { [key: string]: { icon: string; color: string; displayName: string } } = {
@@ -76,6 +80,7 @@ const getTransactionCategoryInfo = (category: string) => {
 
 export default function HomePage() {
   const router = useRouter();
+  const { user: authUser, refreshUser } = useAuth();
   const [user, setUser] = useState<UserResponse | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -85,6 +90,8 @@ export default function HomePage() {
   const [voiceVisible, setVoiceVisible] = useState(false);
   const [manualVisible, setManualVisible] = useState(false);
   const [isCreateProjectVisible, setCreateProjectVisible] = useState(false);
+  const [showSetupIncome, setShowSetupIncome] = useState(false);
+  const [showSetupFinancial, setShowSetupFinancial] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -129,14 +136,76 @@ export default function HomePage() {
     };
   }, []);
 
+  useEffect(() => {
+    setUser(authUser);
+  }, [authUser]);
+
   const loadUserData = async () => {
     try {
-      const userData = await userStorage.getUser();
+      const userData = await refreshUser();
       setUser(userData);
     } catch (error) {
       console.error("Failed to load user data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openRequiredSetupModal = (currentUser: UserResponse | null | undefined) => {
+    setShowSetupIncome(false);
+    setShowSetupFinancial(false);
+
+    if (!currentUser) return;
+    if (currentUser.onboardingCompleted) return;
+
+    if (!currentUser.incomeSetupCompleted) {
+      setShowSetupIncome(true);
+      return;
+    }
+
+    if (!currentUser.financialSetupCompleted) {
+      setShowSetupFinancial(true);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    openRequiredSetupModal(user);
+  }, [
+    user?.id,
+    user?.incomeSetupCompleted,
+    user?.financialSetupCompleted,
+    user?.onboardingCompleted,
+  ]);
+
+  const handleIncomeSetupSuccess = async () => {
+    setShowSetupIncome(false);
+
+    const latestUser = await refreshUser();
+    setUser(latestUser);
+
+    if (latestUser && !latestUser.financialSetupCompleted) {
+      setShowSetupFinancial(true);
+    }
+  };
+
+  const handleFinancialSetupSubmit = async (
+    payload: GenerateBudgetAllocationPayload
+  ) => {
+    try {
+      const response = await BudgetAllocationApi.createUserFinancialProfile(payload);
+
+      if (!response.success) {
+        Alert.alert("Error", response.message || "Failed to create financial profile");
+        return;
+      }
+
+      setShowSetupFinancial(false);
+      const latestUser = await refreshUser();
+      setUser(latestUser);
+    } catch (error: any) {
+      Alert.alert("Error", error?.message || "Failed to create financial profile");
     }
   };
 
@@ -565,6 +634,18 @@ export default function HomePage() {
       <CreateProjectModal
         visible={isCreateProjectVisible}
         onClose={() => setCreateProjectVisible(false)}
+      />
+
+      <SetupIncomeModal
+        visible={showSetupIncome}
+        onClose={() => setShowSetupIncome(false)}
+        onSuccess={handleIncomeSetupSuccess}
+      />
+
+      <SetupFinancialProfileModal
+        visible={showSetupFinancial}
+        onClose={() => setShowSetupFinancial(false)}
+        onSubmit={handleFinancialSetupSubmit}
       />
     </SafeAreaView>
   );

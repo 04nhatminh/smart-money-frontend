@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { tokenStorage } from "../storage/tokenStorage";
 import { userStorage } from "../storage/userStorage";
 import authService from "../auth/authService";
+import AuthApi from "../api/auth.api";
 import { UserResponse, UpdateUserRequest } from "../types/auth.types";
 
 type AuthContextType = {
@@ -11,7 +12,7 @@ type AuthContextType = {
   checkAuthStatus: () => Promise<void>;
   login: (email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<UserResponse | null>;
   updateUser: (data: UpdateUserRequest | FormData) => Promise<any>;
 };
 
@@ -27,6 +28,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("🔐 [AuthProvider] Mounted, checking auth status...");
     checkAuthStatus();
   }, []);
+
+const loadCurrentUser = async () => {
+  const response = await AuthApi.getCurrentUser();
+
+  if (response.success && response.data) {
+    const latestUser = authService.normalizeUser(response.data);
+    await userStorage.setUser(latestUser);
+    return latestUser;
+  }
+
+  return authService.getCurrentUser();
+};
 
 const checkAuthStatus = async () => {
   try {
@@ -49,7 +62,7 @@ const checkAuthStatus = async () => {
     // ✅ Access token còn hạn
     if (accessToken && !authService.isTokenExpired(accessToken)) {
       console.log("✅ [AuthProvider] Access token valid");
-      const userData = await userStorage.getUser();
+      const userData = await loadCurrentUser();
       setUser(userData);
       setIsSignedIn(true);
       return;
@@ -69,7 +82,7 @@ const checkAuthStatus = async () => {
             await tokenStorage.setRefreshToken(res.data.refreshToken);
           }
 
-          const userData = await userStorage.getUser();
+          const userData = await loadCurrentUser();
           setUser(userData);
           setIsSignedIn(true);
           return;
@@ -111,7 +124,7 @@ const checkAuthStatus = async () => {
       const response = await authService.login(email, password);
       
       if (response.success) {
-        const userData = await userStorage.getUser();
+        const userData = await authService.getCurrentUser();
         setUser(userData);
         setIsSignedIn(true);
       }
@@ -142,10 +155,14 @@ const checkAuthStatus = async () => {
 
   const refreshUser = async () => {
     try {
-      const userData = await userStorage.getUser();
+      const userData = await loadCurrentUser();
       setUser(userData);
+      return userData;
     } catch (error) {
       console.error("Refresh user error:", error);
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+      return userData;
     }
   };
 
@@ -155,8 +172,9 @@ const checkAuthStatus = async () => {
       const response = await authService.updateProfile(data);
       
       if (response.success && response.data) {
-        await userStorage.setUser(response.data);
-        setUser(response.data);
+        const latestUser = authService.normalizeUser(response.data);
+        await userStorage.setUser(latestUser);
+        setUser(latestUser);
       }
       
       return response;

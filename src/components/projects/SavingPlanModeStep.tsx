@@ -5,6 +5,7 @@ import {
   SavingPlanMode,
 } from "../../types/project.types";
 import { savingPlanStyles as styles } from "../../styles/savingPlanStyles";
+import { i18n, t } from "../../i18n";
 
 type Props = {
   mode: SavingPlanMode | null;
@@ -26,7 +27,6 @@ export default function SavingPlanModeStep({
   advisorData,
   advisorError,
   confirmLoading,
-
   onBack,
   onSelectMode,
   onEditProject,
@@ -34,20 +34,23 @@ export default function SavingPlanModeStep({
   onKeepOriginalPlan,
 }: Props) {
   const showAISection = !!mode;
+  const numberFormatter = new Intl.NumberFormat(
+    i18n.locale === "vi" ? "vi-VN" : "en-US"
+  );
 
   return (
     <>
       <View style={styles.stepHeader}>
-        <Text style={styles.headerTitle}>Saving Plan</Text>
+        <Text style={styles.headerTitle}>{t("project.saving_plan_title")}</Text>
       </View>
 
       <View style={styles.assistantCard}>
         <View style={styles.assistantHeader}>
-          <Text style={styles.assistantTitle}>AI Assistant</Text>
+          <Text style={styles.assistantTitle}>{t("project.ai_assistant")}</Text>
         </View>
 
         <Text style={styles.assistantQuestion}>
-          How would you like to save for your saving goal?
+          {t("project.how_would_you_like_to_save")}
         </Text>
 
         <View style={styles.modeButtonRow}>
@@ -64,7 +67,7 @@ export default function SavingPlanModeStep({
                 mode === "RELAXED" && styles.modeButtonTextActive,
               ]}
             >
-              Relaxed
+              {t("project.relaxed")}
             </Text>
           </Pressable>
 
@@ -81,7 +84,7 @@ export default function SavingPlanModeStep({
                 mode === "URGENT" && styles.modeButtonTextActive,
               ]}
             >
-              Urgent
+              {t("project.urgent")}
             </Text>
           </Pressable>
         </View>
@@ -89,7 +92,7 @@ export default function SavingPlanModeStep({
 
       {showAISection && (
         <>
-          <Text style={styles.sectionTitle}>AI Suggestion:</Text>
+          <Text style={styles.sectionTitle}>{t("project.ai_suggestion")}</Text>
 
           <View
             style={[
@@ -99,41 +102,36 @@ export default function SavingPlanModeStep({
           >
             {advisorLoading ? (
               <Text style={styles.suggestionText}>
-                AI is generating your saving plan...
+                {t("project.ai_generating_saving_plan")}
               </Text>
             ) : advisorError ? (
               <>
                 <Text style={styles.suggestionErrorTitle}>
-                  This plan may not be suitable
+                  {t("project.this_plan_may_not_be_suitable")}
                 </Text>
 
-                <Text style={styles.suggestionErrorText}>
-                  {advisorError}
-                </Text>
+                <Text style={styles.suggestionErrorText}>{advisorError}</Text>
 
-                <Pressable
-                  style={styles.inlineEditButton}
-                  onPress={onEditProject}
-                >
+                <Pressable style={styles.inlineEditButton} onPress={onEditProject}>
                   <Text style={styles.inlineEditButtonText}>
-                    Edit Project
+                    {t("project.edit")}
                   </Text>
                 </Pressable>
               </>
             ) : advisorData ? (
               <>
                 <Text style={styles.suggestionText}>
-                  Monthly Saving:{" "}
-                  {advisorData.monthlySaving.toLocaleString("de-DE")} VND
+                  {t("project.monthly_saving_label")}{" "}
+                  {numberFormatter.format(advisorData.monthlySaving)} VND
                 </Text>
 
                 <Text style={styles.suggestionText}>
-                  Estimated Months: {advisorData.numberOfMonths}
+                  {t("project.estimated_months")} {advisorData.numberOfMonths}
                 </Text>
               </>
             ) : (
               <Text style={styles.suggestionText}>
-                Select a mode to receive AI suggestion.
+                {t("project.select_mode_to_receive_ai_suggestion")}
               </Text>
             )}
           </View>
@@ -141,7 +139,7 @@ export default function SavingPlanModeStep({
           {advisorData && !advisorError && (
             <>
               <Text style={styles.questionText}>
-                Do you want to use this AI suggested plan?
+                {t("project.use_this_ai_suggested_plan")}
               </Text>
 
               <Pressable
@@ -153,7 +151,7 @@ export default function SavingPlanModeStep({
                 onPress={onConfirmAdvisorPlan}
               >
                 <Text style={styles.primaryButtonText}>
-                  {confirmLoading ? "Creating..." : "Confirm AI Plan"}
+                  {confirmLoading ? t("project.generating") : t("project.confirm_ai_plan")}
                 </Text>
               </Pressable>
 
@@ -166,7 +164,7 @@ export default function SavingPlanModeStep({
                 onPress={onKeepOriginalPlan}
               >
                 <Text style={styles.secondaryButtonText}>
-                  Keep Original Plan
+                  {t("project.keep_original_plan")}
                 </Text>
               </Pressable>
             </>
@@ -176,7 +174,7 @@ export default function SavingPlanModeStep({
 
       <View style={styles.stepActionRow}>
         <Pressable style={styles.secondaryButton} onPress={onBack}>
-          <Text style={styles.secondaryButtonText}>Back</Text>
+          <Text style={styles.secondaryButtonText}>{t("project.back")}</Text>
         </Pressable>
       </View>
     </>
