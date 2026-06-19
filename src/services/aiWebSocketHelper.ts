@@ -19,7 +19,9 @@ export async function waitForAIResult(
     return new Promise((resolve) => {
       let done = false;
 
-      const unsubscribe = subscribeJob(jobId, (data) => {
+      let unsubscribe = () => {};
+
+      subscribeJob(jobId, (data) => {
         if (done) return;
 
         done = true;
@@ -34,6 +36,8 @@ export async function waitForAIResult(
           status: "SUCCESS",
           data,
         });
+      }).then((cleanup) => {
+        unsubscribe = cleanup;
       });
 
       const timeout = setTimeout(() => {
