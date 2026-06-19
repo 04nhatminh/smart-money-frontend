@@ -89,7 +89,10 @@ export interface UserResponse {
   coin: number;
   rate: number;
   role: string;
-  active: boolean
+  active: boolean;
+  incomeSetupCompleted: boolean;
+  financialSetupCompleted: boolean;
+  onboardingCompleted: boolean;
 }
 
 export interface CheckResponse<T> {

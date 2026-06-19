@@ -16,5 +16,5 @@ export function t(key: string, options?: Record<string, any>) {
 }
 
 export function setLanguage(lang: Lang) {
-  // implementation
+  i18n.locale = lang;
 }

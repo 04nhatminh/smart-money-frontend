@@ -23,6 +23,7 @@ import {
   toUpperCasePayload,
   GenerateBudgetAllocationPayload,
 } from "../../types/budget_allocation.types";
+import { t } from "../../i18n";
 
 type Props = {
   visible: boolean;
@@ -30,34 +31,65 @@ type Props = {
   onSubmit: (payload: GenerateBudgetAllocationPayload) => void;
 };
 
-const LABELS: Record<string, string> = {
-  business_owner: "Business Owner",
-  freelancer: "Freelancer",
-  office_worker: "Office Worker",
-  student: "Student",
-  dorm: "Dorm",
-  own_house: "Own House",
-  rent_room: "Rent Room",
-  with_family: "With Family",
-  high: "High",
-  low: "Low",
-  medium: "Medium",
-  bus: "Bus",
-  car: "Car",
-  motorbike: "Motorbike",
-  ride_hailing: "Ride-hailing",
-  balanced: "Balanced",
-  frugal: "Frugal",
-  spender: "Spender",
-  hybrid: "Hybrid",
-  none: "None",
-  onsite: "On-site",
-  part_time: "Part-time",
-  remote: "Remote",
-  married: "Married",
-  single: "Single",
-  course_heavy: "Course Heavy",
-  normal: "Normal",
+const getOptionLabel = (value: string) => {
+  switch (value) {
+    case "business_owner":
+      return t("budget.role_business_owner");
+    case "freelancer":
+      return t("budget.role_freelancer");
+    case "office_worker":
+      return t("budget.role_office_worker");
+    case "student":
+      return t("budget.role_student");
+    case "dorm":
+      return t("budget.living_dorm");
+    case "own_house":
+      return t("budget.living_own_house");
+    case "rent_room":
+      return t("budget.living_rent_room");
+    case "with_family":
+      return t("budget.living_with_family");
+    case "high":
+      return t("budget.level_high");
+    case "low":
+      return t("budget.level_low");
+    case "medium":
+      return t("budget.level_medium");
+    case "bus":
+      return t("budget.transport_bus");
+    case "car":
+      return t("budget.transport_car");
+    case "motorbike":
+      return t("budget.transport_motorbike");
+    case "ride_hailing":
+      return t("budget.transport_ride_hailing");
+    case "balanced":
+      return t("budget.spending_balanced");
+    case "frugal":
+      return t("budget.spending_frugal");
+    case "spender":
+      return t("budget.spending_spender");
+    case "hybrid":
+      return t("budget.work_hybrid");
+    case "none":
+      return t("budget.work_none");
+    case "onsite":
+      return t("budget.work_onsite");
+    case "part_time":
+      return t("budget.work_part_time");
+    case "remote":
+      return t("budget.work_remote");
+    case "married":
+      return t("budget.family_married");
+    case "single":
+      return t("budget.family_single");
+    case "course_heavy":
+      return t("budget.study_course_heavy");
+    case "normal":
+      return t("budget.study_normal");
+    default:
+      return value;
+  }
 };
 
 function OptionGroup<T extends string>({
@@ -83,7 +115,7 @@ function OptionGroup<T extends string>({
               value === opt && styles.optionTextActive,
             ]}
           >
-            {LABELS[opt] ?? opt}
+            {getOptionLabel(opt)}
           </Text>
         </Pressable>
       ))}
@@ -142,17 +174,22 @@ export default function SetupFinancialProfileModal({
               <View style={styles.successIconBox}>
                 <Ionicons name="checkmark-circle" size={64} color="#4B3FD6" />
               </View>
-              <Text style={styles.successTitle}>Profile Ready!</Text>
+              <Text style={styles.successTitle}>
+                {t("budget.profile_ready_title")}
+              </Text>
               <Text style={styles.successSubtitle}>
-                Your financial profile details have been captured. Continue to save your profile and set up budget allocation.
+                {t("budget.profile_ready_subtitle")}
               </Text>
               <View style={styles.buttonRow}>
                 <ButtonSave
-                  label="Cancel"
+                  label={t("budget.cancel_button")}
                   variant="secondary"
                   onPress={onClose}
                 />
-                <ButtonSave label="Continue" onPress={handleContinue} />
+                <ButtonSave
+                  label={t("budget.continue_button")}
+                  onPress={handleContinue}
+                />
               </View>
             </View>
           ) : (
@@ -161,9 +198,11 @@ export default function SetupFinancialProfileModal({
 
               <View style={styles.headerRow}>
                 <View>
-                  <Text style={styles.title}>Financial Profile</Text>
+                  <Text style={styles.title}>
+                    {t("budget.financial_profile_title")}
+                  </Text>
                   <Text style={styles.subtitle}>
-                    Help AI tailor your budget allocation.
+                    {t("budget.financial_profile_help")}
                   </Text>
                 </View>
                 <Pressable style={styles.closeBtn} onPress={onClose}>
@@ -171,63 +210,63 @@ export default function SetupFinancialProfileModal({
                 </Pressable>
               </View>
 
-              <Text style={styles.label}>Your role</Text>
+              <Text style={styles.label}>{t("budget.role")}</Text>
               <OptionGroup
                 options={FINANCIAL_PROFILE_ROLES}
                 value={values.role}
                 onChange={set("role")}
               />
 
-              <Text style={styles.label}>Living situation</Text>
+              <Text style={styles.label}>{t("budget.living")}</Text>
               <OptionGroup
                 options={FINANCIAL_PROFILE_LIVING_STATUSES}
                 value={values.living_status}
                 onChange={set("living_status")}
               />
 
-              <Text style={styles.label}>Income level</Text>
+              <Text style={styles.label}>{t("budget.income")}</Text>
               <OptionGroup
                 options={FINANCIAL_PROFILE_INCOME_LEVELS}
                 value={values.income_level}
                 onChange={set("income_level")}
               />
 
-              <Text style={styles.label}>Main transport</Text>
+              <Text style={styles.label}>{t("budget.transport")}</Text>
               <OptionGroup
                 options={FINANCIAL_PROFILE_TRANSPORT_MODES}
                 value={values.transport_mode}
                 onChange={set("transport_mode")}
               />
 
-              <Text style={styles.label}>Spending style</Text>
+              <Text style={styles.label}>{t("budget.spending_style")}</Text>
               <OptionGroup
                 options={FINANCIAL_PROFILE_SPENDING_STYLES}
                 value={values.spending_style}
                 onChange={set("spending_style")}
               />
 
-              <Text style={styles.label}>Work style</Text>
+              <Text style={styles.label}>{t("budget.work_style")}</Text>
               <OptionGroup
                 options={FINANCIAL_PROFILE_WORK_STYLES}
                 value={values.work_style}
                 onChange={set("work_style")}
               />
 
-              <Text style={styles.label}>Family status</Text>
+              <Text style={styles.label}>{t("budget.family")}</Text>
               <OptionGroup
                 options={FINANCIAL_PROFILE_FAMILY_STATUSES}
                 value={values.family_status}
                 onChange={set("family_status")}
               />
 
-              <Text style={styles.label}>Study intensity</Text>
+              <Text style={styles.label}>{t("budget.study")}</Text>
               <OptionGroup
                 options={FINANCIAL_PROFILE_STUDY_INTENSITIES}
                 value={values.study_intensity}
                 onChange={set("study_intensity")}
               />
 
-              <Text style={styles.label}>Health need</Text>
+              <Text style={styles.label}>{t("budget.health_need")}</Text>
               <OptionGroup
                 options={FINANCIAL_PROFILE_HEALTH_NEEDS}
                 value={values.health_need}
@@ -236,11 +275,14 @@ export default function SetupFinancialProfileModal({
 
               <View style={styles.buttonRow}>
                 <ButtonSave
-                  label="Cancel"
+                  label={t("budget.cancel_button")}
                   variant="secondary"
                   onPress={onClose}
                 />
-                <ButtonSave label="Continue" onPress={handleSubmit} />
+                <ButtonSave
+                  label={t("budget.continue_button")}
+                  onPress={handleSubmit}
+                />
               </View>
             </ScrollView>
           )}

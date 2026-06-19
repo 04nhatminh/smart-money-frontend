@@ -22,6 +22,20 @@ import * as base64 from "base-64";
 class AuthService {
   private tokenRefreshPromise: Promise<boolean> | null = null;
 
+  normalizeUser(user: any): UserResponse {
+    const incomeSetupCompleted =
+      user?.incomeSetupCompleted ?? user?.income_setup_completed ?? false;
+    const financialSetupCompleted =
+      user?.financialSetupCompleted ?? user?.financial_setup_completed ?? false;
+
+    return {
+      ...user,
+      incomeSetupCompleted,
+      financialSetupCompleted,
+      onboardingCompleted: incomeSetupCompleted && financialSetupCompleted,
+    };
+  }
+
   // Initialize service
   init() {
     this.loadUserFromStorage();
@@ -70,7 +84,7 @@ class AuthService {
     }
 
     if (auth.user) {
-      await userStorage.setUser(auth.user);
+      await userStorage.setUser(this.normalizeUser(auth.user));
     }
   }
 
@@ -101,7 +115,8 @@ class AuthService {
   }
 
   async getCurrentUser() {
-    return await userStorage.getUser();
+    const user = await userStorage.getUser();
+    return user ? this.normalizeUser(user) : null;
   }
 
   // Check if user is authenticated
@@ -346,7 +361,7 @@ class AuthService {
   async updateProfile(data: UpdateUserRequest | FormData): Promise<CheckResponse<UserResponse>> {
     const response = await AuthApi.updateUser(data);
     if (response.success && response.data) {
-      await userStorage.setUser(response.data);
+      await userStorage.setUser(this.normalizeUser(response.data));
     }
     return response;
   }

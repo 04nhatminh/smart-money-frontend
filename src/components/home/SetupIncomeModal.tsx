@@ -14,6 +14,7 @@ import {
 import { UserIncomeApi } from "../../api/userIncome.api";
 
 import { CreateIncomePayload, UserIncomeResponse } from "../../types/user.types";
+import { useAuth } from "../../context/AuthContext";
 
 type Props = {
   visible: boolean;
@@ -28,6 +29,7 @@ export default function SetupIncomeModal({
   onClose,
   onSuccess,
 }: Props) {
+  const { refreshUser } = useAuth();
   const [netIncome, setNetIncome] = useState("");
   const [usableIncome, setUsableIncome] = useState("");
   const [note, setNote] = useState("");
@@ -84,6 +86,7 @@ export default function SetupIncomeModal({
         return;
       }
 
+      await refreshUser();
       onSuccess();
     } catch (error: any) {
       Alert.alert("Error", error?.message || "Failed to save income");
