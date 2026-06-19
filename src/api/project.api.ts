@@ -9,6 +9,8 @@ import {
   ProjectAdvisorPayload,
   ProjectAdvisorResponse,
   InviteResponse,
+  ProjectTrackingResponse,
+  ProjectHistory,
 } from "../types/project.types";
 import { ApiResponse } from "../types/auth.types";
 
@@ -89,6 +91,68 @@ export const ProjectAPI = {
       const responseData = error?.response?.data;
 
       console.error("🔴 [ProjectApi] Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+      console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  },
+
+  async getTracking(
+    projectId: string
+  ): Promise<ApiResponse<ProjectTrackingResponse>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/tracking`;
+      console.log("🔵 [ProjectApi] GET Tracking Request:");
+      console.log("   URL:", fullUrl);
+
+      const res = await http.get(`/api/v1/projects/${projectId}/tracking`);
+      console.log("🟢 [ProjectApi] Tracking Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [ProjectApi] Tracking Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+      console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  },
+
+  async getHistory(
+    projectId: string
+  ): Promise<ApiResponse<ProjectHistory[]>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/history`;
+      console.log("🔵 [ProjectApi] GET History Request:");
+      console.log("   URL:", fullUrl);
+
+      const res = await http.get(`/api/v1/projects/${projectId}/history`);
+      console.log("🟢 [ProjectApi] History Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [ProjectApi] History Error Details:");
       console.error("   Message:", errorMsg);
       console.error("   Status:", status);
       console.error("   Response Data:", responseData);

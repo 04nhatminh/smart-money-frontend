@@ -18,6 +18,30 @@ export type ProjectStatus =
 // Statuses that are terminal AND represent failure (target never reached).
 export const TERMINAL_FAILED_STATUSES: ProjectStatus[] = ["EXPIRED", "ABANDONED", "CANCELLED"];
 
+// Phase 0 enrichment enums — backend emits these machine-readable values; the FE
+// owns all display copy/colour. See docs/project-tracking-api-contract.md.
+
+// Pace-aware months left vs. calendar months to deadline.
+export type PaceStatus = "AHEAD" | "ON_TRACK" | "BEHIND" | "NOT_APPLICABLE";
+
+// The "why" behind the status badge, so the UI can explain rather than just label.
+export type ProjectStatusReason =
+  | "ON_TRACK"
+  | "BEHIND_PACE"
+  | "FROZEN_DEBT"
+  | "EXPIRED_DEADLINE"
+  | "EXPIRED_FROZEN_TOO_LONG"
+  | "COMPLETED"
+  | "ABANDONED_BY_USER"
+  | "NONE";
+
+// Per-month settlement outcome, drives the history row icon + sentence.
+export type ProjectHistoryOutcome =
+  | "CLEAN_MONTH"
+  | "OVERSPENT"
+  | "UNDERSPENT_BONUS"
+  | "FROZEN_NO_SAVING";
+
 export type SavingPlanMode = "RELAXED" | "URGENT";
 
 export type CreateProjectModalStep = 1 | 2 | 3;
@@ -96,6 +120,9 @@ export type ProjectHistory = {
   surplusInvested: number;
   monthLeftBefore: number;
   monthLeftAfter: number;
+  // Phase 0: convenience delta (moneySavedAfter - moneySavedBefore) + classifier.
+  netChange?: number;
+  outcome?: ProjectHistoryOutcome;
   createdAt: string;
 };
 
@@ -113,6 +140,13 @@ export type ProjectDetailResponse = ProjectListItemResponse & {
   description: string;
   remaining: number;
   statusLabel?: string;
+  // Phase 0: the "why" behind `status`, for the reason banner.
+  statusReason?: ProjectStatusReason;
+  // Pace fields now ride on the detail response (no separate /tracking call needed
+  // for the chip). `monthsLeft` is the calendar deadline countdown; `paceMonthsLeft`
+  // is "at this saving pace, ~N months left"; `paceStatus` compares the two.
+  paceMonthsLeft?: number | null;
+  paceStatus?: PaceStatus;
   monthlySaving?: number;
   durationMonths?: number;
   currentMonth?: number;
@@ -127,6 +161,28 @@ export type ProjectDetailResponse = ProjectListItemResponse & {
 };
 
 export type ProjectResponse = ProjectDetailResponse;
+
+// Phase 0: GET /{projectId}/tracking — pace, debt, and frozen-countdown enrichment.
+// View access (non-owner viewers allowed).
+export type ProjectTrackingResponse = {
+  id: string;
+  projectId: string;
+  moneySaved: number;
+  moneyOwed: number;
+  netSaved: number;
+  currentMonth: number;
+  monthlySaving: number;
+  // Pace-aware months left (settlement-recalculated), not raw calendar months.
+  monthLeft: number;
+  frozenMonths: number;
+  monthsToDeadline: number | null;
+  paceStatus: PaceStatus;
+  maxFrozenMonths: number;
+  // ceil(moneyOwed / monthlySaving); null when there's no debt. Show as "~N months".
+  debtClearEstimateMonths: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 
 export type SavingPlanSuggestionCategory = {

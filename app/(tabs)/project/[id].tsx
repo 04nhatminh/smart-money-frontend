@@ -17,14 +17,28 @@ import { ProjectAPI } from "../../../src/api/project.api";
 import { GroupAPI } from "../../../src/api/group.api";
 import EditProjectModal from "../../../src/components/projects/EditProjectModal";
 import InviteMemberModal from "../../../src/components/projects/InviteMemberModal";
-import { ProjectDetailResponse, TERMINAL_FAILED_STATUSES } from "../../../src/types/project.types";
+import {
+  ProjectDetailResponse,
+  ProjectHistory,
+  ProjectTrackingResponse,
+  TERMINAL_FAILED_STATUSES,
+} from "../../../src/types/project.types";
 import { formatCurrencyVND, getSafeProgress } from "../../../src/utils/project";
+import {
+  historyOutcomeStyles,
+  inferOutcome,
+  paceStatusStyles,
+  sortHistoriesDesc,
+  statusReasonStyles,
+} from "../../../src/utils/projectTracking";
 import { t } from "../../../src/i18n";
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [project, setProject] = useState<ProjectDetailResponse | null>(null);
+  const [tracking, setTracking] = useState<ProjectTrackingResponse | null>(null);
+  const [histories, setHistories] = useState<ProjectHistory[]>([]);
   const groupProjectIdRef = useRef<string | null>(null);
   const completionAlertedRef = useRef(false);
   const [loading, setLoading] = useState(true);
@@ -94,21 +108,38 @@ export default function ProjectDetailScreen() {
     );
   };
 
-  const fetchProjectDetail = async () => {
+  // Loads detail + tracking + history together. `silent` skips the full-screen
+  // spinner and error alert (used by pull-to-refresh).
+  const fetchProjectDetail = async (silent = false) => {
     if (!id) return;
     try {
-      setLoading(true);
-      const res = await ProjectAPI.getById(id);
-      if (res.success && res.data) {
-        setProject(res.data);
-      } else {
-        Alert.alert(t("common.error"), res.message || "Failed to fetch project details");
+      if (!silent) setLoading(true);
+      const [detailRes, trackingRes, historyRes] = await Promise.all([
+        ProjectAPI.getById(id),
+        ProjectAPI.getTracking(id),
+        ProjectAPI.getHistory(id),
+      ]);
+
+      if (detailRes.success && detailRes.data) {
+        setProject(detailRes.data);
+        // Prefer the dedicated history endpoint; fall back to the embedded copy.
+        const rawHistories =
+          historyRes.success && historyRes.data
+            ? historyRes.data
+            : detailRes.data.histories ?? [];
+        setHistories(sortHistoriesDesc(rawHistories));
+      } else if (!silent) {
+        Alert.alert(t("common.error"), detailRes.message || t("common.error"));
+      }
+
+      if (trackingRes.success && trackingRes.data) {
+        setTracking(trackingRes.data);
       }
     } catch (err) {
       console.error("Fetch project details error:", err);
-      Alert.alert(t("common.error"), t("common.error"));
+      if (!silent) Alert.alert(t("common.error"), t("common.error"));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -116,12 +147,7 @@ export default function ProjectDetailScreen() {
     if (!id) return;
     setRefreshing(true);
     try {
-      const res = await ProjectAPI.getById(id);
-      if (res.success && res.data) {
-        setProject(res.data);
-      }
-    } catch (err) {
-      console.error(err);
+      await fetchProjectDetail(true);
     } finally {
       setRefreshing(false);
     }
@@ -148,6 +174,10 @@ export default function ProjectDetailScreen() {
         `/topic/project/${id}/ledger`,
         (payload: { newTotal: number; latestContribution?: string }) => {
           console.log("🟢 [ProjectDetailScreen] WebSocket update received:", payload);
+          if (typeof payload?.newTotal !== "number" || Number.isNaN(payload.newTotal)) {
+            console.warn("⚠️ Ledger update missing a numeric newTotal, ignoring", payload);
+            return;
+          }
           setProject((prev) => {
             if (!prev) return null;
             const newTotal = payload.newTotal;
@@ -157,13 +187,23 @@ export default function ProjectDetailScreen() {
             return {
               ...prev,
               totalContributed: newTotal,
+              // In the all-auto model totalContributed IS net saved — keep the
+              // headline number in sync so the bar and "Net saved" never diverge.
+              netSaved: newTotal,
               progressPercent: progress,
               remaining: remaining,
             };
           });
 
+          // The optimistic update above moves the bar instantly; reconcile the
+          // server-derived fields (moneyOwed, pace, frozen cap, history) with a
+          // silent refetch so the debt overlay/panel and pace chip don't go stale.
+          fetchProjectDetail(true).catch(() => {
+            // Non-critical — keep the optimistic snapshot.
+          });
+
           if (payload.latestContribution) {
-            Alert.alert("Project Update", payload.latestContribution);
+            Alert.alert(t("common.name_app"), payload.latestContribution);
           }
 
           const gid = groupProjectIdRef.current;
@@ -232,9 +272,45 @@ export default function ProjectDetailScreen() {
   const isSubPersonal = !!project.groupProjectId;
   // EXPIRED / ABANDONED / CANCELLED are terminal failed states — no resume actions.
   const isTerminalFailed = TERMINAL_FAILED_STATUSES.includes(project.status);
-  const isFrozen = project.status === "FROZEN";
   const netSaved = project.netSaved ?? project.totalContributed;
   const moneyOwed = project.moneyOwed ?? 0;
+
+  // Debt overlay (B1): red segment to the right of the green net fill, sized as
+  // debt's share of the target and clamped to the empty space on the bar.
+  const debtPercent =
+    project.targetAmount > 0
+      ? Math.min(Math.max(0, 100 - progress), (moneyOwed / project.targetAmount) * 100)
+      : 0;
+
+  // Status reason banner (B2): the human "why" behind the badge.
+  const statusReason = project.statusReason ?? "NONE";
+  const reasonStyle = statusReasonStyles[statusReason];
+  let reasonText = t(reasonStyle.i18nKey);
+  if (statusReason === "FROZEN_DEBT") {
+    // The frozen X/Y suffix needs maxFrozenMonths, which only rides on tracking.
+    // Append it only when we actually know the cap — otherwise show just the reason
+    // (avoids rendering a misleading "Frozen 2/0 months").
+    const mx = tracking?.maxFrozenMonths ?? 0;
+    if (mx > 0) {
+      const fm = tracking?.frozenMonths ?? project.frozenMonths ?? 0;
+      const frozenCount = t("project.frozen_count")
+        .replace("{count}", String(fm))
+        .replace("{max}", String(mx));
+      reasonText = `${reasonText} ${frozenCount}`;
+    }
+  }
+  const showReasonBanner = reasonStyle.banner && !!reasonText;
+
+  // Pace chip (B1): prefer the detail response (pace now rides on it), fall back to
+  // the tracking resource. Hidden when not applicable (terminal / no deadline).
+  const paceStatus = project.paceStatus ?? tracking?.paceStatus;
+  const paceStyle = paceStatus ? paceStatusStyles[paceStatus] : null;
+  const showPaceChip = !!paceStyle && paceStatus !== "NOT_APPLICABLE";
+  // "At this pace, ~N months of saving left" — distinct from the calendar monthsLeft.
+  const paceMonthsLeft = project.paceMonthsLeft ?? tracking?.monthLeft ?? null;
+
+  // Debt panel (B3) estimate — only meaningful when there's debt.
+  const debtClearEstimate = tracking?.debtClearEstimateMonths ?? null;
 
   // Status -> badge colors. Falls back to neutral grey for anything unmapped.
   const statusColors: Record<string, { bg: string; text: string }> = {
@@ -320,19 +396,29 @@ export default function ProjectDetailScreen() {
                   {project.priority}
                 </Text>
               </View>
+              {showPaceChip && paceStyle && (
+                <View style={[styles.chip, { backgroundColor: paceStyle.bg }]}>
+                  <Text style={[styles.chipText, { color: paceStyle.text }]}>
+                    {t(paceStyle.i18nKey)}
+                  </Text>
+                </View>
+              )}
             </View>
             <Text style={[styles.statusLabelText, { backgroundColor: currentStatusColor.bg, color: currentStatusColor.text }]}>
               {project.status}
             </Text>
           </View>
 
-          {isFrozen && (
-            <View style={styles.frozenBanner}>
-              <Ionicons name="snow-outline" size={14} color="#92400E" />
-              <Text style={styles.frozenBannerText}>
-                {project.frozenMonths != null
-                  ? t("project.frozen_months_warning").replace("{count}", String(project.frozenMonths))
-                  : t("project.frozen_warning")}
+          {showReasonBanner && (
+            <View
+              style={[
+                styles.reasonBanner,
+                { backgroundColor: reasonStyle.bg, borderColor: reasonStyle.border },
+              ]}
+            >
+              <Ionicons name={reasonStyle.icon as any} size={15} color={reasonStyle.text} />
+              <Text style={[styles.reasonBannerText, { color: reasonStyle.text }]}>
+                {reasonText}
               </Text>
             </View>
           )}
@@ -341,6 +427,15 @@ export default function ProjectDetailScreen() {
           <Text style={styles.targetValue}>
             {formatCurrencyVND(project.targetAmount)} {project.currency}
           </Text>
+
+          {project.monthlySaving ? (
+            <Text style={styles.reservingSubline}>
+              {t("project.reserving_monthly").replace(
+                "{amount}",
+                `${formatCurrencyVND(project.monthlySaving)} ${project.currency}`
+              )}
+            </Text>
+          ) : null}
 
           <View style={styles.progressRow}>
             <Text style={styles.progressLabel}>{t("project.progress")}</Text>
@@ -354,7 +449,22 @@ export default function ProjectDetailScreen() {
                 { width: `${progress}%` },
               ]}
             />
+            {debtPercent > 0 && (
+              <View
+                style={[
+                  styles.progressBarDebt,
+                  { width: `${debtPercent}%` },
+                ]}
+              />
+            )}
           </View>
+
+          {moneyOwed > 0 && (
+            <Text style={styles.debtCaption}>
+              {t("project.debt_caption")
+                .replace("{amount}", `${formatCurrencyVND(moneyOwed)} ${project.currency}`)}
+            </Text>
+          )}
 
           <View style={styles.detailsGrid}>
             <View style={styles.detailCol}>
@@ -370,13 +480,6 @@ export default function ProjectDetailScreen() {
               </Text>
             </View>
           </View>
-
-          {moneyOwed > 0 && (
-            <View style={styles.netSavedHintRow}>
-              <Ionicons name="information-circle-outline" size={13} color="#92400E" />
-              <Text style={styles.netSavedHintText}>{t("project.net_saved_hint")}</Text>
-            </View>
-          )}
 
           {/* New Project Info Grid */}
           <View style={styles.metaInfoGrid}>
@@ -410,6 +513,14 @@ export default function ProjectDetailScreen() {
                 {project.monthsLeft !== undefined ? `${project.monthsLeft} ${project.monthsLeft > 1 ? t("project.months") : t("project.month")}` : "N/A"}
               </Text>
             </View>
+            {paceMonthsLeft != null && (
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>{t("project.pace_months_left")}</Text>
+                <Text style={[styles.metaValue, paceStatus === "BEHIND" && styles.owedText]}>
+                  ~{paceMonthsLeft} {paceMonthsLeft > 1 ? t("project.months") : t("project.month")}
+                </Text>
+              </View>
+            )}
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t("project.created_at")}</Text>
               <Text style={styles.metaValue}>
@@ -418,6 +529,28 @@ export default function ProjectDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* Debt Panel (B3) — only when there is overspend debt */}
+        {moneyOwed > 0 && (
+          <View style={[styles.card, styles.debtCard]}>
+            <View style={styles.debtHeaderRow}>
+              <Ionicons name="alert-circle" size={18} color="#B45309" />
+              <Text style={styles.debtTitle}>{t("project.debt_panel_title")}</Text>
+              <Text style={styles.debtAmount}>
+                {formatCurrencyVND(moneyOwed)} {project.currency}
+              </Text>
+            </View>
+            <Text style={styles.debtDesc}>{t("project.debt_panel_desc")}</Text>
+            {debtClearEstimate != null && (
+              <View style={styles.debtEstimateRow}>
+                <Ionicons name="time-outline" size={13} color="#92400E" />
+                <Text style={styles.debtEstimateText}>
+                  {t("project.debt_clear_estimate").replace("{count}", String(debtClearEstimate))}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Description Card */}
         <View style={styles.card}>
@@ -430,8 +563,14 @@ export default function ProjectDetailScreen() {
         {/* Monthly savings overview / Histories */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("project.monthly_history")}</Text>
-          {project.histories && project.histories.length > 0 ? (
-            project.histories.map((history) => (
+          {histories.length > 0 ? (
+            histories.map((history) => {
+              const outcome = history.outcome ?? inferOutcome(history);
+              const outcomeStyle = historyOutcomeStyles[outcome];
+              const netChange =
+                history.netChange ?? history.moneySavedAfter - history.moneySavedBefore;
+              const netSign = netChange > 0 ? "+" : netChange < 0 ? "−" : "";
+              return (
               <View key={history.id || history.createdAt} style={styles.historyItem}>
                 <View style={styles.historyHeader}>
                   <View style={styles.historyDateBox}>
@@ -440,8 +579,15 @@ export default function ProjectDetailScreen() {
                       {t("project.month")} {history.month}/{history.year}
                     </Text>
                   </View>
-                  <Text style={styles.historySavingText}>
-                    +{formatCurrencyVND(history.monthlySaving - history.penalty + history.surplusInvested)} {project.currency}
+                  <Text style={[styles.historySavingText, { color: outcomeStyle.color }]}>
+                    {netSign}{formatCurrencyVND(Math.abs(netChange))} {project.currency}
+                  </Text>
+                </View>
+
+                <View style={styles.historyOutcomeRow}>
+                  <Ionicons name={outcomeStyle.icon as any} size={14} color={outcomeStyle.color} />
+                  <Text style={[styles.historyOutcomeText, { color: outcomeStyle.color }]}>
+                    {t(outcomeStyle.i18nKey)}
                   </Text>
                 </View>
 
@@ -482,7 +628,8 @@ export default function ProjectDetailScreen() {
                   )}
                 </View>
               </View>
-            ))
+              );
+            })
           ) : (
             <View style={styles.emptyHistoryBox}>
               <MaterialCommunityIcons name="history" size={32} color="#9CA3AF" />
@@ -733,6 +880,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 18,
   },
+  reservingSubline: {
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "600",
+    marginTop: -12,
+    marginBottom: 16,
+  },
   progressRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -750,6 +904,7 @@ const styles = StyleSheet.create({
     color: "#16A34A",
   },
   progressBarBackground: {
+    flexDirection: "row",
     width: "100%",
     height: 10,
     borderRadius: 5,
@@ -759,8 +914,18 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: "100%",
-    borderRadius: 5,
     backgroundColor: "#16A34A",
+  },
+  progressBarDebt: {
+    height: "100%",
+    backgroundColor: "#EF4444",
+  },
+  debtCaption: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#DC2626",
+    marginTop: -10,
+    marginBottom: 14,
   },
   detailsGrid: {
     flexDirection: "row",
@@ -893,33 +1058,70 @@ const styles = StyleSheet.create({
   owedText: {
     color: "#EF4444",
   },
-  frozenBanner: {
+  reasonBanner: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 6,
-    backgroundColor: "#FEF9C3",
     borderRadius: 10,
+    borderWidth: 1,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 12,
+    paddingVertical: 8,
+    marginBottom: 14,
   },
-  frozenBannerText: {
+  reasonBannerText: {
     flex: 1,
     fontSize: 12,
-    color: "#92400E",
     fontWeight: "600",
+    lineHeight: 17,
   },
-  netSavedHintRow: {
+  debtCard: {
+    borderWidth: 1,
+    borderColor: "#FED7AA",
+    backgroundColor: "#FFFBEB",
+  },
+  debtHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  debtTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#92400E",
+  },
+  debtAmount: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#DC2626",
+  },
+  debtDesc: {
+    fontSize: 13,
+    color: "#92400E",
+    lineHeight: 19,
+  },
+  debtEstimateRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     marginTop: 10,
   },
-  netSavedHintText: {
+  debtEstimateText: {
     flex: 1,
-    fontSize: 11,
-    color: "#92400E",
-    lineHeight: 16,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#B45309",
+  },
+  historyOutcomeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 8,
+  },
+  historyOutcomeText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   deleteProjectButton: {
     flexDirection: "row",
