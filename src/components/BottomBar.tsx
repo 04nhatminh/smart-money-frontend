@@ -6,7 +6,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useThemeMode } from "../theme/ThemeProvider";
 
-type TabKey = "home" | "stats" | "transaction" | "project" | "analysis" | "profile";
+type TabKey = "home" | "stats" | "transaction" | "project" | "analysis" | "assistant";
 
 type NavigationHandlers = {
   onHome: () => void;
@@ -135,13 +135,17 @@ export function BottomBar({
         </Pressable>
 
         <Pressable
-          style={[styles.item, active === 'profile' && styles.activeItem]}
+          style={[styles.item, active === 'assistant' && styles.activeItem]}
           onPress={actualHandlers.onProfile}
         >
           <Ionicons
-            name={active === 'profile' ? "person" : "person-outline"}
+            name={
+              active === 'assistant'
+                ? 'logo-ionitron'
+                : 'logo-ionitron'
+            }
             size={22}
-            color={iconColor("profile")}
+            color={iconColor("assistant")}
           />
         </Pressable>
       </View>

@@ -8,7 +8,7 @@ import { tokenStorage } from "../storage/tokenStorage";
 import authApi from "../api/auth.api";
 import { TransactionType } from "../types/transaction.types";
 import { formatDateTime } from "../utils/dateFormatter";
-import PendingStorage from "../storage/pendingTransactionStorage";
+import PendingStorage, { pendingEventBus, ProcessingEvent, ProcessingStatus } from "../storage/pendingTransactionStorage";
 import TransactionParser from "../utils/transactionParser";
 const { NotificationModule } = NativeModules;
 const emitter = new NativeEventEmitter(NotificationModule);
@@ -18,6 +18,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const STORAGE_KEY = "processed_notifications_v1";
 
 type Fingerprint = string;
+
+  // Helper phát sự kiện
+  function emitStatus(pendingId: string, status: ProcessingStatus, message?: string, error?: string) {
+  console.log("EMIT", status);
+    const event: ProcessingEvent = { pendingId, status, message, error };
+    pendingEventBus.emit('processing_update', event);
+  }
+  
 
 export class NotificationListenerService {
   private static isInitialized = false;
@@ -34,6 +42,7 @@ export class NotificationListenerService {
   static getEventBus() {
     return this.eventBus;
   }
+
 
   // ================= INIT =================
   static async initialize() {
@@ -327,6 +336,19 @@ export class NotificationListenerService {
 
   private static async processAndCreateTransaction(rawText: string) {
     try {
+
+      // ✅ Create pending FIRST
+      const pendingTx = await PendingStorage.add({
+        amount: 0,
+        category: "OTHER",
+        type: "EXPENSE",
+        description: "Processing voice...",
+        date: new Date().toISOString(),
+        source: "notification" as const,
+      });
+
+      emitStatus(pendingTx.id, 'ai_submitting', 'Submitting to AI...');
+
       const submitRes = await AIAPI.submitText(rawText);
 
       if (!submitRes?.success || !submitRes?.data?.jobId) {
@@ -338,7 +360,7 @@ export class NotificationListenerService {
 
       const aiResult = await waitForAIResult(jobId);
 
-      let finalResult = aiResult;
+      let finalResult = aiResult?.data || aiResult; // WS có thể trả thẳng data hoặc object {status, data}
 
       if (aiResult.status === "TIMEOUT") {
         console.log("⚠️ WS timeout → polling backend");
@@ -360,6 +382,8 @@ export class NotificationListenerService {
       if (amount === null || amount <= 0) {
         throw new Error(`Invalid amount: ${finalResult.expense || finalResult.amount}`);
       }
+
+      await PendingStorage.remove(pendingTx.id); // Remove pending
 
       const payload = {
         amount,

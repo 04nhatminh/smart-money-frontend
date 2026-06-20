@@ -7,7 +7,7 @@ export type TabKey =
   | "transaction"
   | "analysis"
   | "project"
-  | "profile";
+  | "assistant";
 
 interface UseTabNavigationOptions {
   onCameraOpen?: () => void;
@@ -25,7 +25,7 @@ export const useTabNavigation = ({
 
   // Xác định tab đang hoạt động dựa trên tuyến đường (pathname) hiện tại
   const activeTab = useMemo<TabKey>(() => {
-    if (pathname.includes("profile")) return "profile";
+    if (pathname.includes("assistant")) return "assistant";
     if (pathname.includes("stats")) return "stats";
     if (pathname.includes("analysis")) return "analysis";
     if (pathname.includes("project")) return "project";
@@ -55,8 +55,8 @@ export const useTabNavigation = ({
     router.navigate("/(transactions)/list");
   }, [router]);
 
-  const onProfile = useCallback(() => {
-    router.navigate("/(tabs)/profile");
+  const onChat = useCallback(() => {
+    router.navigate("/(tabs)/chat");
   }, [router]);
 
   const onAdd = useCallback(() => {
@@ -82,7 +82,7 @@ export const useTabNavigation = ({
     onAnalysis,
     onProject,
     onTransaction,
-    onProfile,
+    onChat,
     onAdd,
     onAddByCamera,
     onAddByVoice,

@@ -25,11 +25,13 @@ import { NotificationListModal } from "../../src/components/notification/Notific
 import { initWebSocket, disconnectWebSocket } from "../../src/services/websocket";
 import AppBottomBar from "../../src/components/AppBottomBar";
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
+import AIInsightList from "../../src/components/assistant/AIInsightList";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
 import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceInputModal";
 import { TransactionRequest, Receipt, TransactionResponse } from "../../src/types/transaction.types";
 import { useRouter } from "expo-router";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
+import { useAIInsight } from "../../src/hooks/useAIInsight";
 import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
 import LatestProjectsSection, { LatestProjectItem } from "../../src/components/home/LatestProjectsSection";
@@ -88,6 +90,7 @@ export default function HomePage() {
   const [isCreateProjectVisible, setCreateProjectVisible] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
+  const { insight, loading: insightLoading, reload } = useAIInsight();
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Data state
@@ -107,6 +110,7 @@ export default function HomePage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotification, setShowNotification] = useState(false);
   const [loadingNotification, setLoadingNotification] = useState(false);
+
 
   useEffect(() => {
     const init = async () => {
@@ -367,6 +371,8 @@ export default function HomePage() {
     router.push("/(transactions)/list");
   };
 
+  console.log("Insight: ", insight);
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -387,17 +393,23 @@ export default function HomePage() {
           {/* Header with Avatar and Greeting */}
           <View style={styles.header}>
             <View style={styles.userInfo}>
-              <View style={styles.avatarContainer}>
-                {user?.avatar ? (
-                  <Image source={{ uri: user.avatar }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>
-                      {user?.fullName?.charAt(0) || 'U'}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <TouchableOpacity
+                onPress={() => router.push("/profile")}
+              >
+                <View style={styles.avatarContainer}>
+                  {user?.avatar ? (
+                    <Image source={{ uri: user.avatar }} style={styles.avatar} />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Text style={styles.avatarText}>
+                        {user?.fullName?.charAt(0) || 'U'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+              </TouchableOpacity>
+
               <View style={styles.greetingContainer}>
                 <Text style={styles.greeting}>Hello,</Text>
                 <Text style={styles.userName}>{user?.fullName || 'User'}</Text>
@@ -540,6 +552,10 @@ export default function HomePage() {
           </View>
         </View>
       </ScrollView>
+
+      {insight.length > 0 && (
+        <AIInsightList insights={insight || []} />
+      )}
 
       <NotificationListModal
         visible={showNotification}

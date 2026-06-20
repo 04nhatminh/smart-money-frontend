@@ -82,9 +82,7 @@ export default function CreateProjectModal({
 
         setCheckingPriorities(true);
 
-        const response = await ProjectAPI.getAll({
-            status: "ACTIVE",
-          });
+        const response = await ProjectAPI.getAll();
 
         if (!response?.success || !response?.data) {
           setUsedPriorities([]);

@@ -10,7 +10,6 @@ type Props = {
   mode: SavingPlanMode | null;
   onBack: () => void;
   onSelectMode: (mode: SavingPlanMode) => void;
-  onContinue: () => void;
   onEditProject?: () => void;
   advisorLoading?: boolean;
   advisorData?: ProjectAdvisorResponse | null;
@@ -24,7 +23,6 @@ export default function SavingPlanModeStep({
   mode,
   onBack,
   onSelectMode,
-  onContinue,
   onEditProject,
   advisorLoading,
   advisorData,

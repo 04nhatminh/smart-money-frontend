@@ -11,6 +11,16 @@ class NotificationListener : NotificationListenerService() {
         private const val TAG = "NotificationListener"
     }
 
+    override fun onCreate() {
+    super.onCreate()
+    Log.d(TAG, "🔥 SERVICE CREATED")
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        Log.d(TAG, "✅ LISTENER CONNECTED")
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         super.onNotificationPosted(sbn)
 
