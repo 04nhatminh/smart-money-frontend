@@ -1,4 +1,4 @@
-import PendingStorage, { pendingEventBus } from "../storage/pendingTransactionStorage";
+import PendingStorage, { pendingEventBus, PendingTransaction } from "../storage/pendingTransactionStorage";
 import TransactionApi from "../api/transaction.api";
 import EventEmitter from "eventemitter3";
 
@@ -50,6 +50,11 @@ class PendingTransactionService {
 
   async reject(id: string) {
     await PendingStorage.remove(id);
+    this.eventBus.emit("updated", this.getAll());
+  }
+
+  async update(id: string, updates: Partial<Omit<PendingTransaction, "id">>) {
+    PendingStorage.update(id, updates);
     this.eventBus.emit("updated", this.getAll());
   }
 }

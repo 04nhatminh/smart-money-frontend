@@ -17,16 +17,16 @@ import {
 let stompClient: Client | null = null;
 
 let isConnected = false;
+let isConnecting = false;
 
 let currentUserId: string | null = null;
 
 let connectPromise: Promise<Client> | null = null;
+// Store job callbacks keyed by jobId
+const jobCallbacks = new Map<string, (data: any) => boolean | void>();
 
 let notificationSub: StompSubscription | null = null;
-
 let aiUserSub: StompSubscription | null = null;
-
-const jobCallbacks = new Map<string, (data: any) => boolean | void>();
 
 const pendingJobMessages = new Map<string, any>();
 
@@ -259,141 +259,91 @@ export const initWebSocket = async (userId: string): Promise<Client> => {
 // Topic: /topic/notifications/{userId}
 // ==============================
 const subscribeNotifications = () => {
-  if (!isClientReady() || !stompClient || !currentUserId) return;
+  if (!stompClient || !isConnected || !currentUserId) return;
 
   if (notificationSub) {
     notificationSub.unsubscribe();
-    notificationSub = null;
   }
 
-  const topic = `/topic/notifications/${currentUserId}`;
-
-  console.log("🔔 Subscribing notification topic:", topic);
-
-  notificationSub = stompClient.subscribe(topic, (msg: IMessage) => {
-    try {
-      const data = parseJson<any>(msg.body);
-
-      console.log("🔔 Notification:", data);
-
-      handleIncomingNotification(data);
-    } catch (err) {
-      console.error("❌ Notification parse error:", err);
-      console.error("❌ Raw notification body:", msg.body);
+  notificationSub = stompClient.subscribe(
+    `/topic/notifications/${currentUserId}`,
+    (msg: IMessage) => {
+      try {
+        const data = JSON.parse(msg.body);
+        console.log("🔔 Notification:", data);
+        handleIncomingNotification(data);
+      } catch (err) {
+        console.error("❌ Notification parse error", err);
+      }
     }
-  });
+  );
 };
 
 // ==============================
-// USER AI TOPIC SUBSCRIBE
-// Route all AI messages by jobId
-// Topic: /topic/ai/user/{userId}
+// 🎯 USER AI TOPIC SUBSCRIBE
 // ==============================
 const subscribeUserAI = () => {
-  if (!isClientReady() || !stompClient || !currentUserId) return;
+  if (!stompClient || !isConnected || !currentUserId) return;
 
   if (aiUserSub) {
     aiUserSub.unsubscribe();
-    aiUserSub = null;
   }
 
-  const topic = `/topic/ai/user/${currentUserId}`;
+  aiUserSub = stompClient.subscribe(
+    `/topic/ai/user/${currentUserId}`,
+    (msg: IMessage) => {
+      try {
+        const data = JSON.parse(msg.body);
+        const jobId = data.jobId;
 
-  console.log("🤖 Subscribing AI user topic:", topic);
+        console.log("🎯 AI result for job:", jobId);
 
-  aiUserSub = stompClient.subscribe(topic, (msg: IMessage) => {
-    try {
-      const data = parseJson<any>(msg.body);
-
-      const jobId = data?.jobId;
-
-      if (!jobId) {
-        console.warn("⚠️ AI message missing jobId:", data);
-        return;
+        // Route to the registered callback for this job
+        const callback = jobCallbacks.get(jobId);
+        if (callback) {
+          callback(data);
+          jobCallbacks.delete(jobId); // ✅ Unregister after callback is called
+        } else {
+          console.warn("⚠️ No callback registered for job:", jobId);
+        }
+      } catch (err) {
+        console.error("❌ Parse error", err);
       }
-
-      console.log("🎯 AI message received for job:", jobId);
-
-      console.log("3. WebSocket message:", JSON.stringify(data, null, 2));
-
-      const callback = jobCallbacks.get(jobId);
-      console.log("4. Callback found:", Boolean(callback));
-
-      if (!callback) {
-        console.warn("No callback registered for AI job:", jobId);
-        console.warn(
-          "⚠️ No callback registered for job yet, storing pending message:",
-          jobId
-        );
-
-        pendingJobMessages.set(jobId, data);
-
-        return;
-      }
-
-      const shouldDelete = callback(data);
-
-      if (shouldDelete !== false) {
-        removeJob(jobId);
-      }
-    } catch (err) {
-      console.error("❌ AI message parse error:", err);
-      console.error("❌ Raw AI body:", msg.body);
     }
-  });
+  );
 };
 
 // ==============================
-// GENERIC JOB CALLBACK
+// 🎯 JOB CALLBACK MANAGEMENT
 // ==============================
 export const subscribeJob = async (
   jobId: string,
-  onResult: (data: any) => boolean | void
+  onResult: (data: any) => void
 ): Promise<() => void> => {
+
   if (!currentUserId) {
-    console.warn("⚠️ No userId. Call initWebSocket(userId) first.");
+    console.warn("⚠️ No userId");
     return () => {};
   }
 
+  // ✅ ĐẢM BẢO WS READY
   await initWebSocket(currentUserId);
 
   if (jobCallbacks.has(jobId)) {
-    console.log("⚠️ Already registered callback for job:", jobId);
-
-    return () => {
-      removeJob(jobId);
-      console.log("🧹 Unregistered callback for job:", jobId);
-    };
+    console.log("⚠️ Already subscribed:", jobId);
+    return () => {};
   }
 
   jobCallbacks.set(jobId, onResult);
-  console.log("2. Registered callback:", jobCallbacks.has(jobId));
 
   console.log("✅ Registered callback for job:", jobId);
 
-  const pendingMessage = pendingJobMessages.get(jobId);
-
-  if (pendingMessage) {
-    console.log("📦 Found pending message for job:", jobId);
-
-    const shouldDelete = onResult(pendingMessage);
-
-    if (shouldDelete !== false) {
-      removeJob(jobId);
-    }
-  }
-
   return () => {
-    removeJob(jobId);
+    jobCallbacks.delete(jobId);
     console.log("🧹 Unregistered callback for job:", jobId);
   };
 };
 
-// ==============================
-// BUDGET JOB CALLBACK
-// For BUDGET_ALLOCATION result
-// Uses user-level topic: /topic/ai/user/{userId}
-// ==============================
 export const subscribeBudgetJob = async (
   jobId: string,
   onResult: (data: BudgetAllocationAIMessage) => void,
@@ -452,15 +402,28 @@ export const subscribeBudgetJob = async (
 
       onError?.(err);
 
+
+
       return true;
     }
   });
 };
 
 // ==============================
-// DISCONNECT
+// 🔌 DISCONNECT
 // ==============================
 export const disconnectWebSocket = () => {
+  if (stompClient) {
+    stompClient.deactivate();
+    stompClient = null;
+  }
+
+  isConnected = false;
+  isConnecting = false;
+  currentUserId = null;
+
+  jobCallbacks.clear();
+
   if (notificationSub) {
     notificationSub.unsubscribe();
     notificationSub = null;
@@ -470,21 +433,6 @@ export const disconnectWebSocket = () => {
     aiUserSub.unsubscribe();
     aiUserSub = null;
   }
-
-  jobCallbacks.clear();
-
-  pendingJobMessages.clear();
-
-  if (stompClient) {
-    stompClient.deactivate();
-    stompClient = null;
-  }
-
-  isConnected = false;
-
-  currentUserId = null;
-
-  connectPromise = null;
 
   console.log("🔌 WebSocket fully cleaned");
 };

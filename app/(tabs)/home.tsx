@@ -44,6 +44,7 @@ import { formatVND } from "../../src/utils/formatCurrency";
 import { useAuth } from "../../src/context/AuthContext";
 import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
 import { GenerateBudgetAllocationPayload } from "../../src/types/budget_allocation.types";
+import analyticsAPI from "../../src/api/transaction_analytics.api";
 
 // Category icon mapping
 const categoryIconMap: { [key: string]: { icon: string; color: string; displayName: string } } = {
@@ -103,6 +104,9 @@ export default function HomePage() {
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [latestProjects, setLatestProjects] = useState<LatestProjectItem[]>([]);
   const [latestProjectsLoading, setLatestProjectsLoading] = useState(false);
+  const [monthlyTotalExpense, setMonthlyTotalExpense] = useState<number>(0);
+  const [monthlyTotalIncome, setMonthlyTotalIncome] = useState<number>(0);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const { createFromReceipt, createFromVoice } = useCreateTransaction();
 
@@ -117,6 +121,7 @@ export default function HomePage() {
       await loadBudgets();
       await loadTransactions();
       await fetchLatestProjects();
+      await loadAnalyticsSummary();
 
       const saved = await notificationStorage.getUnreadCount();
       setUnreadCount(saved);
@@ -298,12 +303,31 @@ export default function HomePage() {
     }
   };
 
+  const loadAnalyticsSummary = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const now = new Date();
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
+      const result = await analyticsAPI.getTransactionAnalytics(month, year);
+      if (result.success && result.data) {
+        setMonthlyTotalExpense(result.data.monthlyTotalExpense || 0);
+        setMonthlyTotalIncome(result.data.monthlyTotalIncome || 0);
+      }
+    } catch (error) {
+      console.error("Failed to load analytics summary:", error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadUserData();
     await fetchLatestProjects();
     await loadBudgets();
     await loadTransactions();
+    await loadAnalyticsSummary();
     setRefreshing(false);
   };
 
@@ -314,6 +338,7 @@ export default function HomePage() {
         setCameraVisible(false);
         loadBudgets();
         loadTransactions();
+        loadAnalyticsSummary();
       }
     } catch (err) {
       console.error(err);
@@ -326,6 +351,7 @@ export default function HomePage() {
       setVoiceVisible(false);
       loadBudgets();
       loadTransactions();
+      loadAnalyticsSummary();
     }
   };
 
@@ -484,7 +510,8 @@ export default function HomePage() {
           {/* Balance Card - Combined Detail Format */}
           <View style={styles.balanceCard}>
             <View style={styles.balanceHeader}>
-              <Text style={styles.balanceAmount}>70,000 USD</Text>
+              <Text style={styles.balanceDate}>This month</Text>
+              <Text style={styles.balanceAmount}>{formatVND(monthlyTotalIncome - monthlyTotalExpense)}</Text>
               <Text style={styles.balanceLabel}>Total Balance</Text>
             </View>
 
@@ -495,7 +522,7 @@ export default function HomePage() {
                 </View>
                 <View>
                   <Text style={styles.summaryLabel}>Income</Text>
-                  <Text style={styles.summaryAmount}>85,000 USD</Text>
+                  <Text style={styles.summaryAmount}>{formatVND(monthlyTotalIncome)}</Text>
                 </View>
               </View>
 
@@ -507,7 +534,7 @@ export default function HomePage() {
                 </View>
                 <View>
                   <Text style={styles.summaryLabel}>Expense</Text>
-                  <Text style={styles.summaryAmount}>15,000 USD</Text>
+                  <Text style={styles.summaryAmount}>{formatVND(monthlyTotalExpense)}</Text>
                 </View>
               </View>
             </View>
@@ -516,12 +543,14 @@ export default function HomePage() {
           {/* Quick Feature Section */}
           <QuickFeatureSection
             onOpenCreateProject={() => setCreateProjectVisible(true)}
+            onOpenClassify={() => { panelRef.current?.open(); }}
           />
 
           {/* Latest Projects */}
           <LatestProjectsSection
             projects={latestProjects}
             loading={latestProjectsLoading}
+            onAddPress={() => setCreateProjectVisible(true)}
           />
 
           {/* Budgets Section */}
@@ -578,15 +607,6 @@ export default function HomePage() {
               <Text style={styles.emptyText}>No transactions yet</Text>
             )}
           </View>
-
-          <TouchableOpacity
-            style={styles.panelButton}
-            onPress={() => panelRef.current?.open()}
-          >
-            <Text style={styles.panelButtonText}>
-              OPEN PENDING PANEL
-            </Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -628,6 +648,7 @@ export default function HomePage() {
         onSaved={() => {
           loadBudgets();
           loadTransactions();
+          loadAnalyticsSummary();
         }}
       />
 
@@ -770,6 +791,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#ebfff3',
   },
+  balanceDate: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#ebfff3',
+  },
   balanceSummaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -848,17 +874,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
     marginTop: 6,
-  },
-  panelButton: {
-    backgroundColor: "black",
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 20,
-    marginBottom: 20
-  },
-  panelButtonText: {
-    color: "#fff",
-    textAlign: "center"
   },
   transactionItem: {
     flexDirection: 'row',

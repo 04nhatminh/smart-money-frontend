@@ -41,4 +41,7 @@ yarn-error.*
 /ios
 /android
 /claude
+/android/app/debug.keystore
+/android/gradle
+
 package-lock.json

@@ -10,6 +10,9 @@ import authApi from "../../../api/auth.api";
 import WaitScreen from "../../../../app/(wait)/wait";
 import { waitForAIResult } from "../../../services/aiWebSocketHelper";
 import TransactionParser from "../../../utils/transactionParser";
+import { userStorage } from "../../../storage/userStorage";
+import PendingStorage from "../../../storage/pendingTransactionStorage";
+import { handleFullVoiceAIFlowInBackground } from "../../../services/backgroundAIHandler";
 
 type Props = {
   visible: boolean;
@@ -17,7 +20,7 @@ type Props = {
   onCaptureVoice: (transaction: TransactionRequest) => void | Promise<void>;
 };
 
-type VoiceStep = "recording" | "preview" | "waiting" | "form";
+type VoiceStep = "recording" | "preview";
 
 export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
   const [step, setStep] = useState<VoiceStep>("recording");
@@ -25,7 +28,6 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
   const [transaction, setTransaction] = useState<TransactionRequest | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [cloudinaryPublicId, setCloudinaryPublicId] = useState<string>("");
 
   const handleRecordingComplete = (uri: string) => {
     setAudioUri(uri);
@@ -43,97 +45,34 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
 
   const handlePreviewConfirm = async () => {
     console.log("🎯 handlePreviewConfirm called");
-    setIsSubmitting(true);
-    setSubmitError(null);
 
     try {
       if (!audioUri) {
-        throw new Error("Audio URI is missing");
+        throw new Error("Audio URI missing");
       }
 
-      // 🔥 Get user first
-      const userRes = await authApi.getCurrentUser();
-      if (!userRes.success || !userRes.data) {
-        throw new Error("Cannot get user");
-      }
-      const userId = userRes.data.id;
-
-      // 📤 Upload voice to Cloudinary
-      console.log("📤 Uploading voice to Cloudinary...");
-      const cloudinaryResponse =
-        await CloudinaryService.uploadTransactionVoice(audioUri);
-      
-        const publicId = cloudinaryResponse.publicId; // ✅ giữ local
-
-        setCloudinaryPublicId(publicId);
-
-      // 📤 Submit Cloudinary URL to AI API
-      const submitRes = await AIAPI.submitVoiceAudio(
-        cloudinaryResponse.fileUrl
-      );
-
-      if (!submitRes.success || !submitRes.data) {
-        throw new Error(submitRes.message || "Failed to submit voice");
-      }
-
-      const jobId = submitRes.data.jobId;
-      console.log("🔥 VOICE JOB ID:", jobId);
-
-      // 🔄 Show waiting screen
-      setStep("waiting");
-
-      const wsResult = await waitForAIResult(jobId, 60000);
-      let finalResult = wsResult;
-      if (wsResult.status === "TIMEOUT") {
-        console.log("⚠️ WS timeout → polling");
-        const fallback = await AIAPI.getResult(jobId);
-        if (!fallback?.success || !fallback.data) {
-          throw new Error("AI processing timeout");
-        }
-        finalResult = {
-          status: "SUCCESS",
-          data: fallback.data,
-        };
-      }
-
-      const resultData = finalResult.data;
-
-      const processedTransaction: TransactionRequest = {
-        type:
-          resultData.type === "INCOME"
-            ? "INCOME"
-            : "EXPENSE",
-
-        amount:
-          TransactionParser.parseAmount(
-            resultData.expense || resultData.amount || 0
-          ) || 0,
-
-        category: resultData.category || "OTHER",
-
-        description:
-          resultData.description ||
-          resultData.transactionName ||
-          "",
-
-        date:
-          resultData.date ||
-          new Date().toISOString(),
-      };
-
-      setTransaction(processedTransaction);
-
-      // 🎉 Move to form step
-      setStep("form");
-    } catch (error: any) {
-      console.error("❌ Error in voice handlePreviewConfirm:", error);
-      setSubmitError(error?.message || "Failed to process voice");
-      Alert.alert("Error", error?.message || "Failed to process voice");
-    } finally {
-      setIsSubmitting(false);
-      CloudinaryService.deleteImage(cloudinaryPublicId, "voice").catch((err) => {
-        console.error("❌ Failed to delete Cloudinary audio:", err);
+      // ✅ Create pending FIRST
+      const pendingTx = await PendingStorage.add({
+        amount: 0,
+        category: "OTHER",
+        type: "EXPENSE",
+        description: "Processing voice...",
+        date: new Date().toISOString(),
+        source: "voice",
       });
+
+      // 🎬 Close modal NGAY
+      setAudioUri("");
+      setTransaction(null);
+      setStep("recording");
+      onClose();
+
+      // 🌀 Run full flow in background
+      handleFullVoiceAIFlowInBackground(audioUri, pendingTx.id, "voice").catch(console.error);
+
+    } catch (error: any) {
+      console.error("❌ Error:", error);
+      Alert.alert("Error", error?.message || "Failed");
     }
   };
 
@@ -183,9 +122,8 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
           isSubmitting={isSubmitting}
           onCancel={handleCancel}
         />
-      ) : step === "waiting" ? (
-        <WaitScreen />
-      ) : (
+      ) 
+      : (
         <VoiceInput
           audioUri={audioUri}
           transaction={transaction}

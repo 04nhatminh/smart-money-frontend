@@ -74,7 +74,7 @@ http.interceptors.response.use(
       try {
         const refreshToken = await tokenStorage.getRefreshToken();
 
-        const response = await refreshHttp.post("/api/auth/v1/refresh-token", {
+        const response = await refreshHttp.post("/api/v1/auth/refresh-token", {
           refreshToken,
         });
 

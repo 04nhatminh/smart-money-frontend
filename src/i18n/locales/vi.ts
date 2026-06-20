@@ -268,6 +268,9 @@ export default {
     pending_transactions: "Giao Dịch Đang Chờ",
     no_pending: "Không có giao dịch nào đang chờ",
     approve: "Phê duyệt",
+    ai_processing: "AI đang xử lý hóa đơn của bạn. Quá trình này có thể mất đến vài giây. Vui lòng đợi trong giây lát...",
+    ai_processing_subtext: "Nếu mất quá nhiều thời gian, có thể do kết nối WebSocket. Hệ thống sẽ tự động chuyển sang phương án dự phòng là lấy kết quả qua API sau khi timeout.",
+    edit_pending: "Chỉnh sửa giao dịch đang chờ"
   },
   camera: {
     scan_receipt: "Quét Hóa Đơn",

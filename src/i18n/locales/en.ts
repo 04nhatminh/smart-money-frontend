@@ -269,6 +269,9 @@ export default {
     pending_transactions: "Pending Transactions",
     no_pending: "No pending transactions",
     approve: "Approve",
+    ai_processing: "AI is processing your receipt. This may take up to a few seconds. Please wait a moment...",
+    ai_processing_subtext: "If it takes too long, it may be due to WebSocket connection. The system will automatically fall back to fetching results via API after a timeout.",
+    "edit_pending": "Edit pending transaction",
   },
   
   camera: {

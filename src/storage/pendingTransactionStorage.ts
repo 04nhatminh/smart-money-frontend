@@ -14,6 +14,7 @@ export type PendingTransaction = {
   type: "INCOME" | "EXPENSE";
   description: string;
   date: string;
+  source: "camera" | "voice" | "notification"; 
 };
 
 class PendingStorage {
@@ -68,6 +69,17 @@ class PendingStorage {
   find(id: string) {
     return this.queue.find((t) => t.id === id);
   }
+
+  update(id: string, updatedFields: Partial<Omit<PendingTransaction, "id">>) {
+    const index = this.queue.findIndex((t) => t.id === id);
+    if (index === -1) return;
+
+    this.queue[index] = { ...this.queue[index], ...updatedFields };
+    this.persist();
+    pendingEventBus.emit("updated");
+  }
+
+  
 }
 
 export default new PendingStorage();

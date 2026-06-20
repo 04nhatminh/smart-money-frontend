@@ -1,10 +1,9 @@
 export const formatVND = (amount: number): string => {
-    return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND',
+    const formatted = new Intl.NumberFormat('en-US', {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
     }).format(amount);
+    return `${formatted} VND`;
 };
 
 // Format number with thousand separator

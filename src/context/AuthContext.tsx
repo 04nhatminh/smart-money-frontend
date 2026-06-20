@@ -4,6 +4,8 @@ import { userStorage } from "../storage/userStorage";
 import authService from "../auth/authService";
 import AuthApi from "../api/auth.api";
 import { UserResponse, UpdateUserRequest } from "../types/auth.types";
+import { initWebSocket, disconnectWebSocket } from "../services/websocket";
+import { resumeUnfinishedJobs } from "../services/backgroundAIHandler";
 
 type AuthContextType = {
   isLoading: boolean;
@@ -65,6 +67,20 @@ const checkAuthStatus = async () => {
       const userData = await loadCurrentUser();
       setUser(userData);
       setIsSignedIn(true);
+      
+      // 🔌 Initialize WebSocket for authenticated user
+      if (userData?.id) {
+        try {
+          await initWebSocket(userData.id);
+          console.log("✅ [AuthProvider] WebSocket initialized");
+        } catch (err) {
+          console.error("❌ [AuthProvider] WebSocket init failed:", err);
+        }
+      }
+
+      // 🔄 Resume unfinished AI jobs
+      await resumeUnfinishedJobs();
+
       return;
     }
 
@@ -85,6 +101,20 @@ const checkAuthStatus = async () => {
           const userData = await loadCurrentUser();
           setUser(userData);
           setIsSignedIn(true);
+          
+          // 🔌 Initialize WebSocket after token refresh
+          if (userData?.id) {
+            try {
+              await initWebSocket(userData.id);
+              console.log("✅ [AuthProvider] WebSocket initialized after refresh");
+            } catch (err) {
+              console.error("❌ [AuthProvider] WebSocket init failed:", err);
+            }
+          }
+
+          // 🔄 Resume unfinished AI jobs
+          await resumeUnfinishedJobs();
+
           return;
         }
 
@@ -127,6 +157,19 @@ const checkAuthStatus = async () => {
         const userData = await authService.getCurrentUser();
         setUser(userData);
         setIsSignedIn(true);
+        
+        // 🔌 Initialize WebSocket after successful login
+        if (userData?.id) {
+          try {
+            await initWebSocket(userData.id);
+            console.log("✅ [AuthProvider] WebSocket initialized after login");
+          } catch (err) {
+            console.error("❌ [AuthProvider] WebSocket init failed:", err);
+          }
+        }
+
+        // 🔄 Resume unfinished AI jobs
+        await resumeUnfinishedJobs();
       }
       
       return response;
@@ -141,6 +184,10 @@ const checkAuthStatus = async () => {
   const logout = async () => {
     try {
       setIsLoading(true);
+      
+      // 🔌 Disconnect WebSocket on logout
+      disconnectWebSocket();
+      
       await authService.logout();
     } catch (error) {
       console.error("Logout error:", error);

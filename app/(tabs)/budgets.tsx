@@ -341,7 +341,7 @@ export default function BudgetListPage() {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{t("budget.tab_title")}</Text>
                 <TouchableOpacity
-                    onPress={() => router.push('/(tabs)/budget')}
+                    onPress={() => router.push('/(tabs)/budget-allocation')}
                     style={styles.generateButton}
                 >
                     <Ionicons name="sparkles" size={18} color="#3629B7" />

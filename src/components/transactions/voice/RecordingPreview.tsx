@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Audio } from "expo-av";
 import { useThemeMode } from "../../../theme/ThemeProvider";
+import { t } from "../../../i18n";
 import { SubmitButton } from "../../SubmitButton";
 import { ActionButton } from "../../ActionButton";
 
@@ -128,10 +129,10 @@ export function RecordingPreview({ audioUri, onRetake, onConfirm, isSubmitting, 
             style={{ marginBottom: 16 }}
           />
           <Text style={[styles.loadingText, { color: theme.text }]}>
-            🤖 AI đang xử lý voice input...
+            {t("transaction.ai_processing")}
           </Text>
           <Text style={[styles.loadingSubtext, { color: theme.subtext, marginTop: 8 }]}>
-            Vui lòng chờ một chút
+            {t("transaction.ai_processing_subtext")}
           </Text>
         </View>
       ) : (

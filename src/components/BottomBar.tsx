@@ -3,6 +3,7 @@ import { View, Pressable, StyleSheet, Platform, Dimensions, Text, Animated } fro
 import { Ionicons } from "@expo/vector-icons";
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useThemeMode } from "../theme/ThemeProvider";
 
 type TabKey = "home" | "stats" | "transaction" | "project" | "analysis" | "profile";
@@ -117,11 +118,7 @@ export function BottomBar({
           style={[styles.item, active === "transaction" && styles.activeItem]}
           onPress={actualHandlers.onTransaction}
         >
-          <Ionicons
-            name={active === "transaction" ? "folder" : "folder-outline"}
-            size={22}
-            color={iconColor("transaction")}
-          />
+          <FontAwesome6 name="money-bill-transfer" size={24} color={iconColor("transaction")} />
         </Pressable>
 
         <View style={{ width: 56 }} />

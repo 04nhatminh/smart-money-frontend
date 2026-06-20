@@ -73,7 +73,7 @@ export function ReceiptPreview({
       <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <Text style={{ color: theme.text }}>
-            🤖 AI đang xử lý hóa đơn...
+            {t("transaction.ai_processing")}
           </Text>
         </View>
       </SafeAreaView>
