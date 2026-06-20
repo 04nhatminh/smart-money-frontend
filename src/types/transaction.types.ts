@@ -78,4 +78,24 @@ export interface Receipt {
   description: string;
 }
 
+export interface ReceiptResponse {
+  id: string;
+  userId?: string;
+  type: TransactionType;
+  transactionName: string;
+  amount: number;
+  category: string;
+  date: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
+export interface SaveReceiptPayload {
+  type: TransactionType;
+  transactionName: string;
+  amount: number;
+  category: string;
+  date: string;
+  description?: string;
+}

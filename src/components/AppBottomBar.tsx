@@ -27,7 +27,7 @@ export default function AppBottomBar({
       onAdd={navigation.onAdd}
       onTransaction={navigation.onTransaction}
       onAnalysis={navigation.onAnalysis}
-      onProfile={navigation.onProfile}
+      onProfile={navigation.onChat}
       onAddByCamera={navigation.onAddByCamera}
       onAddByVoice={navigation.onAddByVoice}
       onAddByForm={navigation.onAddByForm}

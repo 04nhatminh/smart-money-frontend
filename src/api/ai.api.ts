@@ -190,6 +190,89 @@ class AIAPI {
       };
     }
   }
+
+
+  async submitFinancialAssistantJob(data: any) {
+    const headers = await this.getAuthHeader();
+
+    const formData = new FormData();
+
+    formData.append(
+      "data",
+      typeof data === "string"
+        ? data
+        : JSON.stringify(data)
+    );
+
+    formData.append(
+      "type",
+      "financial_assistant"
+    );
+
+    const response = await http.post(
+      "/api/v1/ai",
+      formData,
+      {
+        headers: {
+          ...headers,
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    return response.data;
+  }
+
+  async getJobResult(jobId: string) {
+    const headers = await this.getAuthHeader();
+
+    const response = await http.get(
+      `/api/v1/ai/${jobId}`,
+      {
+        headers,
+      }
+    );
+
+    return response.data;
+  }
+
+  async promptAI(
+    message: string
+  ): Promise<
+    CheckResponse<{
+      reply: string;
+    }>
+  > {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.post(
+        "/api/v1/ai/chat",
+        {
+          message,
+        },
+        {
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return {
+        success: true,
+        message: "Chat AI success",
+        data: res.data,
+      };
+    } catch (error: any) {
+      console.error("❌ AI CHAT ERROR:", error);
+
+      return error.response?.data || {
+        success: false,
+        message: error.message || "Chat AI failed",
+      };
+    }
+  }
 }
 
 export default new AIAPI();
