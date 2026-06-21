@@ -39,6 +39,8 @@ yarn-error.*
 
 # generated native folders
 /ios
+/android
+/claude
 /android/app/debug.keystore
 /android/gradle
 

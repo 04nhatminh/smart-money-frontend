@@ -6,7 +6,7 @@ export type ProjectStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
 
 export type SavingPlanMode = "RELAXED" | "URGENT";
 
-export type CreateProjectModalStep = 1 | 2 | 3;
+export type CreateProjectModalStep = 1 | 2 | 3 | 4 | 5;
 
 export type ProjectFilterType = "ALL" | ProjectType;
 export type ProjectStatusFilter = "ALL" | ProjectStatus;
@@ -25,6 +25,26 @@ export type CreateProjectPayload = {
     targetAmount: number;
     currency: string;
     deadline: string;
+};
+
+export type SavingPlanDraft = {
+  payload: CreateProjectPayload;
+};
+
+export type SavingPlanSuggestionCategory = {
+  key: string;
+  label: string;
+  amount: number;
+};
+
+export type SavingPlanAIResponse = {
+  agreed: boolean;
+  message: string;
+  suggestion: {
+    monthlySavingAmount: number;
+    estimatedMonths: number;
+    categories: SavingPlanSuggestionCategory[];
+  };
 };
 
 export type UpdateProjectPayload = Partial<CreateProjectPayload>;
@@ -115,28 +135,34 @@ export type ProjectDetailResponse = ProjectListItemResponse & {
 export type ProjectResponse = ProjectDetailResponse;
 
 
-export type SavingPlanSuggestionCategory = {
-  key: string;
-  label: string;
+export interface BudgetAllocationCategory {
+  category: string;
   amount: number;
-};
-
-export type SavingPlanSuggestionResponse = {
-  monthlySavingAmount: number;
-  estimatedMonths: number;
-  categories: SavingPlanSuggestionCategory[];
+  percentage?: number;
+  reason?: string;
 }
 
-export type SavingPlanAIResponse = {
-  agreed: boolean;
-  message: string;
-  suggestion: SavingPlanSuggestionResponse;
-};
+export interface BudgetAllocationResult {
+  totalBudget: number;
+  currency: string;
+  categories: BudgetAllocationCategory[];
+}
 
-export type SavingPlanSuggestionMap = Record<
-  SavingPlanMode,
-  SavingPlanSuggestionResponse
->;
+export interface BudgetAllocationAIMessage {
+  duty: "BUDGET_ALLOCATION_PLAN";
+  jobId: string;
+  userId: string;
+  type: "BUDGET_ALLOCATION_RESULT";
+  status: "PROCESSING" | "COMPLETED" | "FAILED";
+  result?: BudgetAllocationResult;
+  error?: string;
+}
+
+export type RawBudgetAllocationAIMessage = Omit<BudgetAllocationAIMessage, "result"> & {
+  result?: BudgetAllocationResult | string | any;
+  data?: unknown;
+  budgets?: unknown;
+};
 
 export type ProjectAdvisorPayload = CreateProjectPayload & {
   mode: SavingPlanMode;
