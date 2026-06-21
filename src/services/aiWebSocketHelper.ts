@@ -17,8 +17,6 @@ export async function waitForAIResult(
     let done = false;
     let unsubscribe: (() => void) | null = null;
 
-    console.log("⏳ Waiting AI result:", jobId);
-
     // ✅ Subscribe async
     subscribeJob(jobId, (data) => {
       console.log("🔥 WS CALLBACK:", data);

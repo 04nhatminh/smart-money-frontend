@@ -30,7 +30,7 @@ class PendingTransactionService {
       amount: tx.amount,
       category: tx.category,
       type: tx.type,
-      description: tx.description,
+      description: tx.description.slice(0, 255), // Ensure description is not too long
       date: tx.date,
     };
 

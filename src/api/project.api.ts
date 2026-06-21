@@ -11,6 +11,9 @@ import {
   InviteResponse,
   ProjectTrackingResponse,
   ProjectHistory,
+  ProjectType,
+  ProjectPriority,
+  ProjectStatus,
 } from "../types/project.types";
 import { ApiResponse } from "../types/auth.types";
 
@@ -47,13 +50,21 @@ export const ProjectAPI = {
     }
   },
 
-  async getAll(): Promise<ApiResponse<ProjectListItemResponse[]>> {
+  async getAll(
+    params?: {
+      search?: string;
+      type?: ProjectType;
+      status?: ProjectStatus;
+      priority?: ProjectPriority;
+    }
+  ): Promise<ApiResponse<ProjectListItemResponse[]>> {
     try {
       const fullUrl = `${http.defaults.baseURL}/api/v1/projects`;
       console.log("🔵 [ProjectApi] GET Request:");
       console.log("   URL:", fullUrl);
+      console.log("   Params:", params);
 
-      const res = await http.get("/api/v1/projects");
+      const res = await http.get("/api/v1/projects", { params });
       console.log("🟢 [ProjectApi] Response Success:", res.data);
       return res.data;
     } catch (error: any) {

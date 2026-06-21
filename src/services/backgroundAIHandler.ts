@@ -4,6 +4,7 @@ import PendingStorage from "../storage/pendingTransactionStorage";
 import { CloudinaryService } from "./cloudinary.service";
 import AIJobStorage, { AIJobRecord } from "../storage/aiJobStorage";
 import { formatDateTime, parseDDMMYYYYHHMM } from "../utils/dateFormatter";
+import { pendingEventBus, ProcessingEvent, ProcessingStatus } from "../storage/pendingTransactionStorage";
 
 /**
  * Parse and format date from AI result
@@ -50,6 +51,14 @@ function formatAIDate(dateInput: any): string {
         return formatDateTime(new Date());
     }
 }
+
+// Helper phát sự kiện
+function emitStatus(pendingId: string, status: ProcessingStatus, message?: string, error?: string) {
+console.log("EMIT", status);
+  const event: ProcessingEvent = { pendingId, status, message, error };
+  pendingEventBus.emit('processing_update', event);
+}
+
 
 /**
  * Handle AI result processing in the background
@@ -210,11 +219,14 @@ async function updatePendingTransaction(
             source: source
         });
 
+        emitStatus(updatedTx.id, 'completed');
+
         console.log("✅ Pending transaction updated:", updatedTx.id);
         console.log("📊 AI data:", resultData);
 
     } catch (error: any) {
         console.error("❌ Update pending error:", error?.message);
+        emitStatus(pendingTxId, 'failed', undefined, error?.message || "Failed to update transaction with AI data");
     }
 }
 
@@ -260,11 +272,14 @@ export async function handleFullAIFlowInBackground(
     try {
         console.log("🌀 Start full AI flow");
 
-        // 📤 Upload
+
+        // Upload image
+        emitStatus(pendingTxId, 'uploading', 'Uploading receipt image...');
         const upload = await CloudinaryService.uploadReceiptImage(photoUri);
         publicId = upload.publicId;
 
         // 📤 Submit AI
+        emitStatus(pendingTxId, 'ai_submitting', 'Submitting to AI...');
         const submit = await AIAPI.submitImageReceipt(upload.fileUrl);
         if (!submit.success || !submit.data) {
             throw new Error("Failed to submit AI job");
@@ -273,6 +288,7 @@ export async function handleFullAIFlowInBackground(
         const jobId = submit.data.jobId;
 
         // 🧠 Wait result (reuse code cũ)
+        emitStatus(pendingTxId, 'ai_processing', 'AI processing receipt...');
         await handleAIResultInBackground(jobId, pendingTxId, publicId, source);
 
     } catch (err) {
@@ -304,10 +320,12 @@ export async function handleFullAIFlowInBackground(
             console.log("🌀 Start full VOICE AI flow");
 
             // 📤 Upload audio
+            emitStatus(pendingTxId, 'uploading', 'Uploading audio...');
             const upload = await CloudinaryService.uploadTransactionVoice(audioUri);
             publicId = upload.publicId;
 
             // 📤 Submit AI
+            emitStatus(pendingTxId, 'ai_submitting', 'Submitting to AI...');
             const submit = await AIAPI.submitVoiceAudio(upload.fileUrl);
 
             if (!submit.success || !submit.data) {
@@ -317,10 +335,12 @@ export async function handleFullAIFlowInBackground(
             const jobId = submit.data.jobId;
 
             // 🧠 Reuse existing handler
+            emitStatus(pendingTxId, 'ai_processing', 'AI processing voice...');
             await handleAIResultInBackground(jobId, pendingTxId, publicId, source);
 
         } catch (err) {
             console.error("❌ Full voice flow error:", err);
+            emitStatus(pendingTxId, 'failed', undefined, "Failed to update transaction with AI data");
 
         } finally {
             // 🧹 Clean up audio if it was uploaded

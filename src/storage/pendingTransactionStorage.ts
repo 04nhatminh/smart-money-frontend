@@ -7,6 +7,15 @@ export const getPendingEventBus = () => pendingEventBus;
 const PENDING_KEY = "pending_transactions_v1";
 const MAX_PENDING = 10;
 
+export type ProcessingStatus = 'uploading' | 'ai_submitting' | 'ai_processing' | 'completed' | 'failed';
+
+export interface ProcessingEvent {
+  pendingId: string;
+  status: ProcessingStatus;
+  message?: string;
+  error?: string;
+}
+
 export type PendingTransaction = {
   id: string;
   amount: number;

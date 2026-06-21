@@ -97,6 +97,7 @@ export function validateEditProjectForm(values: {
   return validateCreateProjectForm({
     ...values,
     type: "PERSONAL",
+    priority: "LOW",
   });
 }
 

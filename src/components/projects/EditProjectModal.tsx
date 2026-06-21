@@ -134,8 +134,8 @@ export default function EditProjectModal({
       <SuccessModal
         visible={showSuccessModal}
         onDone={handleSuccessClose}
-        title={t("project.updateSuccess")}
-        description={t("project.updateSuccessDesc")}
+        title={t("project.update_success")}
+        description={t("project.update_success_desc")}
         buttonText={t("common.done")}
       />
 

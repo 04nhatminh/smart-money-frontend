@@ -44,7 +44,7 @@ export type ProjectHistoryOutcome =
 
 export type SavingPlanMode = "RELAXED" | "URGENT";
 
-export type CreateProjectModalStep = 1 | 2 | 3;
+export type CreateProjectModalStep = 1 | 2 | 3 | 4 | 5;
 
 export type ProjectFilterType = "ALL" | ProjectType;
 export type ProjectStatusFilter = "ALL" | ProjectStatus;
@@ -65,7 +65,16 @@ export type CreateProjectPayload = {
     deadline: string;
 };
 
+export type SavingPlanDraft = {
+  payload: CreateProjectPayload;
+};
+
 export type UpdateProjectPayload = Partial<CreateProjectPayload>;
+
+export type AddProjectContributionPayload = {
+  amount: number;
+  note?: string;
+};
 
 export type InviteProjectMemberPayload = {
   email: string;
@@ -226,4 +235,34 @@ export type InviteResponse = {
 export type AcceptInvitePayload = {
   token: string;
   commitmentAmount?: number;
+};
+
+// Budget-allocation AI types (also imported by websocket.ts from this module).
+export interface BudgetAllocationCategory {
+  category: string;
+  amount: number;
+  percentage?: number;
+  reason?: string;
+}
+
+export interface BudgetAllocationResult {
+  totalBudget: number;
+  currency: string;
+  categories: BudgetAllocationCategory[];
+}
+
+export interface BudgetAllocationAIMessage {
+  duty: "BUDGET_ALLOCATION_PLAN";
+  jobId: string;
+  userId: string;
+  type: "BUDGET_ALLOCATION_RESULT";
+  status: "PROCESSING" | "COMPLETED" | "FAILED";
+  result?: BudgetAllocationResult;
+  error?: string;
+}
+
+export type RawBudgetAllocationAIMessage = Omit<BudgetAllocationAIMessage, "result"> & {
+  result?: BudgetAllocationResult | string | any;
+  data?: unknown;
+  budgets?: unknown;
 };

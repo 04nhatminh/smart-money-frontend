@@ -14,7 +14,6 @@ import {
   Alert
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { userStorage } from "../../src/storage/userStorage";
 import { notificationStorage } from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
 import notificationService from "../../src/notification/notificationService";
@@ -25,14 +24,18 @@ import { NotificationListModal } from "../../src/components/notification/Notific
 import { initWebSocket, disconnectWebSocket } from "../../src/services/websocket";
 import AppBottomBar from "../../src/components/AppBottomBar";
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
+import AIInsightList from "../../src/components/assistant/AIInsightList";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
 import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceInputModal";
 import { TransactionRequest, Receipt, TransactionResponse } from "../../src/types/transaction.types";
 import { useRouter } from "expo-router";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
+import { useAIInsight } from "../../src/hooks/useAIInsight";
 import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
 import LatestProjectsSection, { LatestProjectItem } from "../../src/components/home/LatestProjectsSection";
+import SetupIncomeModal from "../../src/components/home/SetupIncomeModal";
+import SetupFinancialProfileModal from "../../src/components/home/SetupFinancialProfileModal";
 import { ProjectAPI } from "../../src/api/project.api";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
 import { panelRef } from "../_layout";
@@ -40,6 +43,9 @@ import { budgetAPI, BudgetItem } from "../../src/api/budget.api";
 import transactionApi from "../../src/api/transaction.api";
 import { CircularProgress } from "../../src/components/CircularProgress";
 import { formatVND } from "../../src/utils/formatCurrency";
+import { useAuth } from "../../src/context/AuthContext";
+import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
+import { GenerateBudgetAllocationPayload } from "../../src/types/budget_allocation.types";
 import analyticsAPI from "../../src/api/transaction_analytics.api";
 
 // Category icon mapping
@@ -77,6 +83,7 @@ const getTransactionCategoryInfo = (category: string) => {
 
 export default function HomePage() {
   const router = useRouter();
+  const { user: authUser, refreshUser } = useAuth();
   const [user, setUser] = useState<UserResponse | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -86,8 +93,11 @@ export default function HomePage() {
   const [voiceVisible, setVoiceVisible] = useState(false);
   const [manualVisible, setManualVisible] = useState(false);
   const [isCreateProjectVisible, setCreateProjectVisible] = useState(false);
+  const [showSetupIncome, setShowSetupIncome] = useState(false);
+  const [showSetupFinancial, setShowSetupFinancial] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
+  const { insight, loading: insightLoading, reload } = useAIInsight();
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Data state
@@ -107,6 +117,7 @@ export default function HomePage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotification, setShowNotification] = useState(false);
   const [loadingNotification, setLoadingNotification] = useState(false);
+
 
   useEffect(() => {
     const init = async () => {
@@ -134,14 +145,76 @@ export default function HomePage() {
     };
   }, []);
 
+  useEffect(() => {
+    setUser(authUser);
+  }, [authUser]);
+
   const loadUserData = async () => {
     try {
-      const userData = await userStorage.getUser();
+      const userData = await refreshUser();
       setUser(userData);
     } catch (error) {
       console.error("Failed to load user data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openRequiredSetupModal = (currentUser: UserResponse | null | undefined) => {
+    setShowSetupIncome(false);
+    setShowSetupFinancial(false);
+
+    if (!currentUser) return;
+    if (currentUser.onboardingCompleted) return;
+
+    if (!currentUser.incomeSetupCompleted) {
+      setShowSetupIncome(true);
+      return;
+    }
+
+    if (!currentUser.financialSetupCompleted) {
+      setShowSetupFinancial(true);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    openRequiredSetupModal(user);
+  }, [
+    user?.id,
+    user?.incomeSetupCompleted,
+    user?.financialSetupCompleted,
+    user?.onboardingCompleted,
+  ]);
+
+  const handleIncomeSetupSuccess = async () => {
+    setShowSetupIncome(false);
+
+    const latestUser = await refreshUser();
+    setUser(latestUser);
+
+    if (latestUser && !latestUser.financialSetupCompleted) {
+      setShowSetupFinancial(true);
+    }
+  };
+
+  const handleFinancialSetupSubmit = async (
+    payload: GenerateBudgetAllocationPayload
+  ) => {
+    try {
+      const response = await BudgetAllocationApi.createUserFinancialProfile(payload);
+
+      if (!response.success) {
+        Alert.alert("Error", response.message || "Failed to create financial profile");
+        return;
+      }
+
+      setShowSetupFinancial(false);
+      const latestUser = await refreshUser();
+      setUser(latestUser);
+    } catch (error: any) {
+      Alert.alert("Error", error?.message || "Failed to create financial profile");
     }
   };
 
@@ -376,6 +449,8 @@ export default function HomePage() {
     router.push("/(transactions)/list");
   };
 
+  console.log("Insight: ", insight);
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -396,17 +471,23 @@ export default function HomePage() {
           {/* Header with Avatar and Greeting */}
           <View style={styles.header}>
             <View style={styles.userInfo}>
-              <View style={styles.avatarContainer}>
-                {user?.avatar ? (
-                  <Image source={{ uri: user.avatar }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>
-                      {user?.fullName?.charAt(0) || 'U'}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <TouchableOpacity
+                onPress={() => router.push("/profile")}
+              >
+                <View style={styles.avatarContainer}>
+                  {user?.avatar ? (
+                    <Image source={{ uri: user.avatar }} style={styles.avatar} />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Text style={styles.avatarText}>
+                        {user?.fullName?.charAt(0) || 'U'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+              </TouchableOpacity>
+
               <View style={styles.greetingContainer}>
                 <Text style={styles.greeting}>Hello,</Text>
                 <Text style={styles.userName}>{user?.fullName || 'User'}</Text>
@@ -550,6 +631,10 @@ export default function HomePage() {
         </View>
       </ScrollView>
 
+      {insight.length > 0 && (
+        <AIInsightList insights={insight || []} />
+      )}
+
       <NotificationListModal
         visible={showNotification}
         onClose={() => {
@@ -595,6 +680,18 @@ export default function HomePage() {
       <CreateProjectModal
         visible={isCreateProjectVisible}
         onClose={() => setCreateProjectVisible(false)}
+      />
+
+      <SetupIncomeModal
+        visible={showSetupIncome}
+        onClose={() => setShowSetupIncome(false)}
+        onSuccess={handleIncomeSetupSuccess}
+      />
+
+      <SetupFinancialProfileModal
+        visible={showSetupFinancial}
+        onClose={() => setShowSetupFinancial(false)}
+        onSubmit={handleFinancialSetupSubmit}
       />
     </SafeAreaView>
   );
