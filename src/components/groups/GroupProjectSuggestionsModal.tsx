@@ -19,6 +19,8 @@ import {
 import { formatCurrencyVND, parseCurrencyToNumber } from "../../utils/project";
 import CreateGroupProjectModal from "./CreateGroupProjectModal";
 
+type PlanMode = "amount" | "duration";
+
 type Props = {
   visible: boolean;
   group: GroupDetailResponse;
@@ -32,65 +34,65 @@ export default function GroupProjectSuggestionsModal({
   onClose,
   onProjectCreated,
 }: Props) {
+  const [mode, setMode] = useState<PlanMode>("amount");
   const [amountInput, setAmountInput] = useState("");
   const [monthsInput, setMonthsInput] = useState("");
   const [suggestion, setSuggestion] = useState<GroupProjectSuggestionsResponse | null>(null);
-  const [loadingAmount, setLoadingAmount] = useState(false);
-  const [loadingMonths, setLoadingMonths] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [prefill, setPrefill] = useState<{ targetAmount: number; totalMonths: number } | null>(null);
+  const [prefill, setPrefill] = useState<{ targetAmount: number; totalMonths: number; totalCapacity: number } | null>(null);
 
-  const totalCapacity = suggestion?.totalCapacity ?? 0;
+  // The anchor is whichever value the admin is fixing; the other is derived by
+  // the backend from the group's monthly capacity.
+  const anchorAmount = parseCurrencyToNumber(amountInput);
+  const anchorMonths = parseInt(monthsInput, 10);
+  const anchorValid = mode === "amount" ? anchorAmount > 0 : anchorMonths > 0;
 
-  const fetchByAmount = async () => {
-    const amount = parseCurrencyToNumber(amountInput);
-    if (!amount || amount <= 0) {
-      Alert.alert("Error", "Enter a valid target amount.");
-      return;
-    }
-    setLoadingAmount(true);
+  // Any change to the anchor or the mode invalidates a prior suggestion, so a
+  // stale derived value can never be shown against a different input.
+  const switchMode = (next: PlanMode) => {
+    if (next === mode) return;
+    setMode(next);
+    setSuggestion(null);
+  };
+
+  const handleAmountChange = (v: string) => {
+    setAmountInput(v);
+    setSuggestion(null);
+  };
+
+  const handleMonthsChange = (v: string) => {
+    setMonthsInput(v);
+    setSuggestion(null);
+  };
+
+  const calculate = async () => {
+    const payload =
+      mode === "amount"
+        ? { groupId: group.groupId, inputAmount: anchorAmount }
+        : { groupId: group.groupId, inputMonths: anchorMonths };
+    setLoading(true);
     try {
-      const res = await GroupAPI.getSuggestions({ groupId: group.groupId, inputAmount: amount });
+      const res = await GroupAPI.getSuggestions(payload);
       if (res.success && res.data) setSuggestion(res.data);
       else Alert.alert("Error", res.message || "Could not fetch suggestions.");
     } finally {
-      setLoadingAmount(false);
+      setLoading(false);
     }
   };
 
-  const fetchByMonths = async () => {
-    const months = parseInt(monthsInput, 10);
-    if (!months || months <= 0) {
-      Alert.alert("Error", "Enter a valid number of months.");
-      return;
-    }
-    setLoadingMonths(true);
-    try {
-      const res = await GroupAPI.getSuggestions({ groupId: group.groupId, inputMonths: months });
-      if (res.success && res.data) setSuggestion(res.data);
-      else Alert.alert("Error", res.message || "Could not fetch suggestions.");
-    } finally {
-      setLoadingMonths(false);
-    }
-  };
-
-  const handleUseAmount = () => {
-    const amount = parseCurrencyToNumber(amountInput);
-    const months = suggestion?.suggestedMonths ?? parseInt(monthsInput, 10);
-    if (!amount || !months) return;
-    setPrefill({ targetAmount: amount, totalMonths: months });
-    setShowCreate(true);
-  };
-
-  const handleUseMonths = () => {
-    const months = parseInt(monthsInput, 10) || suggestion?.suggestedMonths;
-    const amount = suggestion?.suggestedAmount ?? parseCurrencyToNumber(amountInput);
-    if (!amount || !months) return;
-    setPrefill({ targetAmount: amount, totalMonths: months });
+  const handleContinue = () => {
+    if (!suggestion) return;
+    // Keep the anchor verbatim; take the other dimension from the suggestion.
+    const targetAmount = mode === "amount" ? anchorAmount : suggestion.suggestedAmount;
+    const totalMonths = mode === "amount" ? suggestion.suggestedMonths : anchorMonths;
+    if (!targetAmount || !totalMonths) return;
+    setPrefill({ targetAmount, totalMonths, totalCapacity: suggestion.totalCapacity });
     setShowCreate(true);
   };
 
   const handleClose = () => {
+    setMode("amount");
     setAmountInput("");
     setMonthsInput("");
     setSuggestion(null);
@@ -112,95 +114,109 @@ export default function GroupProjectSuggestionsModal({
               </Pressable>
             </View>
 
-            {suggestion && (
-              <View style={styles.capacityRow}>
-                <Ionicons name="people-outline" size={14} color="#3629B7" />
-                <Text style={styles.capacityText}>
-                  Total capacity: <Text style={styles.capacityBold}>{formatCurrencyVND(suggestion.totalCapacity)} VND/month</Text>
+            <Text style={styles.subtitle}>
+              Fix either the target or the duration — we'll work out the other from your group's monthly capacity.
+            </Text>
+
+            {/* Mode toggle */}
+            <View style={styles.toggleRow}>
+              <Pressable
+                style={[styles.toggleTab, mode === "amount" && styles.toggleTabActive]}
+                onPress={() => switchMode("amount")}
+              >
+                <Text style={[styles.toggleText, mode === "amount" && styles.toggleTextActive]}>
+                  By Amount
                 </Text>
-              </View>
-            )}
+              </Pressable>
+              <Pressable
+                style={[styles.toggleTab, mode === "duration" && styles.toggleTabActive]}
+                onPress={() => switchMode("duration")}
+              >
+                <Text style={[styles.toggleText, mode === "duration" && styles.toggleTextActive]}>
+                  By Duration
+                </Text>
+              </Pressable>
+            </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* By Amount */}
-              <View style={styles.calcCard}>
-                <Text style={styles.calcLabel}>I want to save:</Text>
-                <View style={styles.inputRow}>
-                  <TextInput
-                    style={styles.calcInput}
-                    placeholder="e.g. 10,000,000"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="numeric"
-                    value={amountInput}
-                    onChangeText={setAmountInput}
-                  />
-                  <Text style={styles.currencyTag}>VND</Text>
-                </View>
-                {suggestion && amountInput && suggestion.suggestedMonths != null ? (
-                  <View style={styles.resultRow}>
-                    <Ionicons name="arrow-forward" size={14} color="#3629B7" />
-                    <Text style={styles.resultText}>
-                      Minimum months needed: <Text style={styles.resultBold}>{suggestion.suggestedMonths}</Text>
-                    </Text>
+              {mode === "amount" ? (
+                <>
+                  <Text style={styles.label}>I want to save</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. 10,000,000"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="numeric"
+                      value={amountInput}
+                      onChangeText={handleAmountChange}
+                    />
+                    <Text style={styles.currencyTag}>VND</Text>
                   </View>
-                ) : null}
-                <Pressable
-                  style={({ pressed }) => [styles.calcBtn, pressed && { opacity: 0.85 }, loadingAmount && styles.btnDisabled]}
-                  onPress={fetchByAmount}
-                  disabled={loadingAmount}
-                >
-                  {loadingAmount ? <ActivityIndicator color="#3629B7" size="small" /> : <Text style={styles.calcBtnText}>Calculate</Text>}
-                </Pressable>
-              </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.label}>I want to finish in</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. 6"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="numeric"
+                      value={monthsInput}
+                      onChangeText={handleMonthsChange}
+                    />
+                    <Text style={styles.currencyTag}>months</Text>
+                  </View>
+                </>
+              )}
 
-              {/* By Months */}
-              <View style={[styles.calcCard, { marginTop: 12 }]}>
-                <Text style={styles.calcLabel}>I want to finish in:</Text>
-                <View style={styles.inputRow}>
-                  <TextInput
-                    style={styles.calcInput}
-                    placeholder="e.g. 6"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="numeric"
-                    value={monthsInput}
-                    onChangeText={setMonthsInput}
-                  />
-                  <Text style={styles.currencyTag}>months</Text>
-                </View>
-                {suggestion && monthsInput && suggestion.suggestedAmount != null ? (
-                  <View style={styles.resultRow}>
-                    <Ionicons name="arrow-forward" size={14} color="#3629B7" />
-                    <Text style={styles.resultText}>
-                      Achievable amount: <Text style={styles.resultBold}>{formatCurrencyVND(suggestion.suggestedAmount)} VND</Text>
+              {/* Derived preview */}
+              {suggestion && (
+                <View style={styles.previewCard}>
+                  <View style={styles.previewRow}>
+                    <Ionicons name="people-outline" size={15} color="#3629B7" />
+                    <Text style={styles.previewMuted}>
+                      Group capacity: {formatCurrencyVND(suggestion.totalCapacity)} VND/month
                     </Text>
                   </View>
-                ) : null}
-                <Pressable
-                  style={({ pressed }) => [styles.calcBtn, pressed && { opacity: 0.85 }, loadingMonths && styles.btnDisabled]}
-                  onPress={fetchByMonths}
-                  disabled={loadingMonths}
-                >
-                  {loadingMonths ? <ActivityIndicator color="#3629B7" size="small" /> : <Text style={styles.calcBtnText}>Calculate</Text>}
-                </Pressable>
-              </View>
+                  <View style={styles.previewDivider} />
+                  {mode === "amount" ? (
+                    <Text style={styles.previewMain}>
+                      Reaches your goal in{" "}
+                      <Text style={styles.previewBold}>{suggestion.suggestedMonths} months</Text>
+                    </Text>
+                  ) : (
+                    <Text style={styles.previewMain}>
+                      Your group can save{" "}
+                      <Text style={styles.previewBold}>
+                        {formatCurrencyVND(suggestion.suggestedAmount)} VND
+                      </Text>
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  pressed && { opacity: 0.85 },
+                  (!anchorValid || loading) && styles.btnDisabled,
+                ]}
+                onPress={suggestion ? handleContinue : calculate}
+                disabled={!anchorValid || loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.primaryBtnText}>{suggestion ? "Continue" : "Calculate"}</Text>
+                )}
+              </Pressable>
 
               {suggestion && (
-                <View style={styles.actionRow}>
-                  <Pressable
-                    style={({ pressed }) => [styles.useBtn, pressed && { opacity: 0.85 }]}
-                    onPress={handleUseAmount}
-                    disabled={!amountInput}
-                  >
-                    <Text style={styles.useBtnText}>Use Amount</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [styles.useBtn, styles.useBtnAlt, pressed && { opacity: 0.85 }]}
-                    onPress={handleUseMonths}
-                    disabled={!monthsInput}
-                  >
-                    <Text style={[styles.useBtnText, { color: "#3629B7" }]}>Use Months</Text>
-                  </Pressable>
-                </View>
+                <Text style={styles.footnote}>
+                  You can fine-tune the exact target and duration on the next step.
+                </Text>
               )}
             </ScrollView>
           </Pressable>
@@ -213,6 +229,7 @@ export default function GroupProjectSuggestionsModal({
           group={group}
           prefillTargetAmount={prefill.targetAmount}
           prefillTotalMonths={prefill.totalMonths}
+          totalCapacity={prefill.totalCapacity}
           onClose={() => { setShowCreate(false); setPrefill(null); }}
           onCreated={(id) => { setShowCreate(false); onProjectCreated(id); }}
         />
@@ -228,37 +245,41 @@ const styles = StyleSheet.create({
     padding: 24, paddingBottom: 40, maxHeight: "85%",
   },
   handle: { width: 40, height: 4, backgroundColor: "#E2E8F0", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   title: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
-  capacityRow: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#EEF0FF", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 16 },
-  capacityText: { fontSize: 13, color: "#3629B7" },
-  capacityBold: { fontWeight: "700" },
-  calcCard: {
-    backgroundColor: "#F8FAFC", borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: "#E2E8F0",
+  subtitle: { fontSize: 13, color: "#64748B", lineHeight: 19, marginBottom: 18 },
+  toggleRow: {
+    flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12,
+    padding: 4, marginBottom: 20,
   },
-  calcLabel: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 10 },
+  toggleTab: { flex: 1, height: 38, borderRadius: 9, justifyContent: "center", alignItems: "center" },
+  toggleTabActive: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1,
+  },
+  toggleText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
+  toggleTextActive: { color: "#3629B7", fontWeight: "700" },
+  label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 8 },
   inputRow: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0",
-    borderRadius: 12, paddingHorizontal: 14, marginBottom: 10,
+    backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0",
+    borderRadius: 12, paddingHorizontal: 14,
   },
-  calcInput: { flex: 1, height: 44, fontSize: 15, color: "#0F172A", fontWeight: "600" },
+  input: { flex: 1, height: 48, fontSize: 16, color: "#0F172A", fontWeight: "700" },
   currencyTag: { fontSize: 13, fontWeight: "700", color: "#64748B" },
-  resultRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
-  resultText: { fontSize: 13, color: "#475569" },
-  resultBold: { fontWeight: "700", color: "#0F172A" },
-  calcBtn: {
-    height: 38, backgroundColor: "#EEF0FF", borderRadius: 10,
+  previewCard: { backgroundColor: "#EEF0FF", borderRadius: 14, padding: 16, marginTop: 16 },
+  previewRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  previewMuted: { fontSize: 12, color: "#5B5B8A", fontWeight: "500" },
+  previewDivider: { height: 1, backgroundColor: "#D9DCF8", marginVertical: 10 },
+  previewMain: { fontSize: 15, color: "#312E81", lineHeight: 22 },
+  previewBold: { fontWeight: "800", color: "#3629B7" },
+  primaryBtn: {
+    marginTop: 24, height: 52, backgroundColor: "#3629B7", borderRadius: 16,
     justifyContent: "center", alignItems: "center",
+    shadowColor: "#3629B7", shadowOpacity: 0.25, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
-  btnDisabled: { opacity: 0.5 },
-  calcBtnText: { fontSize: 13, fontWeight: "700", color: "#3629B7" },
-  actionRow: { flexDirection: "row", gap: 12, marginTop: 20 },
-  useBtn: {
-    flex: 1, height: 48, backgroundColor: "#3629B7", borderRadius: 14,
-    justifyContent: "center", alignItems: "center",
-  },
-  useBtnAlt: { backgroundColor: "#EEF0FF" },
-  useBtnText: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
+  btnDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
+  primaryBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  footnote: { fontSize: 12, color: "#94A3B8", textAlign: "center", marginTop: 12, lineHeight: 17 },
 });

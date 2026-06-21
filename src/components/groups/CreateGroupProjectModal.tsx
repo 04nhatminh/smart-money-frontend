@@ -21,6 +21,7 @@ type Props = {
   group: GroupDetailResponse;
   prefillTargetAmount: number;
   prefillTotalMonths: number;
+  totalCapacity: number;
   onClose: () => void;
   onCreated: (groupProjectId: string) => void;
 };
@@ -30,6 +31,7 @@ export default function CreateGroupProjectModal({
   group,
   prefillTargetAmount,
   prefillTotalMonths,
+  totalCapacity,
   onClose,
   onCreated,
 }: Props) {
@@ -44,11 +46,21 @@ export default function CreateGroupProjectModal({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Feasibility: the group can save at most capacity × months over the project.
+  // A target above that can never be reached and (target/deadline being fixed)
+  // would create a permanently broken project, so it's a hard block here.
+  const parsedMonths = parseInt(totalMonths, 10);
+  const maxFeasibleAmount =
+    totalCapacity > 0 && parsedMonths > 0 ? totalCapacity * parsedMonths : 0;
+  const exceedsCapacity =
+    maxFeasibleAmount > 0 && parseCurrencyToNumber(targetAmount) > maxFeasibleAmount;
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Project name is required";
     const amount = parseCurrencyToNumber(targetAmount);
     if (!amount || amount <= 0) e.targetAmount = "Target amount is required";
+    else if (exceedsCapacity) e.targetAmount = "Target exceeds your group's saving capacity for this duration";
     const months = parseInt(totalMonths, 10);
     if (!months || months <= 0) e.totalMonths = "Duration is required";
     setErrors(e);
@@ -169,14 +181,24 @@ export default function CreateGroupProjectModal({
             </View>
             {errors.totalMonths ? <Text style={styles.errorText}>{errors.totalMonths}</Text> : null}
 
+            {exceedsCapacity ? (
+              <View style={[styles.warningBanner, { backgroundColor: "#FEE2E2", marginTop: 16, marginBottom: 0 }]}>
+                <Ionicons name="trending-down-outline" size={14} color="#991B1B" />
+                <Text style={[styles.warningText, { color: "#991B1B" }]}>
+                  Your group can save about {formatCurrencyVND(maxFeasibleAmount)} VND over {parsedMonths}{" "}
+                  {parsedMonths === 1 ? "month" : "months"}. Lower the target or increase the duration.
+                </Text>
+              </View>
+            ) : null}
+
             <Pressable
               style={({ pressed }) => [
                 styles.createBtn,
                 pressed && { opacity: 0.85 },
-                (loading || outsideWindow) && styles.btnDisabled,
+                (loading || outsideWindow || exceedsCapacity) && styles.btnDisabled,
               ]}
               onPress={handleCreate}
-              disabled={loading || outsideWindow}
+              disabled={loading || outsideWindow || exceedsCapacity}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />

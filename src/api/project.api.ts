@@ -202,11 +202,11 @@ export const ProjectAPI = {
 
   async abandon(projectId: string): Promise<ApiResponse<ProjectResponse>> {
     try {
-      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/abandon`;
-      console.log("🔵 [ProjectApi] POST Abandon Request:");
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}`;
+      console.log("🔵 [ProjectApi] DELETE Abandon Request:");
       console.log("   URL:", fullUrl);
 
-      const res = await http.post(`/api/v1/projects/${projectId}/abandon`);
+      const res = await http.delete(`/api/v1/projects/${projectId}`);
       console.log("🟢 [ProjectApi] Response Success:", res.data);
       return res.data;
     } catch (error: any) {
