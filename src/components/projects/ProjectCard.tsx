@@ -66,9 +66,16 @@ export default function ProjectCard({
 
   const priorityStyle = priorityStyleMap[project.priority];
   const progress = getSafeProgress(project.progressPercent);
-  const isPersonal = project.type === "PERSONAL";
   const isCompleted = project.status === "COMPLETED";
-  const isInactive = isCompleted || project.status === "CANCELLED";
+  // EXPIRED / ABANDONED / CANCELLED are terminal — dim the card like completed.
+  const isInactive =
+    isCompleted ||
+    project.status === "CANCELLED" ||
+    project.status === "EXPIRED" ||
+    project.status === "ABANDONED";
+  const netSaved = project.netSaved ?? project.totalContributed;
+  const moneyOwed = project.moneyOwed ?? 0;
+  const isPersonal = project.type === "PERSONAL";
 
   return (
     <Pressable
@@ -114,10 +121,19 @@ export default function ProjectCard({
       <View style={styles.amountRow}>
         <Text style={styles.amountLabel}>{t("project.saved_label")}</Text>
         <Text style={styles.amountText}>
-          {formatCurrencyVND(project.totalContributed)} /{" "}
+          {formatCurrencyVND(netSaved)} /{" "}
           {formatCurrencyVND(project.targetAmount)}
         </Text>
       </View>
+
+      {moneyOwed > 0 && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 }}>
+          <Ionicons name="alert-circle-outline" size={13} color="#DC2626" />
+          <Text style={{ fontSize: 12, fontWeight: "700", color: "#DC2626" }}>
+            {formatCurrencyVND(moneyOwed)} debt
+          </Text>
+        </View>
+      )}
 
       <View style={styles.progressBarBackground}>
         <View style={[styles.progressBarFill, { width: `${progress}%` }]} />

@@ -8,10 +8,11 @@ export interface SavePushTokenRequest {
 // Notification Entity
 // ==============================
 export interface Notification {
-  id: string;          // UUID
-  userId: string;      // UUID
+  id: string;                // UUID
+  userId: string;            // UUID
   content: string;
-  createdAt: string;   // ISO date string
+  createdAt: string;         // ISO date string
+  deepLink?: string | null;  // route to navigate to when tapped; null for older notifications
 }
 
 // ==============================

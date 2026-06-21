@@ -224,14 +224,22 @@ export default function HomePage() {
     let isMounted = true;
 
     const init = async () => {
-      const token = await registerForPushNotificationsAsync();
-      console.log("🔥 PUSH TOKEN:", token);
+      try {
+        const token = await registerForPushNotificationsAsync();
+        console.log("🔥 PUSH TOKEN:", token);
 
-      if (token && user?.id) {
-        await notificationService.savePushTokenToServer(token, user.id);
+        if (token && user?.id) {
+          await notificationService.savePushTokenToServer(token, user.id);
+        }
+      } catch (e) {
+        console.error("Push notification setup failed:", e);
       }
 
-      await initWebSocket(user.id);
+      try {
+        await initWebSocket(user.id);
+      } catch (e) {
+        console.error("WebSocket setup failed:", e);
+      }
     };
 
     init().catch((err) => console.error("❌ WebSocket init failed:", err));
@@ -266,11 +274,12 @@ export default function HomePage() {
     try {
       setLatestProjectsLoading(true);
       const response = await ProjectAPI.getAll();
-      const list = (response.success && Array.isArray(response.data)) ? response.data : [];
+      const list = response && response.success && Array.isArray(response.data) ? response.data : [];
       const latest = list.slice(0, 3);
       setLatestProjects(latest);
     } catch (error) {
       console.log('Fetch latest projects error:', error);
+      setLatestProjects([]);
     } finally {
       setLatestProjectsLoading(false);
     }
