@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ButtonSave } from "../ButtonSave";
-import { useAuth } from "../../context/AuthContext";
 import { UserIncomeApi } from "../../api/userIncome.api";
 import { UserFinancialProfileAPI } from "../../api/userFinancialProfile.api";
 import { t } from "../../i18n";
@@ -18,11 +17,36 @@ export default function BudgetAllocationSuggestionStep({
   onSkip,
   onCreate,
 }: Props) {
-  const { user } = useAuth();
   const [detailLoading, setDetailLoading] = useState(false);
-  const isIncomeReady = !!user?.incomeSetupCompleted;
-  const isFinancialReady = !!user?.financialSetupCompleted;
+  // Setup readiness is derived from the actual data endpoints — the user flags
+  // from /auth/me don't carry income/financial setup status.
+  const [isIncomeReady, setIsIncomeReady] = useState(false);
+  const [isFinancialReady, setIsFinancialReady] = useState(false);
   const isLoading = loading || detailLoading;
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const [incomeRes, financialRes] = await Promise.all([
+          UserIncomeApi.getMe(),
+          UserFinancialProfileAPI.getMe(),
+        ]);
+
+        if (!mounted) return;
+
+        setIsIncomeReady(!!(incomeRes?.success && incomeRes.data));
+        setIsFinancialReady(!!(financialRes?.success && financialRes.data));
+      } catch (error) {
+        console.log("Budget step setup check error:", error);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const description = !isIncomeReady
     ? t("budget.set_up_income_before_budget_allocation_suggestions")

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Alert, Modal, View, ScrollView } from "react-native";
 
 import SuccessModal from "../SuccessModal";
@@ -11,6 +11,7 @@ import {
     ProjectAdvisorResponse,
     SavingPlanMode,
     ProjectPriority,
+    ProjectStatus,
     BudgetAllocationResult,
 } from "../../types/project.types";
 import CreateProjectStep from "./CreateProjectStep";
@@ -20,6 +21,8 @@ import BudgetAllocationSuggestionStep from "./BudgetAllocationSuggestionStep";
 import { t } from "../../i18n";
 import { ProjectAPI } from "../../api/project.api";
 import { BudgetAIAPI } from "../../api/budgetAI.api";
+import { UserIncomeApi } from "../../api/userIncome.api";
+import { BudgetAllocationApi } from "../../api/budgetAllocation.api";
 import { budgetAPI, BudgetCategory } from "../../api/budget.api";
 import { initWebSocket, subscribeBudgetJob } from "../../services/websocket";
 import { useAuth } from "../../context/AuthContext";
@@ -30,6 +33,17 @@ type PendingCreateProjectAction =
     | "NEXT_STEP"
     | "CALL_ADVISOR"
     | "LOAD_INCOME";
+
+// Statuses that count as occupying a priority slot. Mirrors the backend rule in
+// CreateProjectUseCase.validateCreate: only live (non-terminal) projects hold a
+// priority. The list endpoint returns domain statuses; we also tolerate the
+// derived live statuses (ONGOING/OVERDUE) in case they ever appear there.
+const PRIORITY_OCCUPYING_STATUSES: ProjectStatus[] = [
+    "ACTIVE",
+    "ONGOING",
+    "OVERDUE",
+    "FROZEN",
+];
 
 const normalizeBudgetAllocationResult = (raw: any): BudgetAllocationResult | null => {
     const source = raw?.result ?? raw?.data ?? raw?.budgets ?? raw;
@@ -109,6 +123,32 @@ export default function CreateProjectModal({
 
     const [showSetupIncome, setShowSetupIncome] = useState(false);
     const [incomeCheckLoading, setIncomeCheckLoading] = useState(false);
+
+    // The backend `/auth/me` response does not carry income/financial setup flags,
+    // so `user.incomeSetupCompleted` / `user.financialSetupCompleted` are always
+    // false. We derive the real setup state from the data endpoints instead. Refs
+    // are used so the async step continuations read the current value (no stale
+    // closure) without forcing re-renders.
+    const hasIncomeRef = useRef(false);
+    const hasFinancialProfileRef = useRef(false);
+
+    const refreshSetupState = async () => {
+        try {
+            const incomeRes = await UserIncomeApi.getMe();
+            hasIncomeRef.current = !!(incomeRes?.success && incomeRes.data);
+        } catch (error) {
+            console.log("Income setup check error:", error);
+            hasIncomeRef.current = false;
+        }
+
+        try {
+            const profileRes = await BudgetAllocationApi.getUserFinancialProfile();
+            hasFinancialProfileRef.current = !!(profileRes?.success && profileRes.data);
+        } catch (error) {
+            console.log("Financial profile check error:", error);
+            hasFinancialProfileRef.current = false;
+        }
+    };
     const [confirmLoading, setConfirmLoading] = useState(false);
     const [advisorLoading, setAdvisorLoading] = useState(false);
     const [advisorData, setAdvisorData] = useState<ProjectAdvisorResponse | null>(null);
@@ -161,9 +201,16 @@ export default function CreateProjectModal({
             return;
             }
 
+            // A priority slot is only occupied by a live (non-terminal) project.
+            // The backend counts ACTIVE + FROZEN as occupying; COMPLETED /
+            // CANCELLED / ABANDONED / EXPIRED projects free their priority.
+            // See CreateProjectUseCase.validateCreate (PROJECT_ACTIVE_PRIORITY_CONFLICT).
             const priorities = [
                 ...new Set(
                     response.data
+                        .filter((project) =>
+                            PRIORITY_OCCUPYING_STATUSES.includes(project.status)
+                        )
                         .map(
                             (project) =>
                                 project.priority
@@ -187,6 +234,7 @@ export default function CreateProjectModal({
     useEffect(() => {
         if (visible) {
             fetchUsedPriorities();
+            refreshSetupState();
         }
     }, [visible]);
 
@@ -196,11 +244,6 @@ export default function CreateProjectModal({
             JSON.stringify(budgetResult, null, 2)
         );
     }, [budgetResult]);
-    useEffect(() => {
-        if (visible) {
-            fetchUsedPriorities();
-        }
-    }, [visible]);
 
     useEffect(() => {
 
@@ -272,7 +315,7 @@ export default function CreateProjectModal({
     };
 
     const handleNextFromCreate = () => {
-        if (!user?.incomeSetupCompleted) {
+        if (!hasIncomeRef.current) {
             setPendingCreateProjectAction("NEXT_STEP");
             setShowSetupIncome(true);
             return;
@@ -338,7 +381,7 @@ export default function CreateProjectModal({
     const handleSelectMode = async (selectedMode: SavingPlanMode) => {
         setMode(selectedMode);
 
-        if (!user?.incomeSetupCompleted) {
+        if (!hasIncomeRef.current) {
             setPendingCreateProjectAction("CALL_ADVISOR");
             setShowSetupIncome(true);
             return;
@@ -479,13 +522,13 @@ export default function CreateProjectModal({
             return;
         }
 
-        if (!currentUser.incomeSetupCompleted) {
+        if (!hasIncomeRef.current) {
             setPendingCreateProjectAction("LOAD_INCOME");
             setShowSetupIncome(true);
             return;
         }
 
-        if (!currentUser.financialSetupCompleted) {
+        if (!hasFinancialProfileRef.current) {
             return;
         }
 
@@ -563,13 +606,13 @@ export default function CreateProjectModal({
         };
 
     const handleCreateBudgetAllocation = async () => {
-        if (!user?.incomeSetupCompleted) {
+        if (!hasIncomeRef.current) {
             setPendingCreateProjectAction("LOAD_INCOME");
             setShowSetupIncome(true);
             return;
         }
 
-        if (!user?.financialSetupCompleted) {
+        if (!hasFinancialProfileRef.current) {
             return;
         }
 
@@ -580,7 +623,11 @@ export default function CreateProjectModal({
         setShowSetupIncome(false);
         const latestUser = await refreshUser();
 
-        if (!latestUser?.incomeSetupCompleted) {
+        // Re-check the actual income/financial state from the data endpoints
+        // (the user flags from /auth/me don't reflect setup status).
+        await refreshSetupState();
+
+        if (!hasIncomeRef.current) {
             setPendingCreateProjectAction(null);
             return;
         }

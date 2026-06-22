@@ -37,7 +37,9 @@ export function getPreviewDeadline(deadlineMonths: string): string {
   const months = Number(deadlineMonths);
   if (Number.isNaN(months) || months < 0) return "";
 
-  return formatDateToDDMMYYYY(addMonthsFromDate(months));
+  // Keep the preview consistent with the deadline actually sent on create: the
+  // backend counts months inclusively, so an N-month plan ends (N-1) months out.
+  return formatDateToDDMMYYYY(addMonthsFromDate(Math.max(0, months - 1)));
 }
 
 export function validateCreateProjectForm(

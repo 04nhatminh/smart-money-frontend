@@ -126,7 +126,13 @@ export function useCreateProject({
             name: values.name.trim(),
             description: values.description.trim(),
             targetAmount: parseCurrencyToNumber(values.targetAmount),
-            deadline: formatDateToYYYYMMDD(addMonthsFromDate(Number(values.deadlineMonths))),
+            // The backend counts months inclusively (monthsToDeadline = gap + 1):
+            // the deadline month is itself the last saving month. So an N-month
+            // plan must land on a deadline (N-1) months out, otherwise the backend
+            // reads it back as N+1 months and shrinks the monthly amount.
+            deadline: formatDateToYYYYMMDD(
+                addMonthsFromDate(Math.max(0, Number(values.deadlineMonths) - 1))
+            ),
             type: values.type,
             priority: values.priority,
             currency: "VND",
@@ -134,13 +140,14 @@ export function useCreateProject({
     };
 
     const buildPayloadWithAdvisor =
-        ( 
+        (
             advisor:ProjectAdvisorResponse
         ): CreateProjectPayload => {
         return {
             ...buildPayload(),
+            // Same inclusive-month adjustment as buildPayload (see note above).
             deadline: formatDateToYYYYMMDD(
-                addMonthsFromDate(advisor.numberOfMonths)
+                addMonthsFromDate(Math.max(0, advisor.numberOfMonths - 1))
             ),
         };
     };

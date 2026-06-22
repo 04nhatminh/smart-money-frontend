@@ -47,6 +47,11 @@ import { useAuth } from "../../src/context/AuthContext";
 import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
 import { GenerateBudgetAllocationPayload } from "../../src/types/budget_allocation.types";
 import analyticsAPI from "../../src/api/transaction_analytics.api";
+import { UserIncomeApi } from "../../src/api/userIncome.api";
+import { UserIncomeResponse } from "../../src/types/user.types";
+
+// Statuses that represent a live, in-progress project (not completed/terminal).
+const ACTIVE_PROJECT_STATUSES = ["ACTIVE", "ONGOING", "OVERDUE", "FROZEN"];
 
 // Category icon mapping
 const categoryIconMap: { [key: string]: { icon: string; color: string; displayName: string } } = {
@@ -95,6 +100,7 @@ export default function HomePage() {
   const [isCreateProjectVisible, setCreateProjectVisible] = useState(false);
   const [showSetupIncome, setShowSetupIncome] = useState(false);
   const [showSetupFinancial, setShowSetupFinancial] = useState(false);
+  const [userIncome, setUserIncome] = useState<UserIncomeResponse | null>(null);
 
   const [refreshing, setRefreshing] = useState(false);
   const { insight, loading: insightLoading, reload } = useAIInsight();
@@ -122,6 +128,7 @@ export default function HomePage() {
   useEffect(() => {
     const init = async () => {
       await loadUserData();
+      await checkRequiredSetup();
       await loadBudgets();
       await loadTransactions();
       await fetchLatestProjects();
@@ -160,41 +167,58 @@ export default function HomePage() {
     }
   };
 
-  const openRequiredSetupModal = (currentUser: UserResponse | null | undefined) => {
-    setShowSetupIncome(false);
-    setShowSetupFinancial(false);
-
-    if (!currentUser) return;
-    if (currentUser.onboardingCompleted) return;
-
-    if (!currentUser.incomeSetupCompleted) {
-      setShowSetupIncome(true);
-      return;
-    }
-
-    if (!currentUser.financialSetupCompleted) {
-      setShowSetupFinancial(true);
+  // The backend `/auth/me` response does not carry the income/financial setup
+  // flags, so we derive setup state from the actual data endpoints instead of
+  // the (always-false) flags on the user object.
+  const loadUserIncome = async (): Promise<UserIncomeResponse | null> => {
+    try {
+      const res = await UserIncomeApi.getMe();
+      if (res?.success && res.data) {
+        setUserIncome(res.data);
+        return res.data;
+      }
+      setUserIncome(null);
+      return null;
+    } catch (error) {
+      console.error("Failed to load user income:", error);
+      setUserIncome(null);
+      return null;
     }
   };
 
-  useEffect(() => {
-    if (!user) return;
+  const isFinancialProfileComplete = async (): Promise<boolean> => {
+    try {
+      const res = await BudgetAllocationApi.getUserFinancialProfile();
+      return !!(res?.success && res.data);
+    } catch (error) {
+      console.error("Failed to load financial profile:", error);
+      // Don't block the user behind a setup modal on a transient fetch error.
+      return true;
+    }
+  };
 
-    openRequiredSetupModal(user);
-  }, [
-    user?.id,
-    user?.incomeSetupCompleted,
-    user?.financialSetupCompleted,
-    user?.onboardingCompleted,
-  ]);
+  const checkRequiredSetup = async () => {
+    const income = await loadUserIncome();
+
+    if (!income) {
+      setShowSetupIncome(true);
+      setShowSetupFinancial(false);
+      return;
+    }
+
+    setShowSetupIncome(false);
+
+    const financialComplete = await isFinancialProfileComplete();
+    setShowSetupFinancial(!financialComplete);
+  };
 
   const handleIncomeSetupSuccess = async () => {
     setShowSetupIncome(false);
 
-    const latestUser = await refreshUser();
-    setUser(latestUser);
+    await loadUserIncome();
 
-    if (latestUser && !latestUser.financialSetupCompleted) {
+    const financialComplete = await isFinancialProfileComplete();
+    if (!financialComplete) {
       setShowSetupFinancial(true);
     }
   };
@@ -275,7 +299,8 @@ export default function HomePage() {
       setLatestProjectsLoading(true);
       const response = await ProjectAPI.getAll();
       const list = response && response.success && Array.isArray(response.data) ? response.data : [];
-      const latest = list.slice(0, 3);
+      const activeOnly = list.filter((p) => ACTIVE_PROJECT_STATUSES.includes(p.status));
+      const latest = activeOnly.slice(0, 3);
       setLatestProjects(latest);
     } catch (error) {
       console.log('Fetch latest projects error:', error);
@@ -337,6 +362,7 @@ export default function HomePage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadUserData();
+    await loadUserIncome();
     await fetchLatestProjects();
     await loadBudgets();
     await loadTransactions();
@@ -559,6 +585,21 @@ export default function HomePage() {
                 </View>
               </View>
             </View>
+
+            {userIncome && (
+              <View style={styles.safeSpendingRow}>
+                <View style={styles.safeSpendingIconBox}>
+                  <Ionicons name="shield-checkmark" size={16} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.safeSpendingLabel}>Safe to Spend</Text>
+                  <Text style={styles.safeSpendingHint}>Based on your income profile</Text>
+                </View>
+                <Text style={styles.safeSpendingAmount}>
+                  {formatVND(userIncome.safeSpending)}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Quick Feature Section */}
@@ -859,6 +900,40 @@ const styles = StyleSheet.create({
     height: 36,
     backgroundColor: '#E2E8F0',
     marginHorizontal: 12,
+  },
+  safeSpendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  safeSpendingIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  safeSpendingLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  safeSpendingHint: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#D6D2F7',
+    marginTop: 2,
+  },
+  safeSpendingAmount: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   section: {
     marginBottom: 25,
