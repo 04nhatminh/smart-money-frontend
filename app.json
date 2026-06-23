@@ -22,10 +22,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
       "package": "com.ngohaibang.smartmoneyfrontend",
-      "usesCleartextTraffic": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",

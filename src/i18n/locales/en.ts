@@ -1,6 +1,7 @@
 export default {
   common: {
     name_app: "Smart Money",
+    hi: "Hi",
     sign_in: "Sign In",
     sign_up: "Sign Up",
     full_name: "Full Name",
@@ -13,6 +14,7 @@ export default {
     continue_with_google: "Continue with Google",
     continue_with_facebook: "Continue with Facebook",
     home: "Home",
+    greeting: "How can i assist you today?",
     error: "Something went wrong. Please try again.",
     save: "Save",
     saving: "Saving...",
@@ -204,6 +206,14 @@ export default {
     required_password: "Password is required",
     offline: "No internet connection",
     unknown: "Something went wrong",
+  },
+  ai: {
+    welcome: "Hello 👋 I am SmartMoney AI. I can analyze spending, savings and provide personal financial advice for you.",
+    title: "SmartMoney AI",
+    subtitle: "Financial Assistant",
+    placeholder: "Ask about personal finance...",
+    error_connection: "An error occurred while connecting to AI.",
+    error_unable: "Unable to connect to AI.",
   },
   wait: {
     waiting: "Waiting a moment",

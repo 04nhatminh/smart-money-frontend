@@ -137,7 +137,6 @@ const checkAuthStatus = async () => {
 
   const login = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
       const response = await authService.login(email, password);
       
       if (response.success) {
@@ -158,13 +157,18 @@ const checkAuthStatus = async () => {
         // 🔄 Resume unfinished AI jobs
         await resumeUnfinishedJobs();
       }
+      else {
+        setIsSignedIn(false);
+        setUser(null);
+      }
       
       return response;
     } catch (error) {
+      setIsSignedIn(false);
+      setUser(null);
       console.error("Login error:", error);
       throw error;
     } finally {
-      setIsLoading(false);
     }
   };
 

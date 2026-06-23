@@ -103,6 +103,8 @@ async function getTransactionAnalytics(
   try {
     const headers = await getAuthHeader();
 
+    console.log("Header", headers);
+
     const res = await http.post(
       "/api/v1/transactions/analytics",
       {

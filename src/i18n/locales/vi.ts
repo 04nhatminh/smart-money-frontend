@@ -1,6 +1,7 @@
 export default {
   common: {
     name_app: "Smart Money",
+    hi: "Chào",
     sign_in: "Đăng nhập",
     sign_up: "Đăng ký",
     full_name: "Họ và tên",
@@ -13,6 +14,7 @@ export default {
     continue_with_google: "Tiếp tục với Google",
     continue_with_facebook: "Tiếp tục với Facebook",
     home: "Trang chủ",
+    greeting: "Tôi có thể giúp gì cho bạn hôm nay?",
     error: "Đã xảy ra lỗi. Vui lòng thử lại.",
     save: "Lưu",
     saving: "Đang lưu...",
@@ -205,6 +207,14 @@ export default {
     required_password: "Vui lòng nhập mật khẩu",
     offline: "Không có kết nối Internet",
     unknown: "Có lỗi xảy ra",
+  },
+  ai: {
+    welcome: "Xin chào 👋 Tôi là SmartMoney AI. Tôi có thể phân tích chi tiêu, tiết kiệm và tư vấn tài chính cá nhân cho bạn.",
+    title: "SmartMoney AI",
+    subtitle: "Trợ lý tài chính",
+    placeholder: "Hỏi về tài chính cá nhân...",
+    error_connection: "Đã xảy ra lỗi khi kết nối AI.",
+    error_unable: "Không thể kết nối đến AI.",
   },
   wait: {
       waiting: "Chờ Một Xí",

@@ -13,6 +13,9 @@ import { NotificationListenerService } from '../src/notification/NotificationLis
 import NotificationNative from "../src/notification/NotificationNative";
 import NotificationToast from '../src/components/notification/NotificationToast';
 import PendingTransactionPanel, { PendingPanelRef } from "../src/components/transactions/PendingTransactionPanel";
+import { AISuggestionProvider } from "../src/context/AISuggestionContext";
+import { useAISuggestions } from "../src/context/AISuggestionContext";
+import { InteractionManager } from "react-native";
 
 export const panelRef = React.createRef<PendingPanelRef>();
 
@@ -21,7 +24,7 @@ SplashScreen.preventAutoHideAsync().catch(() => { });
 function RootLayoutNav() {
   const { isSignedIn, isLoading: authLoading } = useAuth();
   const { isFirstLaunch, isLoading: onboardingLoading } = useOnboarding();
-
+  const { preload } = useAISuggestions();
   const router = useRouter();
   const segments = useSegments();
 
@@ -106,6 +109,16 @@ function RootLayoutNav() {
 
   }, [isFirstLaunch, isSignedIn, isLoading, segments]);
 
+  useEffect(() => {
+    if (!isSignedIn) return;
+
+    const task = InteractionManager.runAfterInteractions(() => {
+      preload();
+    });
+
+    return () => task.cancel();
+  }, [isSignedIn]);
+
   // ✅ Loading UI
   if (isLoading) {
     return (
@@ -119,11 +132,11 @@ function RootLayoutNav() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(wait)" />
         <Stack.Screen name="(intro)" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(transactions)" />
-        <Stack.Screen name="(wait)" />
       </Stack>
 
       <NotificationToast />
@@ -139,7 +152,9 @@ export default function RootLayout() {
         <AuthProvider>
           <OnboardingProvider>
             <NotificationUIProvider>
-              <RootLayoutNav />
+              <AISuggestionProvider>
+                <RootLayoutNav />
+              </AISuggestionProvider>
             </NotificationUIProvider>
           </OnboardingProvider>
         </AuthProvider>

@@ -90,7 +90,7 @@ export default function AuthScreen() {
                 console.log('✅ Login successful');
             } else {
                 console.log('❌ Login failed:', res.message);
-                setSignInError(t("auth.login_failed"));
+                setSignInError(res.message || t("auth.login_failed") || "Đăng nhập thất bại, vui lòng thử lại");
             }
         } catch (err: any) {
             console.error('💥 Login error:', err);

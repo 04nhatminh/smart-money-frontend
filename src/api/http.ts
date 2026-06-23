@@ -1,10 +1,9 @@
 import axios, {
   AxiosInstance,
+  AxiosRequestConfig,
   AxiosResponse,
   AxiosError,
-  AxiosHeaders,
-  InternalAxiosRequestConfig,
-} from 'axios';
+} from "axios";
 import { tokenStorage } from "../storage/tokenStorage"; 
 import { API_CONFIG } from '../config/api';
 
@@ -22,7 +21,7 @@ const refreshHttp = axios.create({
   timeout: API_CONFIG.TIMEOUT,
 });
 
-interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
+interface CustomAxiosRequestConfig extends AxiosRequestConfig {
   _retry?: boolean;
 }
 
@@ -43,6 +42,7 @@ http.interceptors.request.use(
   async (config) => {
     const accessToken = await tokenStorage.getAccessToken();
     if (accessToken) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
@@ -62,6 +62,7 @@ http.interceptors.response.use(
       if (isRefreshing) {
         return new Promise(resolve => {
           subscribeTokenRefresh((token: string) => {
+            originalRequest.headers = originalRequest.headers || {};
             originalRequest.headers.Authorization = `Bearer ${token}`;
             resolve(http(originalRequest));
           });
@@ -87,6 +88,7 @@ http.interceptors.response.use(
         onRefreshed(accessToken);
         isRefreshing = false;
 
+        originalRequest.headers = originalRequest.headers || {};
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return http(originalRequest);
       } catch (err) {

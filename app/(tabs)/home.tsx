@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -6,12 +6,11 @@ import {
   SafeAreaView,
   ScrollView,
   Image,
-  TextInput,
   TouchableOpacity,
   FlatList,
   StatusBar,
   RefreshControl,
-  Alert
+  Animated,
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { userStorage } from "../../src/storage/userStorage";
@@ -22,7 +21,7 @@ import { Notification } from "../../src/types/notification.type";
 import { setNotificationScreenActive } from "../../src/notification/notificationHandler";
 import { registerForPushNotificationsAsync } from "../../src/notification/registerForPushNotificationsAsync";
 import { NotificationListModal } from "../../src/components/notification/NotificationListModal";
-import { initWebSocket, disconnectWebSocket } from "../../src/services/websocket";
+import { initWebSocket } from "../../src/services/websocket";
 import AppBottomBar from "../../src/components/AppBottomBar";
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
 import AIInsightList from "../../src/components/assistant/AIInsightList";
@@ -43,8 +42,10 @@ import transactionApi from "../../src/api/transaction.api";
 import { CircularProgress } from "../../src/components/CircularProgress";
 import { formatVND } from "../../src/utils/formatCurrency";
 import analyticsAPI from "../../src/api/transaction_analytics.api";
+import { t } from "../../src/i18n";
+import { useLanguage } from "../../src/i18n/LanguageProvider";
 
-// Category icon mapping
+// Category icon mapping (giữ nguyên)
 const categoryIconMap: { [key: string]: { icon: string; color: string; displayName: string } } = {
   FOOD: { icon: 'restaurant', color: '#FF9800', displayName: 'Food' },
   TRANSPORTATION: { icon: 'car', color: '#2196F3', displayName: 'Transport' },
@@ -77,10 +78,14 @@ const getTransactionCategoryInfo = (category: string) => {
   return map[normalized] || map.OTHER;
 };
 
+const moodIcons = {
+  Positive: require('../../assets/happy_face.png'),
+  Negative: require('../../assets/sad_face.png'),
+};
+
 export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState<UserResponse | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Modals state
@@ -111,7 +116,78 @@ export default function HomePage() {
   const [showNotification, setShowNotification] = useState(false);
   const [loadingNotification, setLoadingNotification] = useState(false);
 
+  // State để điều khiển hiển thị insights
+  const [currentInsightIndex, setCurrentInsightIndex] = useState<number | null>(null);
+  const [started, setStarted] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
+  // Tạo mảng allInsights bao gồm greeting + các insight thực tế
+  const allInsights = useMemo(() => {
+    const greeting = {
+      text: t("common.greeting"),
+      state: "Positive",
+    };
+
+    return insight && insight.length > 0
+      ? [...insight, greeting]
+      : [greeting];
+  }, [insight, t]);
+
+  // Effect khởi tạo khi allInsights thay đổi
+  useEffect(() => {
+    if (!started && allInsights.length > 0) {
+      setCurrentInsightIndex(0);
+      setStarted(true);
+    }
+  }, [allInsights, started]);
+
+  const currentInsight =
+    currentInsightIndex !== null
+      ? allInsights[currentInsightIndex]
+      : null;
+
+  const moodIcon =
+    currentInsight?.state === "Negative"
+      ? moodIcons.Negative
+      : moodIcons.Positive;
+  useEffect(() => {
+    if (currentInsightIndex === null || currentInsightIndex >= allInsights.length) {
+      return;
+    }
+
+    fadeAnim.setValue(0);
+    slideAnim.setValue(20);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    const timeout = setTimeout(() => {
+      const nextIndex = currentInsightIndex + 1;
+
+      if (nextIndex < allInsights.length) {
+        setCurrentInsightIndex(nextIndex);
+      } else {
+        // Đang ở greeting -> giữ nguyên
+        setCurrentInsightIndex(currentInsightIndex);
+      }
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [currentInsightIndex, allInsights]);
+
+
+
+  // Các useEffect và hàm khác giữ nguyên
   useEffect(() => {
     const init = async () => {
       await loadUserData();
@@ -126,7 +202,6 @@ export default function HomePage() {
 
     init();
 
-    // realtime listener
     const listener = (count: number) => {
       setUnreadCount(count);
     };
@@ -151,26 +226,14 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user?.id) return;
-
-    let isMounted = true;
-
     const init = async () => {
       const token = await registerForPushNotificationsAsync();
-      console.log("🔥 PUSH TOKEN:", token);
-
       if (token && user?.id) {
         await notificationService.savePushTokenToServer(token, user.id);
       }
-
       await initWebSocket(user.id);
     };
-
-    init().catch((err) => console.error("❌ WebSocket init failed:", err));
-
-    return () => {
-      isMounted = false;
-      // ❌ DO NOT disconnect here if the app is still utilizing WS globally
-    };
+    init().catch((err) => console.error("WebSocket init failed:", err));
   }, [user?.id]);
 
   const loadNotifications = async () => {
@@ -314,7 +377,6 @@ export default function HomePage() {
             <Ionicons name={categoryInfo.icon as any} size={24} color={categoryInfo.color} />
           </View>
         </CircularProgress>
-
         <Text style={styles.categoryName} numberOfLines={1}>
           {categoryInfo.displayName}
         </Text>
@@ -339,12 +401,7 @@ export default function HomePage() {
                 {item.description ? item.description : categoryInfo.displayName}
               </Text>
               {item.verified && (
-                <Ionicons
-                  name="checkmark-circle"
-                  size={14}
-                  color="#10B981"
-                  style={{ marginLeft: 4 }}
-                />
+                <Ionicons name="checkmark-circle" size={14} color="#10B981" style={{ marginLeft: 4 }} />
               )}
             </View>
             <Text style={styles.transactionDate}>{item.date}</Text>
@@ -371,7 +428,7 @@ export default function HomePage() {
     router.push("/(transactions)/list");
   };
 
-  console.log("Insight: ", insight);
+  console.log(insight)
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -390,37 +447,13 @@ export default function HomePage() {
         }
       >
         <View style={styles.container}>
-          {/* Header with Avatar and Greeting */}
-          <View style={styles.header}>
-            <View style={styles.userInfo}>
-              <TouchableOpacity
-                onPress={() => router.push("/profile")}
-              >
-                <View style={styles.avatarContainer}>
-                  {user?.avatar ? (
-                    <Image source={{ uri: user.avatar }} style={styles.avatar} />
-                  ) : (
-                    <View style={styles.avatarPlaceholder}>
-                      <Text style={styles.avatarText}>
-                        {user?.fullName?.charAt(0) || 'U'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-              </TouchableOpacity>
-
-              <View style={styles.greetingContainer}>
-                <Text style={styles.greeting}>Hello,</Text>
-                <Text style={styles.userName}>{user?.fullName || 'User'}</Text>
-              </View>
-            </View>
+          {/* Header row: notification button (left) and avatar (right) */}
+          <View style={styles.headerRow}>
             <TouchableOpacity
               style={styles.notificationBtn}
               onPress={handleToggleNotification}
             >
               <Ionicons name="notifications-outline" size={24} color="#333" />
-
               {unreadCount > 0 && (
                 <View style={styles.notificationBadge}>
                   <Text style={styles.badgeText}>
@@ -429,24 +462,55 @@ export default function HomePage() {
                 </View>
               )}
             </TouchableOpacity>
+
+            <View style={styles.moodContainer}>
+              <Image
+                source={moodIcon}
+                style={styles.moodImage}
+              />
+            </View>
+
+            <TouchableOpacity onPress={() => router.push("/profile")}>
+              <View style={styles.avatarContainer}>
+                {user?.avatar ? (
+                  <Image source={{ uri: user.avatar }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={styles.avatarText}>
+                      {user?.fullName?.charAt(0) || 'U'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
           </View>
 
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search transactions..."
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery ? (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color="#999" />
-              </TouchableOpacity>
+          {/* Phần hiển thị greeting + insight (dùng chung logic) */}
+          <View style={styles.greetingContainer}>
+            <Text style={styles.greeting}>
+              {t("common.hi")} {user?.fullName || "User"}
+            </Text>
+
+            {currentInsightIndex !== null && allInsights[currentInsightIndex] ? (
+              <Animated.View
+                style={[
+                  styles.insightItem,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                  },
+                ]}
+              >
+                <Text style={styles.insightText}>
+                  {allInsights[currentInsightIndex].text}
+                </Text>
+              </Animated.View>
             ) : (
-              <Ionicons name="options-outline" size={20} color="#999" />
+              // Khi không còn insight nào (currentInsightIndex === null), có thể hiển thị placeholder hoặc để trống
+              // Ta có thể hiển thị một text mặc định hoặc không hiển thị gì
+              <Text style={styles.insightText}>
+                {/* Có thể hiển thị câu mặc định nếu muốn */}
+              </Text>
             )}
           </View>
 
@@ -526,9 +590,7 @@ export default function HomePage() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recent Transactions</Text>
               <TouchableOpacity onPress={handleTransactionsListPress}>
-                <Text style={styles.seeAllText}>
-                  See All
-                </Text>
+                <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>
 
@@ -552,10 +614,6 @@ export default function HomePage() {
           </View>
         </View>
       </ScrollView>
-
-      {insight.length > 0 && (
-        <AIInsightList insights={insight || []} />
-      )}
 
       <NotificationListModal
         visible={showNotification}
@@ -619,26 +677,22 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingBottom: 100,
+    paddingTop: 30,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 10,
-    marginTop: 16
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 6,
   },
   avatarContainer: {
-    marginRight: 12,
+    marginLeft: 0,
   },
   avatar: {
     width: 50,
@@ -659,17 +713,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   greetingContainer: {
-    justifyContent: 'center',
+    marginBottom: 16,
+    paddingBottom: 4,
+    minHeight: 80,
   },
   greeting: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-  },
-  userName: {
     fontSize: 18,
+    fontWeight: '600',
+    color: '#222',
+    marginBottom: 4,
+  },
+  insightItem: {
+    paddingVertical: 4,
+  },
+  insightText: {
+    fontSize: 22,
     fontWeight: '700',
-    color: '#333',
+    color: '#111', // Màu tím đậm
   },
   notificationBtn: {
     width: 44,
@@ -680,24 +740,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
-  searchContainer: {
-    flexDirection: 'row',
+  notificationBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF4444',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 10,
-    marginBottom: 20,
+    paddingHorizontal: 4,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-    paddingVertical: 0,
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
   balanceCard: {
     backgroundColor: '#3629B7',
@@ -713,6 +771,17 @@ const styles = StyleSheet.create({
   },
   balanceHeader: {
     marginBottom: 22,
+  },
+  moodContainer: {
+  width: 44,
+  height: 44,
+  justifyContent: 'center',
+  alignItems: 'center',
+  },
+  moodImage: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
   },
   balanceAmount: {
     fontSize: 34,
@@ -845,46 +914,6 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    marginBottom: 30,
-  },
-  actionButton: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  actionIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  actionText: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#FF4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
   },
   loadingText: {
     fontSize: 14,
