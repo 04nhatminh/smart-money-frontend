@@ -97,10 +97,12 @@ export function validateEditProjectForm(values: {
   return validateCreateProjectForm({
     ...values,
     type: "PERSONAL",
+    priority: "LOW",
   });
 }
 
-export function formatCurrencyVND(value: number) {
+export function formatCurrencyVND(value: number | null | undefined) {
+  if (value == null) return "0";
   return value.toLocaleString("de-DE");
 }
 

@@ -1,0 +1,255 @@
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { GroupAPI } from "../../api/group.api";
+import { GroupDetailResponse } from "../../types/group.types";
+import { formatCurrencyVND, parseCurrencyToNumber } from "../../utils/project";
+import { getGroupProjectErrorMessage } from "../../utils/groupProjectErrors";
+
+type Props = {
+  visible: boolean;
+  group: GroupDetailResponse;
+  prefillTargetAmount: number;
+  prefillTotalMonths: number;
+  totalCapacity: number;
+  onClose: () => void;
+  onCreated: (groupProjectId: string) => void;
+};
+
+export default function CreateGroupProjectModal({
+  visible,
+  group,
+  prefillTargetAmount,
+  prefillTotalMonths,
+  totalCapacity,
+  onClose,
+  onCreated,
+}: Props) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [targetAmount, setTargetAmount] = useState(
+    prefillTargetAmount > 0 ? prefillTargetAmount.toString() : ""
+  );
+  const [totalMonths, setTotalMonths] = useState(
+    prefillTotalMonths > 0 ? prefillTotalMonths.toString() : ""
+  );
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Feasibility: the group can save at most capacity × months over the project.
+  // A target above that can never be reached and (target/deadline being fixed)
+  // would create a permanently broken project, so it's a hard block here.
+  const parsedMonths = parseInt(totalMonths, 10);
+  const maxFeasibleAmount =
+    totalCapacity > 0 && parsedMonths > 0 ? totalCapacity * parsedMonths : 0;
+  const exceedsCapacity =
+    maxFeasibleAmount > 0 && parseCurrencyToNumber(targetAmount) > maxFeasibleAmount;
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!name.trim()) e.name = "Project name is required";
+    const amount = parseCurrencyToNumber(targetAmount);
+    if (!amount || amount <= 0) e.targetAmount = "Target amount is required";
+    else if (exceedsCapacity) e.targetAmount = "Target exceeds your group's saving capacity for this duration";
+    const months = parseInt(totalMonths, 10);
+    if (!months || months <= 0) e.totalMonths = "Duration is required";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleCreate = async () => {
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      const res = await GroupAPI.createGroupProject({
+        groupId: group.groupId,
+        name: name.trim(),
+        description: description.trim() || undefined,
+        targetAmount: parseCurrencyToNumber(targetAmount),
+        totalMonths: parseInt(totalMonths, 10),
+        currency: "VND",
+      });
+      if (res.success && res.data) {
+        onCreated(res.data.groupProjectId);
+      } else {
+        const msg =
+          getGroupProjectErrorMessage(res.errorCode, "create-project") ??
+          res.message ??
+          "Failed to create group project.";
+        Alert.alert("Error", msg);
+      }
+    } catch {
+      Alert.alert("Error", "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const bypassDateGate = process.env.EXPO_PUBLIC_BYPASS_DATE_GATE === "true";
+  const today = new Date().getDate();
+  const outsideWindow = !bypassDateGate && (today < 1 || today > 7);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          <View style={styles.handle} />
+
+          <View style={styles.header}>
+            <Text style={styles.title}>Create Group Project</Text>
+            <Pressable onPress={onClose} hitSlop={12}>
+              <Ionicons name="close" size={24} color="#64748B" />
+            </Pressable>
+          </View>
+
+          {/* Warning banner */}
+          <View style={styles.warningBanner}>
+            <Ionicons name="warning-outline" size={14} color="#92400E" />
+            <Text style={styles.warningText}>
+              Target and deadline are fixed after creation and cannot be changed.
+            </Text>
+          </View>
+
+          {outsideWindow && (
+            <View style={[styles.warningBanner, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="calendar-outline" size={14} color="#991B1B" />
+              <Text style={[styles.warningText, { color: "#991B1B" }]}>
+                Group projects can only be created on days 1–7 of each month.
+              </Text>
+            </View>
+          )}
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text style={styles.label}>Project Name *</Text>
+            <TextInput
+              style={[styles.input, errors.name ? styles.inputError : null]}
+              placeholder="e.g. New Car Fund"
+              placeholderTextColor="#9CA3AF"
+              value={name}
+              onChangeText={(v) => { setName(v); if (errors.name) setErrors((e) => ({ ...e, name: "" })); }}
+              maxLength={120}
+            />
+            {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
+
+            <Text style={[styles.label, { marginTop: 14 }]}>Description (Optional)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="What is this project about?"
+              placeholderTextColor="#9CA3AF"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={3}
+              maxLength={500}
+            />
+
+            <Text style={[styles.label, { marginTop: 14 }]}>Target Amount (VND) *</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={[styles.inputInline, errors.targetAmount ? styles.inputError : null]}
+                placeholder="10,000,000"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+                value={targetAmount}
+                onChangeText={(v) => { setTargetAmount(v); if (errors.targetAmount) setErrors((e) => ({ ...e, targetAmount: "" })); }}
+              />
+              <Text style={styles.currencyTag}>VND</Text>
+            </View>
+            {errors.targetAmount ? <Text style={styles.errorText}>{errors.targetAmount}</Text> : null}
+
+            <Text style={[styles.label, { marginTop: 14 }]}>Duration (Months) *</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={[styles.inputInline, errors.totalMonths ? styles.inputError : null]}
+                placeholder="7"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+                value={totalMonths}
+                onChangeText={(v) => { setTotalMonths(v); if (errors.totalMonths) setErrors((e) => ({ ...e, totalMonths: "" })); }}
+              />
+              <Text style={styles.currencyTag}>months</Text>
+            </View>
+            {errors.totalMonths ? <Text style={styles.errorText}>{errors.totalMonths}</Text> : null}
+
+            {exceedsCapacity ? (
+              <View style={[styles.warningBanner, { backgroundColor: "#FEE2E2", marginTop: 16, marginBottom: 0 }]}>
+                <Ionicons name="trending-down-outline" size={14} color="#991B1B" />
+                <Text style={[styles.warningText, { color: "#991B1B" }]}>
+                  Your group can save about {formatCurrencyVND(maxFeasibleAmount)} VND over {parsedMonths}{" "}
+                  {parsedMonths === 1 ? "month" : "months"}. Lower the target or increase the duration.
+                </Text>
+              </View>
+            ) : null}
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.createBtn,
+                pressed && { opacity: 0.85 },
+                (loading || outsideWindow || exceedsCapacity) && styles.btnDisabled,
+              ]}
+              onPress={handleCreate}
+              disabled={loading || outsideWindow || exceedsCapacity}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.createBtnText}>Create Group Project</Text>
+              )}
+            </Pressable>
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  sheet: {
+    backgroundColor: "#FFFFFF", borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 24, paddingBottom: 40, maxHeight: "90%",
+  },
+  handle: { width: 40, height: 4, backgroundColor: "#E2E8F0", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
+  warningBanner: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    backgroundColor: "#FEF9C3", borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10,
+  },
+  warningText: { flex: 1, fontSize: 12, color: "#92400E", lineHeight: 18 },
+  label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 6 },
+  input: {
+    backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0",
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, color: "#0F172A",
+  },
+  inputError: { borderColor: "#EF4444" },
+  textArea: { minHeight: 72, textAlignVertical: "top" },
+  inputRow: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0",
+    borderRadius: 12, paddingHorizontal: 14,
+  },
+  inputInline: { flex: 1, height: 44, fontSize: 15, color: "#0F172A", fontWeight: "600" },
+  currencyTag: { fontSize: 13, fontWeight: "700", color: "#64748B" },
+  errorText: { fontSize: 12, color: "#EF4444", marginTop: 4 },
+  createBtn: {
+    marginTop: 28, height: 52, backgroundColor: "#3629B7", borderRadius: 16,
+    justifyContent: "center", alignItems: "center",
+    shadowColor: "#3629B7", shadowOpacity: 0.25, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 }, elevation: 3,
+  },
+  btnDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
+  createBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+});

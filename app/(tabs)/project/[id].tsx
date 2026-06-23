@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,18 +14,37 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { ProjectAPI } from "../../../src/api/project.api";
+import { GroupAPI } from "../../../src/api/group.api";
 import EditProjectModal from "../../../src/components/projects/EditProjectModal";
-import { ProjectDetailResponse } from "../../../src/types/project.types";
+import InviteMemberModal from "../../../src/components/projects/InviteMemberModal";
+import {
+  ProjectDetailResponse,
+  ProjectHistory,
+  ProjectTrackingResponse,
+  TERMINAL_FAILED_STATUSES,
+} from "../../../src/types/project.types";
 import { formatCurrencyVND, getSafeProgress } from "../../../src/utils/project";
+import {
+  historyOutcomeStyles,
+  inferOutcome,
+  paceStatusStyles,
+  sortHistoriesDesc,
+  statusReasonStyles,
+} from "../../../src/utils/projectTracking";
 import { t } from "../../../src/i18n";
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [project, setProject] = useState<ProjectDetailResponse | null>(null);
+  const [tracking, setTracking] = useState<ProjectTrackingResponse | null>(null);
+  const [histories, setHistories] = useState<ProjectHistory[]>([]);
+  const groupProjectIdRef = useRef<string | null>(null);
+  const completionAlertedRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
 
   const handleDeleteProject = () => {
     Alert.alert(
@@ -58,21 +77,69 @@ export default function ProjectDetailScreen() {
     );
   };
 
-  const fetchProjectDetail = async () => {
+  const handleAbandonProject = () => {
+    Alert.alert(
+      t("project.abandon_project"),
+      t("project.abandon_confirm_desc"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("project.abandon_project"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const res = await ProjectAPI.abandon(id);
+              if (res.success) {
+                Alert.alert(t("common.name_app"), t("project.abandon_success"));
+                await fetchProjectDetail();
+              } else {
+                Alert.alert(t("common.error"), res.message || t("project.abandon_failed"));
+              }
+            } catch (err) {
+              console.error(err);
+              Alert.alert(t("common.error"), t("common.error"));
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Loads detail + tracking + history together. `silent` skips the full-screen
+  // spinner and error alert (used by pull-to-refresh).
+  const fetchProjectDetail = async (silent = false) => {
     if (!id) return;
     try {
-      setLoading(true);
-      const res = await ProjectAPI.getById(id);
-      if (res.success && res.data) {
-        setProject(res.data);
-      } else {
-        Alert.alert(t("common.error"), res.message || "Failed to fetch project details");
+      if (!silent) setLoading(true);
+      const [detailRes, trackingRes, historyRes] = await Promise.all([
+        ProjectAPI.getById(id),
+        ProjectAPI.getTracking(id),
+        ProjectAPI.getHistory(id),
+      ]);
+
+      if (detailRes.success && detailRes.data) {
+        setProject(detailRes.data);
+        // Prefer the dedicated history endpoint; fall back to the embedded copy.
+        const rawHistories =
+          historyRes.success && historyRes.data
+            ? historyRes.data
+            : detailRes.data.histories ?? [];
+        setHistories(sortHistoriesDesc(rawHistories));
+      } else if (!silent) {
+        Alert.alert(t("common.error"), detailRes.message || t("common.error"));
+      }
+
+      if (trackingRes.success && trackingRes.data) {
+        setTracking(trackingRes.data);
       }
     } catch (err) {
       console.error("Fetch project details error:", err);
-      Alert.alert(t("common.error"), t("common.error"));
+      if (!silent) Alert.alert(t("common.error"), t("common.error"));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -80,12 +147,7 @@ export default function ProjectDetailScreen() {
     if (!id) return;
     setRefreshing(true);
     try {
-      const res = await ProjectAPI.getById(id);
-      if (res.success && res.data) {
-        setProject(res.data);
-      }
-    } catch (err) {
-      console.error(err);
+      await fetchProjectDetail(true);
     } finally {
       setRefreshing(false);
     }
@@ -93,6 +155,91 @@ export default function ProjectDetailScreen() {
 
   useEffect(() => {
     fetchProjectDetail();
+  }, [id]);
+
+  useEffect(() => {
+    groupProjectIdRef.current = project?.groupProjectId ?? null;
+  }, [project?.groupProjectId]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    // Helper import from WebSocket service
+    const { subscribeToTopic } = require("../../../src/services/websocket");
+
+    let unsubscribe: (() => void) | null = null;
+
+    try {
+      unsubscribe = subscribeToTopic(
+        `/topic/project/${id}/ledger`,
+        (payload: { newTotal: number; latestContribution?: string }) => {
+          console.log("🟢 [ProjectDetailScreen] WebSocket update received:", payload);
+          if (typeof payload?.newTotal !== "number" || Number.isNaN(payload.newTotal)) {
+            console.warn("⚠️ Ledger update missing a numeric newTotal, ignoring", payload);
+            return;
+          }
+          setProject((prev) => {
+            if (!prev) return null;
+            const newTotal = payload.newTotal;
+            const target = prev.targetAmount;
+            const progress = target > 0 ? (newTotal / target) * 100 : 0;
+            const remaining = Math.max(0, target - newTotal);
+            return {
+              ...prev,
+              totalContributed: newTotal,
+              // In the all-auto model totalContributed IS net saved — keep the
+              // headline number in sync so the bar and "Net saved" never diverge.
+              netSaved: newTotal,
+              progressPercent: progress,
+              remaining: remaining,
+            };
+          });
+
+          // The optimistic update above moves the bar instantly; reconcile the
+          // server-derived fields (moneyOwed, pace, frozen cap, history) with a
+          // silent refetch so the debt overlay/panel and pace chip don't go stale.
+          fetchProjectDetail(true).catch(() => {
+            // Non-critical — keep the optimistic snapshot.
+          });
+
+          if (payload.latestContribution) {
+            Alert.alert(t("common.name_app"), payload.latestContribution);
+          }
+
+          const gid = groupProjectIdRef.current;
+          if (gid && !completionAlertedRef.current) {
+            GroupAPI.getGroupProjectDetail(gid)
+              .then((gpRes) => {
+                if (gpRes.success && gpRes.data?.status === "COMPLETED" && !completionAlertedRef.current) {
+                  completionAlertedRef.current = true;
+                  Alert.alert(
+                    "Group Goal Reached!",
+                    "Your group has reached its savings goal together!",
+                    [
+                      {
+                        text: "View Group Project",
+                        onPress: () => router.push(`/group-project/${gid}` as any),
+                      },
+                      { text: "OK", style: "cancel" },
+                    ]
+                  );
+                }
+              })
+              .catch(() => {
+                // Non-critical — group project status check failed silently
+              });
+          }
+        }
+      );
+    } catch (e) {
+      console.warn("⚠️ WebSocket subscription failed in detail screen", e);
+    }
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [id]);
 
   if (loading && !project) {
@@ -122,6 +269,61 @@ export default function ProjectDetailScreen() {
   const progress = getSafeProgress(project.progressPercent);
   const isPersonal = project.type === "PERSONAL";
   const isCompleted = project.status === "COMPLETED";
+  const isSubPersonal = !!project.groupProjectId;
+  // EXPIRED / ABANDONED / CANCELLED are terminal failed states — no resume actions.
+  const isTerminalFailed = TERMINAL_FAILED_STATUSES.includes(project.status);
+  const netSaved = project.netSaved ?? project.totalContributed;
+  const moneyOwed = project.moneyOwed ?? 0;
+
+  // Debt overlay (B1): red segment to the right of the green net fill, sized as
+  // debt's share of the target and clamped to the empty space on the bar.
+  const debtPercent =
+    project.targetAmount > 0
+      ? Math.min(Math.max(0, 100 - progress), (moneyOwed / project.targetAmount) * 100)
+      : 0;
+
+  // Status reason banner (B2): the human "why" behind the badge.
+  const statusReason = project.statusReason ?? "NONE";
+  const reasonStyle = statusReasonStyles[statusReason];
+  let reasonText = t(reasonStyle.i18nKey);
+  if (statusReason === "FROZEN_DEBT") {
+    // The frozen X/Y suffix needs maxFrozenMonths, which only rides on tracking.
+    // Append it only when we actually know the cap — otherwise show just the reason
+    // (avoids rendering a misleading "Frozen 2/0 months").
+    const mx = tracking?.maxFrozenMonths ?? 0;
+    if (mx > 0) {
+      const fm = tracking?.frozenMonths ?? project.frozenMonths ?? 0;
+      const frozenCount = t("project.frozen_count")
+        .replace("{count}", String(fm))
+        .replace("{max}", String(mx));
+      reasonText = `${reasonText} ${frozenCount}`;
+    }
+  }
+  const showReasonBanner = reasonStyle.banner && !!reasonText;
+
+  // Pace chip (B1): prefer the detail response (pace now rides on it), fall back to
+  // the tracking resource. Hidden when not applicable (terminal / no deadline).
+  const paceStatus = project.paceStatus ?? tracking?.paceStatus;
+  const paceStyle = paceStatus ? paceStatusStyles[paceStatus] : null;
+  const showPaceChip = !!paceStyle && paceStatus !== "NOT_APPLICABLE";
+  // "At this pace, ~N months of saving left" — distinct from the calendar monthsLeft.
+  const paceMonthsLeft = project.paceMonthsLeft ?? tracking?.monthLeft ?? null;
+
+  // Debt panel (B3) estimate — only meaningful when there's debt.
+  const debtClearEstimate = tracking?.debtClearEstimateMonths ?? null;
+
+  // Status -> badge colors. Falls back to neutral grey for anything unmapped.
+  const statusColors: Record<string, { bg: string; text: string }> = {
+    ACTIVE: { bg: "#EFF6FF", text: "#2563EB" },
+    ONGOING: { bg: "#EFF6FF", text: "#2563EB" },
+    COMPLETED: { bg: "#DCFCE7", text: "#15803D" },
+    OVERDUE: { bg: "#FEF3C7", text: "#B45309" },
+    FROZEN: { bg: "#FEF9C3", text: "#92400E" },
+    EXPIRED: { bg: "#FEE2E2", text: "#991B1B" },
+    ABANDONED: { bg: "#FEE2E2", text: "#991B1B" },
+    CANCELLED: { bg: "#F3F4F6", text: "#6B7280" },
+  };
+  const currentStatusColor = statusColors[project.status] ?? { bg: "#F3F4F6", text: "#6B7280" };
 
   const priorityColors = {
     HIGH: { bg: "#FEE2E2", text: "#DC2626", border: "#FCA5A5" },
@@ -145,12 +347,22 @@ export default function ProjectDetailScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>
             {project.name}
           </Text>
-          <Pressable
-            style={styles.editButton}
-            onPress={() => setEditModalVisible(true)}
-          >
-            <Ionicons name="create-outline" size={24} color="#FFFFFF" />
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {!isPersonal && (
+              <Pressable
+                style={styles.editButton}
+                onPress={() => setInviteModalVisible(true)}
+              >
+                <Ionicons name="person-add-outline" size={22} color="#FFFFFF" />
+              </Pressable>
+            )}
+            <Pressable
+              style={styles.editButton}
+              onPress={() => setEditModalVisible(true)}
+            >
+              <Ionicons name="create-outline" size={24} color="#FFFFFF" />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -173,21 +385,6 @@ export default function ProjectDetailScreen() {
               <View
                 style={[
                   styles.chip,
-                  isPersonal ? styles.personalChip : styles.groupChip,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    isPersonal ? styles.personalChipText : styles.groupChipText,
-                  ]}
-                >
-                  {isPersonal ? "Personal" : "Group"}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.chip,
                   {
                     backgroundColor: currentPriority.bg,
                     borderColor: currentPriority.border,
@@ -199,16 +396,46 @@ export default function ProjectDetailScreen() {
                   {project.priority}
                 </Text>
               </View>
+              {showPaceChip && paceStyle && (
+                <View style={[styles.chip, { backgroundColor: paceStyle.bg }]}>
+                  <Text style={[styles.chipText, { color: paceStyle.text }]}>
+                    {t(paceStyle.i18nKey)}
+                  </Text>
+                </View>
+              )}
             </View>
-            <Text style={styles.statusLabelText}>
+            <Text style={[styles.statusLabelText, { backgroundColor: currentStatusColor.bg, color: currentStatusColor.text }]}>
               {project.status}
             </Text>
           </View>
+
+          {showReasonBanner && (
+            <View
+              style={[
+                styles.reasonBanner,
+                { backgroundColor: reasonStyle.bg, borderColor: reasonStyle.border },
+              ]}
+            >
+              <Ionicons name={reasonStyle.icon as any} size={15} color={reasonStyle.text} />
+              <Text style={[styles.reasonBannerText, { color: reasonStyle.text }]}>
+                {reasonText}
+              </Text>
+            </View>
+          )}
 
           <Text style={styles.targetLabel}>{t("project.target_amount")}</Text>
           <Text style={styles.targetValue}>
             {formatCurrencyVND(project.targetAmount)} {project.currency}
           </Text>
+
+          {project.monthlySaving ? (
+            <Text style={styles.reservingSubline}>
+              {t("project.reserving_monthly").replace(
+                "{amount}",
+                `${formatCurrencyVND(project.monthlySaving)} ${project.currency}`
+              )}
+            </Text>
+          ) : null}
 
           <View style={styles.progressRow}>
             <Text style={styles.progressLabel}>{t("project.progress")}</Text>
@@ -222,13 +449,28 @@ export default function ProjectDetailScreen() {
                 { width: `${progress}%` },
               ]}
             />
+            {debtPercent > 0 && (
+              <View
+                style={[
+                  styles.progressBarDebt,
+                  { width: `${debtPercent}%` },
+                ]}
+              />
+            )}
           </View>
+
+          {moneyOwed > 0 && (
+            <Text style={styles.debtCaption}>
+              {t("project.debt_caption")
+                .replace("{amount}", `${formatCurrencyVND(moneyOwed)} ${project.currency}`)}
+            </Text>
+          )}
 
           <View style={styles.detailsGrid}>
             <View style={styles.detailCol}>
-              <Text style={styles.gridLabel}>{t("project.saved")}</Text>
+              <Text style={styles.gridLabel}>{t("project.net_saved")}</Text>
               <Text style={styles.gridValue}>
-                {formatCurrencyVND(project.totalContributed)}
+                {formatCurrencyVND(netSaved)}
               </Text>
             </View>
             <View style={styles.detailCol}>
@@ -271,6 +513,14 @@ export default function ProjectDetailScreen() {
                 {project.monthsLeft !== undefined ? `${project.monthsLeft} ${project.monthsLeft > 1 ? t("project.months") : t("project.month")}` : "N/A"}
               </Text>
             </View>
+            {paceMonthsLeft != null && (
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>{t("project.pace_months_left")}</Text>
+                <Text style={[styles.metaValue, paceStatus === "BEHIND" && styles.owedText]}>
+                  ~{paceMonthsLeft} {paceMonthsLeft > 1 ? t("project.months") : t("project.month")}
+                </Text>
+              </View>
+            )}
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t("project.created_at")}</Text>
               <Text style={styles.metaValue}>
@@ -279,6 +529,28 @@ export default function ProjectDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* Debt Panel (B3) — only when there is overspend debt */}
+        {moneyOwed > 0 && (
+          <View style={[styles.card, styles.debtCard]}>
+            <View style={styles.debtHeaderRow}>
+              <Ionicons name="alert-circle" size={18} color="#B45309" />
+              <Text style={styles.debtTitle}>{t("project.debt_panel_title")}</Text>
+              <Text style={styles.debtAmount}>
+                {formatCurrencyVND(moneyOwed)} {project.currency}
+              </Text>
+            </View>
+            <Text style={styles.debtDesc}>{t("project.debt_panel_desc")}</Text>
+            {debtClearEstimate != null && (
+              <View style={styles.debtEstimateRow}>
+                <Ionicons name="time-outline" size={13} color="#92400E" />
+                <Text style={styles.debtEstimateText}>
+                  {t("project.debt_clear_estimate").replace("{count}", String(debtClearEstimate))}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Description Card */}
         <View style={styles.card}>
@@ -291,8 +563,14 @@ export default function ProjectDetailScreen() {
         {/* Monthly savings overview / Histories */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("project.monthly_history")}</Text>
-          {project.histories && project.histories.length > 0 ? (
-            project.histories.map((history) => (
+          {histories.length > 0 ? (
+            histories.map((history) => {
+              const outcome = history.outcome ?? inferOutcome(history);
+              const outcomeStyle = historyOutcomeStyles[outcome];
+              const netChange =
+                history.netChange ?? history.moneySavedAfter - history.moneySavedBefore;
+              const netSign = netChange > 0 ? "+" : netChange < 0 ? "−" : "";
+              return (
               <View key={history.id || history.createdAt} style={styles.historyItem}>
                 <View style={styles.historyHeader}>
                   <View style={styles.historyDateBox}>
@@ -301,8 +579,15 @@ export default function ProjectDetailScreen() {
                       {t("project.month")} {history.month}/{history.year}
                     </Text>
                   </View>
-                  <Text style={styles.historySavingText}>
-                    +{formatCurrencyVND(history.monthlySaving - history.penalty + history.surplusInvested)} {project.currency}
+                  <Text style={[styles.historySavingText, { color: outcomeStyle.color }]}>
+                    {netSign}{formatCurrencyVND(Math.abs(netChange))} {project.currency}
+                  </Text>
+                </View>
+
+                <View style={styles.historyOutcomeRow}>
+                  <Ionicons name={outcomeStyle.icon as any} size={14} color={outcomeStyle.color} />
+                  <Text style={[styles.historyOutcomeText, { color: outcomeStyle.color }]}>
+                    {t(outcomeStyle.i18nKey)}
                   </Text>
                 </View>
 
@@ -343,7 +628,8 @@ export default function ProjectDetailScreen() {
                   )}
                 </View>
               </View>
-            ))
+              );
+            })
           ) : (
             <View style={styles.emptyHistoryBox}>
               <MaterialCommunityIcons name="history" size={32} color="#9CA3AF" />
@@ -352,14 +638,69 @@ export default function ProjectDetailScreen() {
           )}
         </View>
 
-        {/* Delete Project Button */}
-        <Pressable
-          style={styles.deleteProjectButton}
-          onPress={handleDeleteProject}
-        >
-          <Ionicons name="trash-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-          <Text style={styles.deleteProjectText}>{t("project.delete_project")}</Text>
-        </Pressable>
+        {/* Group Project Members List */}
+        {!isPersonal && project.members && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Project Members</Text>
+            {project.members.length > 0 ? (
+              project.members.map((member, index) => (
+                <View key={member.userId || index} style={styles.memberRow}>
+                  <View style={styles.memberInfo}>
+                    <View style={[styles.memberAvatar, member.admin && { backgroundColor: "#EEF2F6" }]}>
+                      <Text style={[styles.memberAvatarText, member.admin && { color: "#475569" }]}>
+                        {member.admin ? "A" : "M"}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.memberEmail}>{member.fullName || member.username}</Text>
+                      <Text style={styles.memberShare}>
+                        {member.email} • {member.admin ? "Admin" : "Member"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[
+                    styles.progressBadge,
+                    member.joinStatus === "INVITED" && { backgroundColor: "#FEF3C7" }
+                  ]}>
+                    <Text style={[
+                      styles.progressBadgeText,
+                      member.joinStatus === "INVITED" && { color: "#D97706" }
+                    ]}>
+                      {member.joinStatus}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyHistoryBox}>
+                <Ionicons name="people-outline" size={32} color="#9CA3AF" />
+                <Text style={styles.emptyHistoryText}>No group members joined yet.</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Danger zone: abandon (sub-personal, still active) → delete */}
+        {isSubPersonal && !isTerminalFailed ? (
+          <>
+            <Pressable
+              style={styles.abandonProjectButton}
+              onPress={handleAbandonProject}
+            >
+              <Ionicons name="hand-left-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.deleteProjectText}>{t("project.abandon_project")}</Text>
+            </Pressable>
+            <Text style={styles.dangerHintText}>{t("project.delete_locked_hint")}</Text>
+          </>
+        ) : (
+          <Pressable
+            style={styles.deleteProjectButton}
+            onPress={handleDeleteProject}
+          >
+            <Ionicons name="trash-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.deleteProjectText}>{t("project.delete_project")}</Text>
+          </Pressable>
+        )}
 
         <View style={{ height: 60 }} />
       </ScrollView>
@@ -371,6 +712,15 @@ export default function ProjectDetailScreen() {
           project={project}
           onClose={() => setEditModalVisible(false)}
           onUpdated={fetchProjectDetail}
+        />
+      )}
+
+      {/* Invite Member Modal */}
+      {inviteModalVisible && (
+        <InviteMemberModal
+          visible={inviteModalVisible}
+          projectId={id}
+          onClose={() => setInviteModalVisible(false)}
         />
       )}
     </SafeAreaView>
@@ -530,6 +880,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 18,
   },
+  reservingSubline: {
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "600",
+    marginTop: -12,
+    marginBottom: 16,
+  },
   progressRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -547,6 +904,7 @@ const styles = StyleSheet.create({
     color: "#16A34A",
   },
   progressBarBackground: {
+    flexDirection: "row",
     width: "100%",
     height: 10,
     borderRadius: 5,
@@ -556,8 +914,18 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: "100%",
-    borderRadius: 5,
     backgroundColor: "#16A34A",
+  },
+  progressBarDebt: {
+    height: "100%",
+    backgroundColor: "#EF4444",
+  },
+  debtCaption: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#DC2626",
+    marginTop: -10,
+    marginBottom: 14,
   },
   detailsGrid: {
     flexDirection: "row",
@@ -690,6 +1058,71 @@ const styles = StyleSheet.create({
   owedText: {
     color: "#EF4444",
   },
+  reasonBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 14,
+  },
+  reasonBannerText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 17,
+  },
+  debtCard: {
+    borderWidth: 1,
+    borderColor: "#FED7AA",
+    backgroundColor: "#FFFBEB",
+  },
+  debtHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  debtTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#92400E",
+  },
+  debtAmount: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#DC2626",
+  },
+  debtDesc: {
+    fontSize: 13,
+    color: "#92400E",
+    lineHeight: 19,
+  },
+  debtEstimateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 10,
+  },
+  debtEstimateText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#B45309",
+  },
+  historyOutcomeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 8,
+  },
+  historyOutcomeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
   deleteProjectButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -705,9 +1138,78 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
+  abandonProjectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#D97706",
+    borderRadius: 16,
+    paddingVertical: 16,
+    marginHorizontal: 4,
+    marginBottom: 8,
+    shadowColor: "#D97706",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  dangerHintText: {
+    fontSize: 12,
+    color: "#92400E",
+    textAlign: "center",
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
   deleteProjectText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
+  },
+  memberRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  memberInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EEF0FF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  memberAvatarText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#3F2CCB",
+  },
+  memberEmail: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  memberShare: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  progressBadge: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  progressBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#2563EB",
   },
 });

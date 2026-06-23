@@ -21,18 +21,70 @@ import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceIn
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { Receipt } from "../../src/types/transaction.types";
+import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
+import { UserFinancialProfileData } from "../../src/types/budget_allocation.types";
+import { t } from "../../src/i18n";
+// import EditFinancialProfileModal from "../../src/components/projects/EditFinancialProfileModal";
+
+const PROFILE_LABELS: Record<string, string> = {
+    BUSINESS_OWNER: "budget.role_business_owner",
+    FREELANCER: "budget.role_freelancer",
+    OFFICE_WORKER: "budget.role_office_worker",
+    STUDENT: "budget.role_student",
+    DORM: "budget.living_dorm",
+    OWN_HOUSE: "budget.living_own_house",
+    RENT_ROOM: "budget.living_rent_room",
+    WITH_FAMILY: "budget.living_with_family",
+    HIGH: "budget.level_high",
+    LOW: "budget.level_low",
+    MEDIUM: "budget.level_medium",
+    BUS: "budget.transport_bus",
+    CAR: "budget.transport_car",
+    MOTORBIKE: "budget.transport_motorbike",
+    RIDE_HAILING: "budget.transport_ride_hailing",
+    BALANCED: "budget.spending_balanced",
+    FRUGAL: "budget.spending_frugal",
+    SPENDER: "budget.spending_spender",
+    HYBRID: "budget.work_hybrid",
+    NONE: "budget.work_none",
+    ONSITE: "budget.work_onsite",
+    PART_TIME: "budget.work_part_time",
+    REMOTE: "budget.work_remote",
+    MARRIED: "budget.family_married",
+    SINGLE: "budget.family_single",
+    COURSE_HEAVY: "budget.study_course_heavy",
+    NORMAL: "budget.study_normal",
+};
+
+const fmt = (v: string) => {
+    const key = PROFILE_LABELS[v?.toUpperCase?.() ?? ""];
+    return key ? t(key) : v;
+};
+
+const getAlertLabel = (alertLevel: string) => {
+    switch (alertLevel) {
+        case "EXCEEDED":
+            return t("budget.alert_exceeded");
+        case "WARNING":
+            return t("budget.alert_warning");
+        case "CAUTION":
+            return t("budget.alert_caution");
+        default:
+            return t("budget.alert_normal");
+    }
+};
 
 // Category icon mapping
 const categoryIconMap: { [key: string]: { icon: string; color: string; displayName: string } } = {
-    FOOD: { icon: 'restaurant', color: '#FF9800', displayName: 'Food' },
-    TRANSPORTATION: { icon: 'car', color: '#2196F3', displayName: 'Transport' },
-    CLOTHING: { icon: 'shirt', color: '#E91E63', displayName: 'Clothing' },
-    UTILITIES: { icon: 'flash', color: '#FFC107', displayName: 'Utilities' },
-    ENTERTAINMENT: { icon: 'film', color: '#9C27B0', displayName: 'Entertainment' },
-    HEALTH: { icon: 'heart', color: '#F44336', displayName: 'Health' },
-    EDUCATION: { icon: 'book', color: '#3629B7', displayName: 'Education' },
-    SHOPPING: { icon: 'bag', color: '#4CAF50', displayName: 'Shopping' },
-    OTHER: { icon: 'more', color: '#757575', displayName: 'Other' },
+    FOOD: { icon: "restaurant", color: "#FF9800", displayName: "budget.category_food" },
+    TRANSPORTATION: { icon: "car", color: "#2196F3", displayName: "budget.category_transportation" },
+    CLOTHING: { icon: "shirt", color: "#E91E63", displayName: "budget.category_clothing" },
+    UTILITIES: { icon: "flash", color: "#FFC107", displayName: "budget.category_utilities" },
+    ENTERTAINMENT: { icon: "film", color: "#9C27B0", displayName: "budget.category_entertainment" },
+    HEALTH: { icon: "heart", color: "#F44336", displayName: "budget.category_health" },
+    EDUCATION: { icon: "book", color: "#3629B7", displayName: "budget.category_education" },
+    SHOPPING: { icon: "bag", color: "#4CAF50", displayName: "budget.category_shopping" },
+    OTHER: { icon: "more", color: "#757575", displayName: "budget.category_other" },
 };
 
 export default function BudgetListPage() {
@@ -40,6 +92,10 @@ export default function BudgetListPage() {
     const [budgets, setBudgets] = useState<BudgetItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+
+    const [financialProfile, setFinancialProfile] = useState<UserFinancialProfileData | null>(null);
+    const [profileLoading, setProfileLoading] = useState(true);
+    const [showEditProfile, setShowEditProfile] = useState(false);
 
     // States for Quick Action Modals
     const [cameraVisible, setCameraVisible] = useState(false);
@@ -50,7 +106,24 @@ export default function BudgetListPage() {
 
     useEffect(() => {
         loadBudgets();
+        loadProfile();
     }, []);
+
+    const loadProfile = async () => {
+        try {
+            setProfileLoading(true);
+            const res = await BudgetAllocationApi.getUserFinancialProfile();
+            if (res.success && res.data) {
+                setFinancialProfile(res.data);
+            } else {
+                setFinancialProfile(null);
+            }
+        } catch {
+            setFinancialProfile(null);
+        } finally {
+            setProfileLoading(false);
+        }
+    };
 
     const loadBudgets = async () => {
         try {
@@ -71,7 +144,7 @@ export default function BudgetListPage() {
 
     const handleRefresh = async () => {
         setRefreshing(true);
-        await loadBudgets();
+        await Promise.all([loadBudgets(), loadProfile()]);
         setRefreshing(false);
     };
 
@@ -123,37 +196,107 @@ export default function BudgetListPage() {
                             </View>
                         </CircularProgress>
                         <View style={styles.categoryDetails}>
-                            <Text style={styles.categoryName}>{categoryInfo.displayName}</Text>
+                            <Text style={styles.categoryName}>{t(categoryInfo.displayName)}</Text>
                             <Text style={[styles.alertBadge, { backgroundColor: alertStyle.bgColor, color: alertStyle.color }]}>
-                                {item.alertLevel}
+                                {getAlertLabel(item.alertLevel)}
                             </Text>
                         </View>
                     </View>
                     <View style={styles.amountInfo}>
                         <Text style={styles.remainingAmount}>{formatVND(item.remaining)}</Text>
-                        <Text style={styles.remainingLabel}>Còn lại</Text>
+                        <Text style={styles.remainingLabel}>{t("budget.remaining")}</Text>
                     </View>
                 </View>
 
                 <View style={styles.cardBody}>
                     <View style={styles.statsRow}>
                         <View style={styles.statItem}>
-                            <Text style={styles.statLabel}>Đã tiêu</Text>
+                            <Text style={styles.statLabel}>{t("budget.spent")}</Text>
                             <Text style={styles.statValue}>{formatVND(item.spent)}</Text>
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.statItem}>
-                            <Text style={styles.statLabel}>Giới hạn</Text>
+                            <Text style={styles.statLabel}>{t("budget.limit")}</Text>
                             <Text style={styles.statValue}>{formatVND(item.amountLimit)}</Text>
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.statItem}>
-                            <Text style={styles.statLabel}>Còn lại</Text>
+                            <Text style={styles.statLabel}>{t("budget.remaining")}</Text>
                             <Text style={[styles.statValue, { color: item.remaining >= 0 ? '#4CAF50' : '#F44336' }]}>
                                 {formatVND(item.remaining)}
                             </Text>
                         </View>
                     </View>
+                </View>
+            </View>
+        );
+    };
+
+    const renderFinancialProfileSection = () => {
+        if (profileLoading) {
+            return (
+                <View style={styles.profileCard}>
+                    <ActivityIndicator size="small" color="#4B3FD6" />
+                </View>
+            );
+        }
+
+        if (!financialProfile) {
+            return (
+                <View style={styles.profileCard}>
+                    <View style={styles.profileCardHeader}>
+                        <View style={styles.profileCardTitleRow}>
+                            <Ionicons name="person-circle-outline" size={22} color="#4B3FD6" />
+                            <Text style={styles.profileCardTitle}>{t("budget.financial_profile_title")}</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.profileEmptyText}>{t("budget.financial_profile_empty")}</Text>
+                    <TouchableOpacity
+                        style={styles.profileSetupBtn}
+                        onPress={() => router.push('/(tabs)/budget-allocation')}
+                    >
+                        <Ionicons name="sparkles" size={15} color="#FFFFFF" />
+                        <Text style={styles.profileSetupBtnText}>{t("budget.set_up_profile")}</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        const profileRows = [
+            { label: t("budget.role"), value: fmt(financialProfile.role) },
+            { label: t("budget.living"), value: fmt(financialProfile.living_status) },
+            { label: t("budget.income"), value: fmt(financialProfile.income_level) },
+            { label: t("budget.transport"), value: fmt(financialProfile.transport_mode) },
+            { label: t("budget.spending_style"), value: fmt(financialProfile.spending_style) },
+            { label: t("budget.work_style"), value: fmt(financialProfile.work_style) },
+            { label: t("budget.family"), value: fmt(financialProfile.family_status) },
+            { label: t("budget.study"), value: fmt(financialProfile.study_intensity) },
+            { label: t("budget.health_need"), value: fmt(financialProfile.health_need) },
+        ];
+
+        return (
+            <View style={styles.profileCard}>
+                <View style={styles.profileCardHeader}>
+                    <View style={styles.profileCardTitleRow}>
+                        <Ionicons name="person-circle-outline" size={22} color="#4B3FD6" />
+                        <Text style={styles.profileCardTitle}>{t("budget.financial_profile_title")}</Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.editBtn}
+                        onPress={() => setShowEditProfile(true)}
+                    >
+                        <Ionicons name="pencil-outline" size={16} color="#4B3FD6" />
+                        <Text style={styles.editBtnText}>{t("common.edit")}</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.profileGrid}>
+                    {profileRows.map((row) => (
+                        <View key={row.label} style={styles.profileGridItem}>
+                            <Text style={styles.profileGridLabel}>{row.label}</Text>
+                            <Text style={styles.profileGridValue}>{row.value}</Text>
+                        </View>
+                    ))}
                 </View>
             </View>
         );
@@ -167,8 +310,13 @@ export default function BudgetListPage() {
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                         <Ionicons name="arrow-back" size={24} color="#333" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Budgets</Text>
-                    <View style={{ width: 40 }} />
+                    <Text style={styles.headerTitle}>{t("budget.tab_title")}</Text>
+                    <TouchableOpacity
+                        onPress={() => router.push('/(tabs)/budget-allocation')}
+                        style={styles.generateButton}
+                    >
+                        <Ionicons name="sparkles" size={18} color="#3629B7" />
+                    </TouchableOpacity>
                 </View>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#3629B7" />
@@ -191,8 +339,13 @@ export default function BudgetListPage() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Budgets</Text>
-                <View style={{ width: 40 }} />
+                <Text style={styles.headerTitle}>{t("budget.tab_title")}</Text>
+                <TouchableOpacity
+                    onPress={() => router.push('/(tabs)/budget-allocation')}
+                    style={styles.generateButton}
+                >
+                    <Ionicons name="sparkles" size={18} color="#3629B7" />
+                </TouchableOpacity>
             </View>
 
             <ScrollView
@@ -208,6 +361,8 @@ export default function BudgetListPage() {
                 }
             >
                 <View style={styles.content}>
+                    {renderFinancialProfileSection()}
+
                     {budgets.length > 0 ? (
                         <>
                             {budgets.map((budget) => renderBudgetCard(budget))}
@@ -215,8 +370,15 @@ export default function BudgetListPage() {
                     ) : (
                         <View style={styles.emptyContainer}>
                             <Ionicons name="wallet-outline" size={60} color="#CCC" />
-                            <Text style={styles.emptyText}>No budgets yet</Text>
-                            <Text style={styles.emptySubText}>Create your first budget to get started</Text>
+                            <Text style={styles.emptyText}>{t("budget.no_budgets_yet")}</Text>
+                            <Text style={styles.emptySubText}>{t("budget.use_ai_to_create_first_budget")}</Text>
+                            <TouchableOpacity
+                                style={styles.emptyButton}
+                                onPress={() => router.push('/(tabs)/budget-allocation')}
+                            >
+                                <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                                <Text style={styles.emptyButtonText}>{t("budget.generate_budget")}</Text>
+                            </TouchableOpacity>
                         </View>
                     )}
                 </View>
@@ -398,5 +560,114 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#999',
         marginTop: 8,
+        textAlign: 'center',
+    },
+    emptyButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#3629B7',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 25,
+        marginTop: 20,
+    },
+    emptyButtonText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    generateButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#EFEAF8',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    profileCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.07,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    profileCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    profileCardTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    profileCardTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#111111',
+    },
+    editBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#EFEAF8',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    editBtnText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#4B3FD6',
+    },
+    profileGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    profileGridItem: {
+        backgroundColor: '#F5F3FF',
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    profileGridLabel: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#9CA3AF',
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+        marginBottom: 2,
+    },
+    profileGridValue: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#4B3FD6',
+    },
+    profileEmptyText: {
+        fontSize: 14,
+        color: '#6B7280',
+        marginBottom: 12,
+    },
+    profileSetupBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        alignSelf: 'flex-start',
+        backgroundColor: '#4B3FD6',
+        paddingHorizontal: 16,
+        paddingVertical: 9,
+        borderRadius: 20,
+    },
+    profileSetupBtnText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 13,
     },
 });

@@ -2,11 +2,49 @@ export type ProjectType = "PERSONAL" | "GROUP";
 
 export type ProjectPriority = | "LOW" | "MEDIUM" | "HIGH";
 
-export type ProjectStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
+// Domain statuses come back on the list endpoint; the detail endpoint may also
+// emit the derived display statuses ONGOING / OVERDUE for genuinely-live projects.
+// EXPIRED and ABANDONED are terminal/failed states (no resume/contribute actions).
+export type ProjectStatus =
+  | "ACTIVE"
+  | "ONGOING"
+  | "COMPLETED"
+  | "OVERDUE"
+  | "CANCELLED" // deprecated
+  | "FROZEN"
+  | "ABANDONED"
+  | "EXPIRED";
+
+// Statuses that are terminal AND represent failure (target never reached).
+export const TERMINAL_FAILED_STATUSES: ProjectStatus[] = ["EXPIRED", "ABANDONED", "CANCELLED"];
+
+// Phase 0 enrichment enums — backend emits these machine-readable values; the FE
+// owns all display copy/colour. See docs/project-tracking-api-contract.md.
+
+// Pace-aware months left vs. calendar months to deadline.
+export type PaceStatus = "AHEAD" | "ON_TRACK" | "BEHIND" | "NOT_APPLICABLE";
+
+// The "why" behind the status badge, so the UI can explain rather than just label.
+export type ProjectStatusReason =
+  | "ON_TRACK"
+  | "BEHIND_PACE"
+  | "FROZEN_DEBT"
+  | "EXPIRED_DEADLINE"
+  | "EXPIRED_FROZEN_TOO_LONG"
+  | "COMPLETED"
+  | "ABANDONED_BY_USER"
+  | "NONE";
+
+// Per-month settlement outcome, drives the history row icon + sentence.
+export type ProjectHistoryOutcome =
+  | "CLEAN_MONTH"
+  | "OVERSPENT"
+  | "UNDERSPENT_BONUS"
+  | "FROZEN_NO_SAVING";
 
 export type SavingPlanMode = "RELAXED" | "URGENT";
 
-export type CreateProjectModalStep = 1 | 2 | 3;
+export type CreateProjectModalStep = 1 | 2 | 3 | 4 | 5;
 
 export type ProjectFilterType = "ALL" | ProjectType;
 export type ProjectStatusFilter = "ALL" | ProjectStatus;
@@ -27,6 +65,10 @@ export type CreateProjectPayload = {
     deadline: string;
 };
 
+export type SavingPlanDraft = {
+  payload: CreateProjectPayload;
+};
+
 export type UpdateProjectPayload = Partial<CreateProjectPayload>;
 
 export type AddProjectContributionPayload = {
@@ -35,7 +77,7 @@ export type AddProjectContributionPayload = {
 };
 
 export type InviteProjectMemberPayload = {
-  userId: string;
+  email: string;
   admin: boolean;
 };
 
@@ -55,20 +97,6 @@ export type CreateProjectFormErrors = {
     deadlineMonths: string;
 };
 
-export type ContributorResponse = {
-  userId: string;
-  totalAmount: number;
-  percentOfTarget: number;
-  createdAt: string;
-};
-
-export type ContributionSummaryResponse = {
-  totalContributed: number;
-  remaining: number;
-  progressPercent: number;
-  contributors: ContributorResponse[];
-};
-
 export type ProjectListItemResponse = {
   projectId: string;
   name: string;
@@ -76,7 +104,12 @@ export type ProjectListItemResponse = {
   targetAmount: number;
   priority: ProjectPriority;
   currency: string;
+  // All-auto model: `totalContributed` is now NET saved = max(0, moneySaved - moneyOwed),
+  // not a sum of manual deposits. `netSaved` is the explicit field for the same value.
   totalContributed: number;
+  netSaved?: number;
+  moneyOwed?: number;
+  frozenMonths?: number;
   progressPercent: number;
   deadline: string;
   status: ProjectStatus;
@@ -96,7 +129,19 @@ export type ProjectHistory = {
   surplusInvested: number;
   monthLeftBefore: number;
   monthLeftAfter: number;
+  // Phase 0: convenience delta (moneySavedAfter - moneySavedBefore) + classifier.
+  netChange?: number;
+  outcome?: ProjectHistoryOutcome;
   createdAt: string;
+};
+
+export type ProjectMember = {
+  userId: string;
+  username: string;
+  email: string;
+  fullName: string;
+  joinStatus: "INVITED" | "JOINED";
+  admin: boolean;
 };
 
 export type ProjectDetailResponse = ProjectListItemResponse & {
@@ -104,15 +149,49 @@ export type ProjectDetailResponse = ProjectListItemResponse & {
   description: string;
   remaining: number;
   statusLabel?: string;
+  // Phase 0: the "why" behind `status`, for the reason banner.
+  statusReason?: ProjectStatusReason;
+  // Pace fields now ride on the detail response (no separate /tracking call needed
+  // for the chip). `monthsLeft` is the calendar deadline countdown; `paceMonthsLeft`
+  // is "at this saving pace, ~N months left"; `paceStatus` compares the two.
+  paceMonthsLeft?: number | null;
+  paceStatus?: PaceStatus;
   monthlySaving?: number;
   durationMonths?: number;
   currentMonth?: number;
   createdAt?: string;
   moneyOwed?: number;
+  netSaved?: number;
+  frozenMonths?: number;
   histories?: ProjectHistory[];
+  members?: ProjectMember[];
+  // Present only when this personal project is a sub-project of a group project.
+  groupProjectId?: string | null;
 };
 
 export type ProjectResponse = ProjectDetailResponse;
+
+// Phase 0: GET /{projectId}/tracking — pace, debt, and frozen-countdown enrichment.
+// View access (non-owner viewers allowed).
+export type ProjectTrackingResponse = {
+  id: string;
+  projectId: string;
+  moneySaved: number;
+  moneyOwed: number;
+  netSaved: number;
+  currentMonth: number;
+  monthlySaving: number;
+  // Pace-aware months left (settlement-recalculated), not raw calendar months.
+  monthLeft: number;
+  frozenMonths: number;
+  monthsToDeadline: number | null;
+  paceStatus: PaceStatus;
+  maxFrozenMonths: number;
+  // ceil(moneyOwed / monthlySaving); null when there's no debt. Show as "~N months".
+  debtClearEstimateMonths: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 
 export type SavingPlanSuggestionCategory = {
@@ -146,3 +225,44 @@ export type ProjectAdvisorResponse = {
   monthlySaving: number;
   numberOfMonths: number;
 };
+
+export type InviteResponse = {
+  token: string;
+  deepLinkUrl: string;
+  message: string;
+};
+
+export type AcceptInvitePayload = {
+  token: string;
+  commitmentAmount?: number;
+};
+
+// Budget-allocation AI types (also imported by websocket.ts from this module).
+export interface BudgetAllocationCategory {
+  category: string;
+  amount: number;
+  percentage?: number;
+  reason?: string;
+}
+
+export interface BudgetAllocationResult {
+  totalBudget: number;
+  currency: string;
+  categories: BudgetAllocationCategory[];
+}
+
+export interface BudgetAllocationAIMessage {
+  duty: "BUDGET_ALLOCATION_PLAN";
+  jobId: string;
+  userId: string;
+  type: "BUDGET_ALLOCATION_RESULT";
+  status: "PROCESSING" | "COMPLETED" | "FAILED";
+  result?: BudgetAllocationResult;
+  error?: string;
+}
+
+export type RawBudgetAllocationAIMessage = Omit<BudgetAllocationAIMessage, "result"> & {
+  result?: BudgetAllocationResult | string | any;
+  data?: unknown;
+  budgets?: unknown;
+};

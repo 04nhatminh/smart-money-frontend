@@ -7,34 +7,44 @@ export const UserIncomeApi = {
         try {
             const fullUrl = `${http.defaults.baseURL}/api/v1/user-income/me`;
 
-            console.log("🔵 [UserIncomeApi] GET Request:")
+            console.log("🔵 [UserIncomeApi] GET Request:");
             console.log("   URL:", fullUrl);
 
             const res = await http.get("/api/v1/user-income/me");
 
             console.log("🟢 [UserIncomeApi] Response Success:", res.data);
+
             return res.data;
         } catch (error: any) {
-            const errorMsg = error?.message || "Unknown error";
-
-            const status = error?.response?.status || "No status";
+            const status = error?.response?.status;
             const responseData = error?.response?.data;
 
-            console.error(
-                "🔴 [UserIncomeAPI] Error Details:"
-            );
+            if (status === 404) {
+            console.log("🟡 [UserIncomeApi] Income not found, setup required.");
 
-            console.error("   Message:", errorMsg);
-            console.error("   Status:", status);
-            console.error(
-                "   Response Data:",
-                responseData
-            );
-
-            return error.response?.data || {
+            return (
+                responseData || {
                 success: false,
-                message: error?.message || "Get income failed",
-            };
+                message: "Income profile not found",
+                errorCode: "USER_INCOME_NOT_FOUND",
+                }
+            );
+            }
+
+            const errorMsg = error?.message || "Unknown error";
+
+            console.error("🔴 [UserIncomeApi] Error Details:");
+            console.error("   Message:", errorMsg);
+            console.error("   Status:", status || "No status");
+            console.error("   Response Data:", responseData);
+            console.error("   Full Error:", error);
+
+            return (
+            responseData || {
+                success: false,
+                message: errorMsg,
+            }
+            );
         }
     },
 

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "smart-money-frontend",
-    "scheme": "smartmoneyfrontend",
+    "scheme": ["smartmoneyfrontend", "smartmoney"],
     "slug": "smart-money-frontend",
     "version": "1.0.0",
     "orientation": "portrait",

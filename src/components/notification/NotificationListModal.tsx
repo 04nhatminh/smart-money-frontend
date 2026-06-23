@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Notification } from "../../types/notification.type";
 import { t } from '../../i18n';
 import { LinearGradient } from "expo-linear-gradient";
+import { resolveDeepLink } from "../../utils/notificationDeepLink";
 
 type Props = {
   visible: boolean;
@@ -110,13 +111,27 @@ export const NotificationListModal: React.FC<Props> = ({
 
   const HEADER_HEIGHT = 120; // chỉnh theo UI thật của bạn
 
+  const handlePressItem = (item: Notification) => {
+    // Only navigate when the backend supplied a deep link. Older notifications
+    // have deepLink == null and stay non-navigating.
+    if (!item.deepLink) return;
+    onClose();
+    resolveDeepLink(item.deepLink);
+  };
+
   const renderItem = ({ item, index }: { item: Notification; index: number }) => {
     const parsed = parseNotification(item.content);
     const category = parsed.params.category;
+    const tappable = !!item.deepLink;
 
     return (
       <AnimatedItem index={index}>
-        <View style={styles.item}>
+        <TouchableOpacity
+          style={styles.item}
+          activeOpacity={tappable ? 0.7 : 1}
+          disabled={!tappable}
+          onPress={() => handlePressItem(item)}
+        >
           <LinearGradient
             colors={["#A8A3D7", "#3629B7"]}
             start={{ x: 0, y: 0 }}
@@ -137,6 +152,9 @@ export const NotificationListModal: React.FC<Props> = ({
               <Text style={styles.time}>
                 {new Date(item.createdAt).toLocaleString()}
               </Text>
+              {tappable && (
+                <Ionicons name="chevron-forward" size={16} color="#3629B7" />
+              )}
             </View>
           </View>
 
@@ -151,7 +169,7 @@ export const NotificationListModal: React.FC<Props> = ({
               </View>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </AnimatedItem>
     );
   };

@@ -255,4 +255,80 @@ export const projectStyles = StyleSheet.create({
     color: "#059669",
   },
 
+  switchGroup: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+
+  switchLabelCol: {
+    flex: 1,
+    paddingRight: 16,
+  },
+
+  switchLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111827",
+  },
+
+  switchSubLabel: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#6B7280",
+    lineHeight: 18,
+  },
+
+    popupOverlay: {
+    position: "absolute",
+
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+
+    backgroundColor: "rgba(0,0,0,0.45)",
+
+    justifyContent: "center",
+    alignItems: "center",
+
+    zIndex: 9999,
+  },
+
+  popupCard: {
+    width: "85%",
+    backgroundColor: "#FFFFFF",
+
+    borderRadius: 24,
+
+    padding: 24,
+  },
+
+  popupTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+
+    color: "#111827",
+
+    marginBottom: 12,
+  },
+
+  popupMessage: {
+    fontSize: 14,
+
+    lineHeight: 22,
+
+    color: "#6B7280",
+
+    marginBottom: 24,
+  },
+
+  popupActions: {
+    flexDirection: "row",
+
+    gap: 12,
+  },
+
 });

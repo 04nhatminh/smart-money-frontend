@@ -1,8 +1,5 @@
 import http from "./http";
 import {
-  AddProjectContributionPayload,
-
-  ContributionSummaryResponse,
   CreateProjectPayload,
   InviteProjectMemberPayload,
   ProjectDetailResponse,
@@ -11,6 +8,12 @@ import {
   UpdateProjectPayload,
   ProjectAdvisorPayload,
   ProjectAdvisorResponse,
+  InviteResponse,
+  ProjectTrackingResponse,
+  ProjectHistory,
+  ProjectType,
+  ProjectPriority,
+  ProjectStatus,
 } from "../types/project.types";
 import { ApiResponse } from "../types/auth.types";
 
@@ -47,13 +50,21 @@ export const ProjectAPI = {
     }
   },
 
-  async getAll(): Promise<ApiResponse<ProjectListItemResponse[]>> {
+  async getAll(
+    params?: {
+      search?: string;
+      type?: ProjectType;
+      status?: ProjectStatus;
+      priority?: ProjectPriority;
+    }
+  ): Promise<ApiResponse<ProjectListItemResponse[]>> {
     try {
       const fullUrl = `${http.defaults.baseURL}/api/v1/projects`;
       console.log("🔵 [ProjectApi] GET Request:");
       console.log("   URL:", fullUrl);
+      console.log("   Params:", params);
 
-      const res = await http.get("/api/v1/projects");
+      const res = await http.get("/api/v1/projects", { params });
       console.log("🟢 [ProjectApi] Response Success:", res.data);
       return res.data;
     } catch (error: any) {
@@ -105,6 +116,68 @@ export const ProjectAPI = {
     }
   },
 
+  async getTracking(
+    projectId: string
+  ): Promise<ApiResponse<ProjectTrackingResponse>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/tracking`;
+      console.log("🔵 [ProjectApi] GET Tracking Request:");
+      console.log("   URL:", fullUrl);
+
+      const res = await http.get(`/api/v1/projects/${projectId}/tracking`);
+      console.log("🟢 [ProjectApi] Tracking Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [ProjectApi] Tracking Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+      console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  },
+
+  async getHistory(
+    projectId: string
+  ): Promise<ApiResponse<ProjectHistory[]>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/history`;
+      console.log("🔵 [ProjectApi] GET History Request:");
+      console.log("   URL:", fullUrl);
+
+      const res = await http.get(`/api/v1/projects/${projectId}/history`);
+      console.log("🟢 [ProjectApi] History Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [ProjectApi] History Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+      console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  },
+
   async update(
     projectId: string,
     data: UpdateProjectPayload
@@ -124,6 +197,35 @@ export const ProjectAPI = {
       const responseData = error?.response?.data;
 
       console.error("🔴 [ProjectApi] Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+      console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  },
+
+  async abandon(projectId: string): Promise<ApiResponse<ProjectResponse>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}`;
+      console.log("🔵 [ProjectApi] DELETE Abandon Request:");
+      console.log("   URL:", fullUrl);
+
+      const res = await http.delete(`/api/v1/projects/${projectId}`);
+      console.log("🟢 [ProjectApi] Response Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [ProjectApi] Abandon Error Details:");
       console.error("   Message:", errorMsg);
       console.error("   Status:", status);
       console.error("   Response Data:", responseData);
@@ -167,79 +269,10 @@ export const ProjectAPI = {
     }
   },
 
-  async addContribution(
-    projectId: string,
-    data: AddProjectContributionPayload
-  ): Promise<ApiResponse<ProjectResponse>> {
-    try {
-      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/contributions`;
-      console.log("🔵 [ProjectApi] POST Request:");
-      console.log("   URL:", fullUrl);
-      console.log("   Payload:", JSON.stringify(data, null, 2));
-
-      const res = await http.post(
-        `/api/v1/projects/${projectId}/contributions`,
-        data
-      );
-      console.log("🟢 [ProjectApi] Response Success:", res.data);
-      return res.data;
-    } catch (error: any) {
-      const errorMsg = error?.message || "Unknown error";
-      const status = error?.response?.status || "No status";
-      const responseData = error?.response?.data;
-
-      console.error("🔴 [ProjectApi] Error Details:");
-      console.error("   Message:", errorMsg);
-      console.error("   Status:", status);
-      console.error("   Response Data:", responseData);
-      console.error("   Full Error:", error);
-
-      return (
-        error?.response?.data || {
-          success: false,
-          message: errorMsg,
-        }
-      );
-    }
-  },
-
-  async getContributionSummary(
-    projectId: string
-  ): Promise<ApiResponse<ContributionSummaryResponse>> {
-    try {
-      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/contributions/summary`;
-      console.log("🔵 [ProjectApi] GET Request:");
-      console.log("   URL:", fullUrl);
-
-      const res = await http.get(
-        `/api/v1/projects/${projectId}/contributions/summary`
-      );
-      console.log("🟢 [ProjectApi] Response Success:", res.data);
-      return res.data;
-    } catch (error: any) {
-      const errorMsg = error?.message || "Unknown error";
-      const status = error?.response?.status || "No status";
-      const responseData = error?.response?.data;
-
-      console.error("🔴 [ProjectApi] Error Details:");
-      console.error("   Message:", errorMsg);
-      console.error("   Status:", status);
-      console.error("   Response Data:", responseData);
-      console.error("   Full Error:", error);
-
-      return (
-        error?.response?.data || {
-          success: false,
-          message: errorMsg,
-        }
-      );
-    }
-  },
-
   async inviteMember(
     projectId: string,
     data: InviteProjectMemberPayload
-  ): Promise<ApiResponse<ProjectResponse>> {
+  ): Promise<ApiResponse<InviteResponse>> {
     try {
       const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/members/invite`;
       console.log("🔵 [ProjectApi] POST Request:");
@@ -250,6 +283,38 @@ export const ProjectAPI = {
         `/api/v1/projects/${projectId}/members/invite`,
         data
       );
+      console.log("🟢 [ProjectApi] Response Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [ProjectApi] Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+      console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  },
+
+  async acceptInvitation(
+    data: { token: string; commitmentAmount?: number }
+  ): Promise<ApiResponse<ProjectDetailResponse>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/invites/accept`;
+      console.log("🔵 [ProjectApi] POST Request:");
+      console.log("   URL:", fullUrl);
+      console.log("   Payload:", JSON.stringify(data, null, 2));
+
+      const res = await http.post("/api/v1/projects/invites/accept", data);
       console.log("🟢 [ProjectApi] Response Success:", res.data);
       return res.data;
     } catch (error: any) {
@@ -301,4 +366,4 @@ export const ProjectAPI = {
       );
     }
   },
-};
+};
