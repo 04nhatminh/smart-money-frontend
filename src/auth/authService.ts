@@ -36,6 +36,36 @@ class AuthService {
     };
   }
 
+  // Build the user identity from the JWT access token. The backend `/auth/me`
+  // endpoint is currently a stub that returns the placeholder string
+  // "User info would be here", so it can never be trusted to carry `id`/`email`.
+  // The signed token, however, always holds them: subject = user id (UUID),
+  // plus `email`/`username`/`role` claims.
+  private identityFromToken(token: string | null) {
+    if (!token) return null;
+    const claims = this.decodeJWT(token);
+    if (!claims?.sub) return null;
+    return {
+      id: claims.sub as string,
+      email: (claims.email as string) ?? "",
+      username: (claims.username as string) ?? "",
+      role: (claims.role as string) ?? "",
+    };
+  }
+
+  // Merge whatever we know about the user: JWT identity as the reliable base,
+  // overlaid with a real stored/server user object only when it actually has an
+  // `id` (i.e. not the `/auth/me` placeholder).
+  composeUser(rawUser: any, token: string | null): UserResponse | null {
+    const identity = this.identityFromToken(token);
+    const base =
+      rawUser && typeof rawUser === "object" && rawUser.id ? rawUser : null;
+
+    if (!identity && !base) return null;
+
+    return this.normalizeUser({ ...(identity ?? {}), ...(base ?? {}) });
+  }
+
   // Initialize service
   init() {
     this.loadUserFromStorage();
@@ -116,7 +146,8 @@ class AuthService {
 
   async getCurrentUser() {
     const user = await userStorage.getUser();
-    return user ? this.normalizeUser(user) : null;
+    const token = await tokenStorage.getAccessToken();
+    return this.composeUser(user, token);
   }
 
   // Check if user is authenticated

@@ -18,22 +18,24 @@ import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
 import { BudgetAllocationResult } from "../../src/types/budget_allocation.types";
 import { useAuth } from "../../src/context/AuthContext";
 import { initWebSocket, subscribeBudgetJob } from "../../src/services/websocket";
-import { userStorage } from "../../src/storage/userStorage";
 import { i18n, t } from "../../src/i18n";
 // ==============================
-// CACHE HELPERS
+// SETUP STATE HELPERS
 // ==============================
-const getFinancialProfileReadyFromCache = async (): Promise<boolean> => {
-  const cachedUser = await userStorage.getUser();
-
-  if (!cachedUser) {
-    return false;
+// The backend `/auth/me` response never serializes income/financial setup flags
+// (`onboardingCompleted` / `financialSetupCompleted` are always false on the
+// cached user), so we cannot trust them. Derive readiness from the real
+// financial-profile endpoint instead.
+const checkFinancialProfileReady = async (): Promise<boolean> => {
+  try {
+    const profileRes = await BudgetAllocationApi.getUserFinancialProfile();
+    return !!(profileRes?.success && profileRes.data);
+  } catch (error) {
+    console.warn("Failed to check financial profile:", error);
+    // Don't block generation on a transient read failure; the backend
+    // generateBudget call still validates the profile server-side.
+    return true;
   }
-
-  const userData = cachedUser as any;
-
-  return userData.onboardingCompleted
-
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -84,27 +86,8 @@ export default function BudgetAllocationPage() {
     }, [budgetResult]);
 
     const checkFinancialProfileCache = async () => {
-        try {
-            const ready = await getFinancialProfileReadyFromCache();
-
-            /**
-             * Nếu cache không có flag thì không block màn hình này.
-             * Backend generateBudget vẫn có thể validate profile ở phía server.
-             */
-            if (ready === false) {
-                setFinancialProfileReady(false);
-            } else {
-                setFinancialProfileReady(true);
-            }
-        } catch (error) {
-            console.warn("Failed to read financial profile cache:", error);
-
-            /**
-             * Không đọc được cache thì vẫn cho generate.
-             * Không nên gọi API profile ở page này nữa.
-             */
-            setFinancialProfileReady(true);
-        }
+        const ready = await checkFinancialProfileReady();
+        setFinancialProfileReady(ready);
     };
 
     const normalizeBudgetResult = (rawResult: any): BudgetAllocationResult => {
@@ -135,7 +118,7 @@ export default function BudgetAllocationPage() {
                 return;
             }
 
-            const ready = await getFinancialProfileReadyFromCache();
+            const ready = await checkFinancialProfileReady();
 
             if (ready === false) {
                 setFinancialProfileReady(false);

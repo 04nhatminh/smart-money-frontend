@@ -33,11 +33,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 const loadCurrentUser = async () => {
   const response = await AuthApi.getCurrentUser();
+  const token = await tokenStorage.getAccessToken();
 
-  if (response.success && response.data) {
-    const latestUser = authService.normalizeUser(response.data);
-    await userStorage.setUser(latestUser);
-    return latestUser;
+  // `/auth/me` is currently a stub returning the string "User info would be
+  // here", so only treat its payload as authoritative when it's a real user
+  // object with an id. Otherwise we fall back to the JWT identity, which always
+  // carries the user id/email. composeUser handles both cases.
+  const rawUser =
+    response.success &&
+    response.data &&
+    typeof response.data === "object" &&
+    (response.data as any).id
+      ? response.data
+      : null;
+
+  const composed = authService.composeUser(rawUser, token);
+
+  if (composed) {
+    await userStorage.setUser(composed);
+    return composed;
   }
 
   return authService.getCurrentUser();
