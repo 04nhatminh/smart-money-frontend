@@ -2,6 +2,11 @@ import { http } from './http';
 import { tokenStorage } from '../storage/tokenStorage';
 import { CheckResponse } from '../types/auth.types';
 import { AIJobResponse } from '../types/ai.types';
+import EventSource, { EventSourceEvent } from "react-native-sse";
+type EventSourceMessage = {
+  data: string | null;
+};
+
 
 
 class AIAPI {
@@ -270,6 +275,110 @@ class AIAPI {
       return error.response?.data || {
         success: false,
         message: error.message || "Chat AI failed",
+      };
+    }
+  }
+
+  /**
+   * Gửi tin nhắn và nhận phản hồi dạng stream (SSE)
+   * @param message  nội dung tin nhắn
+   * @param onChunk  nhận từng mảnh chữ
+   * @param onError  xử lý lỗi
+   * @param onComplete  khi stream kết thúc
+   * @returns hàm hủy (unsubscribe)
+   */
+  async streamChat(
+    message: string,
+    onChunk: (chunk: string) => void,
+    onError: (error: any) => void,
+    onComplete: () => void
+  ): Promise<() => void> {
+    try {
+      const headers = await this.getAuthHeader();
+      const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+      let isClosed = false;
+      if (!baseUrl) {
+        throw new Error('Missing API base URL');
+      }
+
+      const url = `${baseUrl}/api/v1/ai/chat/stream?message=${encodeURIComponent(message)}`;
+
+      const eventSource = new EventSource(url, {
+        headers: {
+          ...headers,
+          Accept: 'text/event-stream',
+        },
+      });
+
+      const safeClose = () => {
+        if (!isClosed) {
+          eventSource.close();
+          isClosed = true;
+        }
+      };
+
+      // Lắng nghe sự kiện 'message' (mặc định)
+      eventSource.addEventListener('message', (event) => {
+        if (!event.data) return;
+
+        if (event.data === '[DONE]') {
+          safeClose();
+          onComplete();
+          return;
+        }
+
+        onChunk(event.data);
+      });
+
+      // Lắng nghe sự kiện 'done' do backend gửi khi hoàn tất
+      eventSource.addEventListener('done' as any, () => {
+        safeClose();
+        onComplete();
+      });
+
+      // Xử lý lỗi (kết nối đóng đột ngột, timeout,...)
+      eventSource.addEventListener('error', (error) => {
+        onError(error);
+        safeClose();
+      });
+
+      // Trả về hàm hủy
+      return () => {
+        safeClose();
+      };
+    } catch (error) {
+      onError(error);
+      return () => { };
+    }
+  }
+
+
+  /**
+   * Lấy gợi ý từ AI dựa trên đầu vào (ví dụ: mô tả giao dịch)
+   * @param input chuỗi đầu vào để gợi ý
+   * @returns danh sách gợi ý
+   */
+  async getSuggestions(
+    input: string
+  ): Promise<CheckResponse<{ questions: string[] }>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.get('/api/v1/ai/suggestions', {
+        headers,
+        params: { input },
+      });
+
+      return {
+        success: true,
+        message: 'Get suggestions success',
+        data: res.data,
+      };
+    } catch (error: any) {
+      console.error('❌ GET SUGGESTIONS ERROR:', error);
+      return error.response?.data || {
+        success: false,
+        message: error.message || 'Get suggestions failed',
       };
     }
   }

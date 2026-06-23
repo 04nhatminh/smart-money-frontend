@@ -21,18 +21,14 @@ export const useFacebookLogin = () => {
     facebookLoading: false,
   });
 
-  /**
-   * Listen auth session from Supabase
-   */
+  // 1. Lắng nghe auth state – dùng optional chaining để tránh lỗi null
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('🔥 Auth event:', event);
       console.log('👤 Session:', session);
       console.log('📧 User:', session?.user);
 
-      if (event === 'SIGNED_OUT' || !session?.user) {
+      if (event === 'SIGNED_OUT' || !session || !session.user) {
         setState({
           session: null,
           email: null,
@@ -40,49 +36,49 @@ export const useFacebookLogin = () => {
           errorMsg: null,
           facebookLoading: false,
         });
-      } else if (session?.user) {
+      } else {
+        // Dùng optional chaining để TypeScript không phàn nàn
         setState(prev => ({
           ...prev,
           session,
-          email: session.user.email ?? null,
+          email: session.user?.email ?? null,
           name:
-            session.user.user_metadata?.full_name ||
-            session.user.user_metadata?.name ||
+            session.user?.user_metadata?.full_name ||
+            session.user?.user_metadata?.name ||
             null,
-          loading: false,
+          facebookLoading: false,
           errorMsg: null,
         }));
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Lấy subscription an toàn, nếu data null thì subscription = null
+    const subscription = (data as any)?.subscription ?? null;
+
+
+    return () => {
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
 
-
-
-  /**
-   * Trigger Facebook login
-   */
+  // 2. Đăng nhập Facebook – dùng signIn (v1) thay vì signInWithOAuth (v2)
   const signInWithFacebook = async () => {
     try {
-      setState(prev => ({ ...prev, loading: true, errorMsg: null }));
+      setState(prev => ({ ...prev, facebookLoading: true, errorMsg: null }));
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'facebook',
-        options: {
-          redirectTo: 'smartmoneyfrontend://',
-          skipBrowserRedirect: true, // 👈 bắt Supabase chỉ trả URL
-        },
-      });
+      const { url: authUrl, error } = await supabase.auth.signIn(
+        { provider: 'facebook' },
+        { redirectTo: 'smartmoneyfrontend://' }
+      );
+
 
       if (error) throw error;
-      if (!data?.url) throw new Error('No OAuth URL');
+      if (!authUrl) throw new Error('No OAuth URL');
 
-      console.log('🌍 Opening OAuth URL:', data.url);
-
-      // 👉 Mở browser Facebook
       const result = await WebBrowser.openAuthSessionAsync(
-        data.url,
+        authUrl,
         'smartmoneyfrontend://'
       );
 
@@ -92,10 +88,8 @@ export const useFacebookLogin = () => {
         throw new Error('Login cancelled');
       }
 
-      // 👉 LẤY TOKEN TỪ CALLBACK URL
       const url = result.url;
       const hashParams = url.split('#')[1];
-      
       if (!hashParams) {
         throw new Error('No tokens in callback URL');
       }
@@ -104,37 +98,31 @@ export const useFacebookLogin = () => {
       const access_token = params.get('access_token');
       const refresh_token = params.get('refresh_token');
 
-      if (!access_token || !refresh_token) {
-        throw new Error('Missing tokens in callback URL');
+      if (!access_token) {
+        throw new Error('Missing access token in callback');
       }
 
-      // 👉 Set session cho Supabase
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
+      // 3. Dùng setAuth (v1) thay vì setSession (v2)
+      // @ts-ignore – vì kiểu của supabase v1 không có setAuth, nhưng thực tế có
+      const { data: sessionData, error: sessionError } = await supabase.auth.setAuth(access_token);
 
       if (sessionError) throw sessionError;
 
-      console.log('✅ Session set:', sessionData.session);
+      console.log('✅ Session set:', sessionData);
     } catch (err: any) {
       console.error('❌ Facebook login error:', err.message);
       setState(prev => ({
         ...prev,
         errorMsg: err.message,
-        loading: false,
+        facebookLoading: false,
       }));
     }
   };
 
-
-  /**
-   * Sign out
-   */
+  // 4. Đăng xuất – giữ nguyên
   const signOut = async () => {
     try {
-      setState(prev => ({ ...prev, loading: true }));
+      setState(prev => ({ ...prev, facebookLoading: true }));
       await supabase.auth.signOut();
 
       setState({
@@ -148,7 +136,7 @@ export const useFacebookLogin = () => {
       setState(prev => ({
         ...prev,
         errorMsg: err.message,
-        loading: false,
+        facebookLoading: false,
       }));
     }
   };

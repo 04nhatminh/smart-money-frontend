@@ -4,6 +4,7 @@ import aiApi from "../api/ai.api";
 import aiInsightStorage from "../storage/aiInsightStorage";
 import { subscribeJob } from "../services/websocket";
 import { parseAIResult as resultAIParse } from "../utils/resultAIParse";
+import { parseAIJson } from "../utils/parseAIJson";
 
 const CACHE_DURATION = 30 * 60 * 1000;
 
@@ -46,7 +47,7 @@ export function useAIInsight() {
         }
 
         // 👇 vẫn refresh ngầm
-        refreshInsight(); 
+        refreshInsight();
         return;
       }
 
@@ -87,10 +88,11 @@ export function useAIInsight() {
         try {
           const raw = data?.result;
 
-          const parsed =
-            typeof raw === "string"
-              ? JSON.parse(raw)
-              : raw;
+          const parsed = parseAIJson(raw);
+
+          if (!parsed) {
+            throw new Error("Invalid AI response");
+          }
 
           const insights: InsightItem[] = [];
 
@@ -206,7 +208,7 @@ export function useAIInsight() {
   };
 
   return {
-    insight: insight, 
+    insight: insight,
     loading,
     reload: refreshInsight,
   };
