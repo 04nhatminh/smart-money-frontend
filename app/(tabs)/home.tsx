@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   FlatList,
   StatusBar,
+  Alert,
   RefreshControl,
   Animated,
 } from "react-native";

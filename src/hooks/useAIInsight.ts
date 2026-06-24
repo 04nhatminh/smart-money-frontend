@@ -46,8 +46,6 @@ export function useAIInsight() {
           return;
         }
 
-        // 👇 vẫn refresh ngầm
-        refreshInsight();
         return;
       }
 
