@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
+    Alert,
     Modal,
     Pressable,
     SafeAreaView,
@@ -15,11 +16,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
+import { budgetAPI, BudgetCategory } from "../../src/api/budget.api";
 import { BudgetAllocationResult } from "../../src/types/budget_allocation.types";
 import { useAuth } from "../../src/context/AuthContext";
 import { initWebSocket, subscribeBudgetJob } from "../../src/services/websocket";
 import { userStorage } from "../../src/storage/userStorage";
-import { i18n, t } from "../../src/i18n";
+import { t } from "../../src/i18n";
+import BudgetAllocationReview from "../../src/components/projects/BudgetAllocationReview";
 // ==============================
 // CACHE HELPERS
 // ==============================
@@ -34,18 +37,6 @@ const getFinancialProfileReadyFromCache = async (): Promise<boolean> => {
 
   return userData.onboardingCompleted
 
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  FOOD: "budget.category_food",
-  TRANSPORTATION: "budget.category_transportation",
-  CLOTHING: "budget.category_clothing",
-  UTILITIES: "budget.category_utilities",
-  ENTERTAINMENT: "budget.category_entertainment",
-  HEALTH: "budget.category_health",
-  EDUCATION: "budget.category_education",
-  SHOPPING: "budget.category_shopping",
-  OTHER: "budget.category_other",
 };
 
 
@@ -63,9 +54,7 @@ export default function BudgetAllocationPage() {
     const [budgetJobCreated, setBudgetJobCreated] = useState(false);
     const [budgetError, setBudgetError] = useState<string | null>(null);
     const [budgetResult, setBudgetResult] = useState<BudgetAllocationResult | null>(null);
-    const numberFormatter = new Intl.NumberFormat(
-        i18n.locale === "vi" ? "vi-VN" : "en-US"
-    );
+    const [budgetSaveLoading, setBudgetSaveLoading] = useState(false);
 
     useEffect(() => {
         checkFinancialProfileCache();
@@ -192,6 +181,47 @@ export default function BudgetAllocationPage() {
         }
     };
 
+    const handleSaveBudgetAllocation = async () => {
+        if (!budgetResult) {
+            Alert.alert(t("budget.title"), t("budget.no_suggestion_available"));
+            return;
+        }
+
+        try {
+            setBudgetSaveLoading(true);
+
+            const now = new Date();
+            const payload = {
+                month: now.getMonth() + 1,
+                year: now.getFullYear(),
+                budgets: budgetResult.categories.map((item) => ({
+                    category: item.category as BudgetCategory,
+                    amountLimit: Number(item.amount ?? 0),
+                })),
+            };
+
+            const response = await budgetAPI.saveBulk(payload);
+
+            if (!response?.success) {
+                throw new Error(response?.message || t("project.failed_save_budget_allocation"));
+            }
+
+            Alert.alert(t("budget.title"), t("common.done"), [
+                {
+                    text: t("common.done"),
+                    onPress: () => router.back(),
+                },
+            ]);
+        } catch (error: any) {
+            Alert.alert(
+                t("common.error"),
+                error?.message || t("project.failed_save_budget_allocation")
+            );
+        } finally {
+            setBudgetSaveLoading(false);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -255,51 +285,15 @@ export default function BudgetAllocationPage() {
                             {budgetLoading ? t("budget.generating") : t("budget.create_budget_allocation")}
                         </Text>
                     </TouchableOpacity>
-
                     {budgetResult && (
-                        <View style={styles.resultCard}>
-                            <View style={styles.resultRow}>
-                                <Text style={styles.resultLabel}>{t("budget.total_budget")}</Text>
-
-                                <Text style={styles.resultAmount}>
-                                    {numberFormatter.format(budgetResult.totalBudget)}{" "}
-                                    {budgetResult.currency}
-                                </Text>
-                            </View>
-
-                            {budgetResult.categories.map((item, index) => (
-                                <View
-                                    key={`${item.category}-${index}`}
-                                    style={styles.categoryRow}
-                                >
-                                    <View style={styles.categoryTextWrap}>
-                                        <Text style={styles.categoryName}>
-                                            {t(CATEGORY_LABELS[item.category] ?? item.category)}
-                                        </Text>
-
-                                        {item.reason ? (
-                                            <Text style={styles.categoryReason}>
-                                                {item.reason}
-                                            </Text>
-                                        ) : null}
-                                    </View>
-
-                                    <View style={styles.categoryAmountWrap}>
-                                        <Text style={styles.categoryAmount}>
-                                            {numberFormatter.format(Number(item.amount ?? 0))}{" "}
-                                            {budgetResult.currency}
-                                        </Text>
-
-                                        {item.percentage != null && (
-                                            <Text style={styles.categoryPercent}>
-                                                {Number(item.percentage).toFixed(1)}%
-                                            </Text>
-                                        )}
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
+                        <BudgetAllocationReview
+                            budgetResult={budgetResult}
+                            loading={budgetSaveLoading}
+                            showHeader={false}
+                            onConfirm={handleSaveBudgetAllocation}
+                        />
                     )}
+                    
                 </View>
             </ScrollView>
 
@@ -448,71 +442,7 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         color: "#FFFFFF",
     },
-    resultCard: {
-        marginTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: "#E5E7EB",
-        paddingTop: 14,
-        gap: 12,
-    },
-    resultRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-    },
-    resultLabel: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#111827",
-        flex: 1,
-    },
-    resultAmount: {
-        fontSize: 14,
-        fontWeight: "800",
-        color: "#059669",
-        textAlign: "right",
-        flexShrink: 0,
-    },
-    categoryRow: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 12,
-        paddingVertical: 10,
-        borderTopWidth: 1,
-        borderTopColor: "#F3F4F6",
-    },
-    categoryTextWrap: {
-        flex: 1,
-        minWidth: 0,
-    },
-    categoryName: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#111827",
-    },
-    categoryReason: {
-        marginTop: 4,
-        fontSize: 12,
-        lineHeight: 17,
-        color: "#6B7280",
-    },
-    categoryAmountWrap: {
-        alignItems: "flex-end",
-        flexShrink: 0,
-    },
-    categoryAmount: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: "#4B3FD6",
-    },
-    categoryPercent: {
-        marginTop: 3,
-        fontSize: 12,
-        color: "#6B7280",
-        fontWeight: "600",
-    },
+    
     popupOverlay: {
         flex: 1,
         backgroundColor: "rgba(0,0,0,0.45)",

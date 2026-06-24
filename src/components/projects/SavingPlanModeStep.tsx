@@ -7,12 +7,14 @@ import {
 import { savingPlanStyles as styles } from "../../styles/savingPlanStyles";
 import { i18n, t } from "../../i18n";
 
+export type SavingPlanAction = "CONFIRM_AI_PLAN" | "KEEP_ORIGINAL_PLAN" | null;
+
 type Props = {
   mode: SavingPlanMode | null;
   advisorLoading?: boolean;
   advisorData?: ProjectAdvisorResponse | null;
   advisorError?: string | null;
-  confirmLoading?: boolean;
+  loadingAction?: SavingPlanAction;
 
   onBack: () => void;
   onSelectMode: (mode: SavingPlanMode) => void;
@@ -26,7 +28,7 @@ export default function SavingPlanModeStep({
   advisorLoading,
   advisorData,
   advisorError,
-  confirmLoading,
+  loadingAction,
   onBack,
   onSelectMode,
   onEditProject,
@@ -34,6 +36,11 @@ export default function SavingPlanModeStep({
   onKeepOriginalPlan,
 }: Props) {
   const showAISection = !!mode;
+
+  const isConfirmingAIPlan = loadingAction === "CONFIRM_AI_PLAN";
+  const isKeepingOriginalPlan = loadingAction === "KEEP_ORIGINAL_PLAN";
+  const isActionLoading = !!loadingAction;
+  
   const numberFormatter = new Intl.NumberFormat(
     i18n.locale === "vi" ? "vi-VN" : "en-US"
   );
@@ -145,26 +152,30 @@ export default function SavingPlanModeStep({
               <Pressable
                 style={[
                   styles.primaryButton,
-                  confirmLoading && styles.disabledButton,
+                   isActionLoading && styles.disabledButton,
                 ]}
-                disabled={confirmLoading}
+                disabled={isActionLoading}
                 onPress={onConfirmAdvisorPlan}
               >
                 <Text style={styles.primaryButtonText}>
-                  {confirmLoading ? t("project.generating") : t("project.confirm_ai_plan")}
+                  {isConfirmingAIPlan
+                    ? t("project.applying_ai_plan")
+                    : t("project.confirm_ai_plan")}
                 </Text>
               </Pressable>
 
               <Pressable
                 style={[
                   styles.secondaryButton,
-                  confirmLoading && styles.disabledButton,
+                  isActionLoading && styles.disabledButton,
                 ]}
-                disabled={confirmLoading}
+                disabled={isActionLoading}
                 onPress={onKeepOriginalPlan}
               >
                 <Text style={styles.secondaryButtonText}>
-                  {t("project.keep_original_plan")}
+                  {isKeepingOriginalPlan
+                    ? t("project.creating_original_plan")
+                    : t("project.keep_original_plan")}
                 </Text>
               </Pressable>
             </>

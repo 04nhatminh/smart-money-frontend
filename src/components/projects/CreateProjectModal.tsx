@@ -14,7 +14,7 @@ import {
     BudgetAllocationResult,
 } from "../../types/project.types";
 import CreateProjectStep from "./CreateProjectStep";
-import SavingPlanModeStep from "./SavingPlanModeStep";
+import SavingPlanModeStep, { SavingPlanAction }from "./SavingPlanModeStep";
 import SetupIncomeModal from "../home/SetupIncomeModal";
 import BudgetAllocationSuggestionStep from "./BudgetAllocationSuggestionStep";
 import { t } from "../../i18n";
@@ -109,13 +109,12 @@ export default function CreateProjectModal({
 
     const [showSetupIncome, setShowSetupIncome] = useState(false);
     const [incomeCheckLoading, setIncomeCheckLoading] = useState(false);
-    const [confirmLoading, setConfirmLoading] = useState(false);
+    const [loadingAction, setLoadingAction] = useState<SavingPlanAction>(null);
     const [advisorLoading, setAdvisorLoading] = useState(false);
     const [advisorData, setAdvisorData] = useState<ProjectAdvisorResponse | null>(null);
     const [advisorError, setAdvisorError] = useState<string | null>(null);
     const [usedPriorities, setUsedPriorities] = useState<ProjectPriority[]>([]);
     const [checkingPriorities, setCheckingPriorities] = useState(false);
-    const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showExitModal, setShowExitModal] = useState(false);
 
@@ -243,9 +242,8 @@ export default function CreateProjectModal({
         setMode(null);
         setAdvisorData(null);
         setAdvisorError(null);
-        setCreatedProjectId(null);
         setAdvisorLoading(false);
-        setConfirmLoading(false);
+        setLoadingAction(null);
         setShowSetupIncome(false);
         setBudgetLoading(false);
         setBudgetResult(null);
@@ -256,7 +254,7 @@ export default function CreateProjectModal({
     };
 
     const handleClose = () => {
-        if (isDirty || step !== 1 || createdProjectId || mode) {
+        if (isDirty || step !== 1 || mode) {
             setShowExitModal(true);
             return;
         }
@@ -374,55 +372,78 @@ export default function CreateProjectModal({
 
     const createProject = async (useAdvisorDeadline: boolean) => {
         try {
-            setConfirmLoading(true);
-
             const payload =
-                useAdvisorDeadline && advisorData
-                    ? buildPayloadWithAdvisor(advisorData)
-                    : buildPayload();
+            useAdvisorDeadline && advisorData
+                ? buildPayloadWithAdvisor(advisorData)
+                : buildPayload();
+
+            console.log(payload);
 
             const response = await ProjectAPI.create(payload);
 
             if (!response?.success) {
-                if (response?.errorCode === "PROJECT_ACTIVE_PRIORITY_CONFLICT") {
-                    await fetchUsedPriorities();
-                    setAdvisorData(null);
-                    setMode(null);
-                    setStep(1);
-                        Alert.alert(
-                            t("project.priority_conflict_title"),
-                            t("project.priority_conflict_desc")
-                        );
-                    return false;
-                }
-                throw new Error(response?.message || t("project.failed_create_project"));
+            if (response?.errorCode === "PROJECT_ACTIVE_PRIORITY_CONFLICT") {
+                await fetchUsedPriorities();
+                setAdvisorData(null);
+                setMode(null);
+                setStep(1);
+
+                Alert.alert(
+                t("project.priority_conflict_title"),
+                t("project.priority_conflict_desc")
+                );
+
+                return false;
+            }
+
+            throw new Error(
+                response?.message || t("project.failed_create_project")
+            );
             }
 
             return true;
         } catch (error: any) {
             Alert.alert(
-                t("project.create_project_error_title"),
-                error?.message || t("project.failed_create_project")
+            t("project.create_project_error_title"),
+            error?.message || t("project.failed_create_project")
             );
+
             return false;
-        } finally {
-            setConfirmLoading(false);
         }
+    };
+
+    const moveToBudgetGenerationStep = () => {
+        setShowBudgetGeneration(true);
+        setStep(3);
     };
 
     const handleConfirmAdvisorPlan = async () => {
-        const created = await createProject(true);
-        if (created) {
-            setShowBudgetGeneration(true);
-            setStep(3);
+        try {
+            setLoadingAction("CONFIRM_AI_PLAN");
+
+            // Xác nhận dùng saving plan do AI đề xuất
+            const created = await createProject(true);
+
+            if (created) {
+            moveToBudgetGenerationStep();
+            }
+        } finally {
+            setLoadingAction(null);
         }
-    };
+        };
 
     const handleKeepOriginalPlan = async () => {
-        const created = await createProject(false);
-        if (created) {
-            setShowBudgetGeneration(true);
-            setStep(3);
+        try {
+            setLoadingAction("KEEP_ORIGINAL_PLAN");
+
+            // Giữ kế hoạch ban đầu của người dùng
+            const created = await createProject(false);
+
+            if (created) {
+            moveToBudgetGenerationStep();
+            }
+        } finally {
+            setLoadingAction(null);
         }
     };
 
@@ -656,12 +677,12 @@ export default function CreateProjectModal({
                                     advisorData={advisorData}
                                     advisorLoading={advisorLoading}
                                     advisorError={advisorError}
+                                    loadingAction={loadingAction}
                                     onBack={handleBackStep}
                                     onSelectMode={handleSelectMode}
                                     onEditProject={handleEditProjectFromAdvisor}
                                     onConfirmAdvisorPlan={handleConfirmAdvisorPlan}
-                                    onKeepOriginalPlan={handleKeepOriginalPlan}
-                                    confirmLoading={confirmLoading}
+                                    onKeepOriginalPlan={handleKeepOriginalPlan}    
                                 />
                             )}
 
