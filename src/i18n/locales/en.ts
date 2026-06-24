@@ -283,6 +283,8 @@ export default {
     ai_processing_subtext: "If it takes too long, it may be due to WebSocket connection. The system will automatically fall back to fetching results via API after a timeout.",
     edit_pending: "Edit pending transaction",
     delete: "Delete",
+    confirm_delete_title: "Confirm Deletion",
+    confirm_delete_message: "Are you sure you want to delete this transaction? This action cannot be undone.",
   },
   
   camera: {

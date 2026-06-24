@@ -282,6 +282,8 @@ export default {
     ai_processing_subtext: "Nếu mất quá nhiều thời gian, có thể do kết nối WebSocket. Hệ thống sẽ tự động chuyển sang phương án dự phòng là lấy kết quả qua API sau khi timeout.",
     edit_pending: "Chỉnh sửa giao dịch đang chờ",
     delete: "Xóa",
+    confirm_delete_title: "Xác nhận xóa",
+    confirm_delete_message: "Bạn có chắc chắn muốn xóa giao dịch này? Hành động này không thể hoàn tác.",
   },
   camera: {
     scan_receipt: "Quét Hóa Đơn",
