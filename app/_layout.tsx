@@ -172,7 +172,6 @@ function RootLayoutNav() {
         <Stack.Screen name="group-invite" />
         <Stack.Screen name="group" />
         <Stack.Screen name="group-project" />
-        <Stack.Screen name="(wait)" />
       </Stack>
 
       <NotificationToast />
