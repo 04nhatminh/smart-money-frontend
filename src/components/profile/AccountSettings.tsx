@@ -8,6 +8,7 @@ import { useLanguage } from '../../i18n/LanguageProvider';
 interface MenuItem {
   icon: string;
   label: string;
+  description?: string;
   onPress?: () => void;
 }
 
@@ -17,7 +18,7 @@ interface AccountSettingsProps {
   onResetPassword?: () => void;
   onNotifications?: () => void;
   onPrivacy?: () => void;
-  onIncomeProfile?: () => void;
+  onFinancialSetup?: () => void;
 }
 
 export const AccountSettings: React.FC<AccountSettingsProps> = ({
@@ -26,12 +27,17 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
   onResetPassword,
   onNotifications,
   onPrivacy,
-  onIncomeProfile,
+  onFinancialSetup,
 }) => {
   const { lang } = useLanguage();
   const DEFAULT_MENU_ITEMS: MenuItem[] = [
     { icon: 'create-outline', label: t('profile.edit_profile'), onPress: onEditProfile },
-    { icon: 'cash-outline', label: t('profile.income_profile') || 'Income Profile', onPress: onIncomeProfile },
+    {
+      icon: 'wallet-outline',
+      label: 'Financial Setup',
+      description: 'Income, rhythm and how SmartMoney supports you',
+      onPress: onFinancialSetup,
+    },
     { icon: 'key-outline', label: t('profile.change_password'), onPress: onResetPassword },
     { icon: 'notifications-outline', label: t('profile.notifications'), onPress: onNotifications },
     { icon: 'shield-outline', label: t('profile.privacy_security'), onPress: onPrivacy },
@@ -65,7 +71,12 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
               >
                 <Ionicons name={item.icon as any} size={18} color="#FFFFFF" />
               </LinearGradient>
-              <Text style={styles.menuText}>{item.label}</Text>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuText}>{item.label}</Text>
+                {!!item.description && (
+                  <Text style={styles.menuDesc}>{item.description}</Text>
+                )}
+              </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#A8A3D7" />
           </TouchableOpacity>
@@ -117,6 +128,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
   menuIconGradient: {
     width: 36,
@@ -129,5 +141,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#3629B7',
     fontWeight: '500',
+  },
+  menuTextCol: {
+    flex: 1,
+  },
+  menuDesc: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 17,
+    marginTop: 2,
   },
 });

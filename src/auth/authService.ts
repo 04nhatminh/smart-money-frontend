@@ -23,16 +23,13 @@ class AuthService {
   private tokenRefreshPromise: Promise<boolean> | null = null;
 
   normalizeUser(user: any): UserResponse {
-    const incomeSetupCompleted =
-      user?.incomeSetupCompleted ?? user?.income_setup_completed ?? false;
     const financialSetupCompleted =
       user?.financialSetupCompleted ?? user?.financial_setup_completed ?? false;
 
     return {
       ...user,
-      incomeSetupCompleted,
       financialSetupCompleted,
-      onboardingCompleted: incomeSetupCompleted && financialSetupCompleted,
+      onboardingCompleted: financialSetupCompleted,
     };
   }
 

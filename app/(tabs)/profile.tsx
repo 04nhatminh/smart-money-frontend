@@ -36,7 +36,7 @@ import { ResetPasswordModal } from "../../src/components/profile/ResetPasswordMo
 import { NotificationsModal } from "../../src/components/profile/NotificationsModal";
 import { PrivacyAndSecurityModal } from "../../src/components/profile/PrivacyAndSecurityModal";
 import { ProfileActions } from "../../src/components/profile/ProfileActions";
-import { IncomeProfileModal } from "../../src/components/profile/IncomeProfileModal";
+import FinancialSetupSettingsModal from "../../src/components/financialSetup/FinancialSetupSettingsModal";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 
 const ProfileScreen: React.FC = () => {
@@ -56,7 +56,7 @@ const ProfileScreen: React.FC = () => {
   const [notificationEnabled, setNotificationEnabled] = useState<boolean>(false);
   const [loadingNotification, setLoadingNotification] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
-  const [incomeProfileModalVisible, setIncomeProfileModalVisible] = useState(false);
+  const [financialSetupModalVisible, setFinancialSetupModalVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
 
@@ -307,7 +307,7 @@ const ProfileScreen: React.FC = () => {
                            setNotificationsModalVisible(true);
                          }}
                          onPrivacy={() => setPrivacyModalVisible(true)}
-                         onIncomeProfile={() => setIncomeProfileModalVisible(true)}
+                         onFinancialSetup={() => setFinancialSetupModalVisible(true)}
                         />
         <ProfileActions userId={user.id} onLogout={handleLogout} />
       </ScrollView>
@@ -362,9 +362,9 @@ const ProfileScreen: React.FC = () => {
         onClose={() => setPrivacyModalVisible(false)}
       />
 
-      <IncomeProfileModal
-        visible={incomeProfileModalVisible}
-        onClose={() => setIncomeProfileModalVisible(false)}
+      <FinancialSetupSettingsModal
+        visible={financialSetupModalVisible}
+        onClose={() => setFinancialSetupModalVisible(false)}
       />
 
       {/* Loading overlay khi đang cập nhật avatar */}

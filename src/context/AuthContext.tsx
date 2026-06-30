@@ -15,6 +15,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<UserResponse | null>;
+  updateCachedUser: (data: Partial<UserResponse>) => Promise<UserResponse | null>;
   updateUser: (data: UpdateUserRequest | FormData) => Promise<any>;
 };
 
@@ -217,6 +218,23 @@ const checkAuthStatus = async () => {
     }
   };
 
+  const updateCachedUser = async (data: Partial<UserResponse>) => {
+    const current = user ?? (await userStorage.getUser());
+
+    if (!current) {
+      return null;
+    }
+
+    const latestUser = authService.normalizeUser({
+      ...current,
+      ...data,
+    });
+
+    await userStorage.setUser(latestUser);
+    setUser(latestUser);
+    return latestUser;
+  };
+
   const updateUser = async (data: UpdateUserRequest | FormData) => {
     try {
       setIsLoading(true);
@@ -247,6 +265,7 @@ const checkAuthStatus = async () => {
         login,
         logout,
         refreshUser,
+        updateCachedUser,
         updateUser
       }}
     >

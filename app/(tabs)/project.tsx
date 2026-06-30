@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-
+import { KeyboardScreen } from "../KeyboardScreen";
 import ProjectSummaryCards from "../../src/components/projects/ProjectSummaryCards";
 import ProjectCard from "../../src/components/projects/ProjectCard";
 import ProjectStatusFilterModal from "../../src/components/projects/ProjectStatusFilterModal";
@@ -124,12 +124,13 @@ export default function ProjectScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Pressable onPress={() => router.replace("/(tabs)/home")} style={{ marginRight: 4 }}>
-              <Ionicons name="arrow-back" size={26} color="#FFFFFF" />
+    <KeyboardScreen keyboardVerticalOffset={80}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerTopRow}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Pressable onPress={() => router.replace("/(tabs)/home")} style={{ marginRight: 4 }}>
+                <Ionicons name="arrow-back" size={26} color="#FFFFFF" />
             </Pressable>
             <Text style={styles.title}>Projects</Text>
           </View>
@@ -185,92 +186,93 @@ export default function ProjectScreen() {
               <Ionicons name="funnel" size={24} color="#FFFFFF" />
             </Pressable>
           )}
+          </View>
         </View>
-      </View>
 
-      {/* Personal tab content */}
-      {tabMode === "personal" && (
-        <View style={styles.content}>
-          <ProjectSummaryCards totalSaved={summary.totalSaved} totalAmount={summary.totalAmount} />
-          <FlatList
-            data={filteredProjects}
-            keyExtractor={(item) => item.projectId}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            renderItem={({ item }) => (
-              <ProjectCard project={item} onPress={handlePressProject} onMorePress={() => {}} />
-            )}
-            ListEmptyComponent={
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyText}>No projects found.</Text>
-              </View>
-            }
-          />
-        </View>
-      )}
-
-      {/* Group tab content */}
-      {tabMode === "group" && (
-        <View style={styles.content}>
-          {groupsLoading && groups.length === 0 ? (
-            <View style={groupStyles.center}>
-              <ActivityIndicator color="#3629B7" />
-            </View>
-          ) : (
+        {/* Personal tab content */}
+        {tabMode === "personal" && (
+          <View style={styles.content}>
+            <ProjectSummaryCards totalSaved={summary.totalSaved} totalAmount={summary.totalAmount} />
             <FlatList
-              data={filteredGroups}
-              keyExtractor={(item) => item.groupId}
+              data={filteredProjects}
+              keyExtractor={(item) => item.projectId}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.listContent}
-              refreshControl={<RefreshControl refreshing={groupsRefreshing} onRefresh={onGroupsRefresh} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
               renderItem={({ item }) => (
-                <GroupCard
-                  group={item}
-                  onPress={() => router.push(`/group/${item.groupId}` as any)}
-                />
+                <ProjectCard project={item} onPress={handlePressProject} onMorePress={() => {}} />
               )}
               ListEmptyComponent={
-                <View style={groupStyles.emptyState}>
-                  <Ionicons name="people-outline" size={48} color="#C7C7CC" style={{ marginBottom: 12 }} />
-                  <Text style={styles.emptyText}>No groups yet.</Text>
-                  <Pressable
-                    style={groupStyles.emptyCreateBtn}
-                    onPress={() => setOpenCreateGroupModal(true)}
-                  >
-                    <Ionicons name="add" size={16} color="#FFFFFF" />
-                    <Text style={groupStyles.emptyCreateBtnText}>Create a Group</Text>
-                  </Pressable>
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyText}>No projects found.</Text>
                 </View>
               }
             />
-          )}
-        </View>
-      )}
+          </View>
+        )}
 
-      <ProjectStatusFilterModal
-        visible={openStatusFilterModal}
-        value={statusFilter}
-        onClose={() => setOpenStatusFilterModal(false)}
-        onChange={setStatusFilter}
-      />
+        {/* Group tab content */}
+        {tabMode === "group" && (
+          <View style={styles.content}>
+            {groupsLoading && groups.length === 0 ? (
+              <View style={groupStyles.center}>
+                <ActivityIndicator color="#3629B7" />
+              </View>
+            ) : (
+              <FlatList
+                data={filteredGroups}
+                keyExtractor={(item) => item.groupId}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.listContent}
+                refreshControl={<RefreshControl refreshing={groupsRefreshing} onRefresh={onGroupsRefresh} />}
+                renderItem={({ item }) => (
+                  <GroupCard
+                    group={item}
+                    onPress={() => router.push(`/group/${item.groupId}` as any)}
+                  />
+                )}
+                ListEmptyComponent={
+                  <View style={groupStyles.emptyState}>
+                    <Ionicons name="people-outline" size={48} color="#C7C7CC" style={{ marginBottom: 12 }} />
+                    <Text style={styles.emptyText}>No groups yet.</Text>
+                    <Pressable
+                      style={groupStyles.emptyCreateBtn}
+                      onPress={() => setOpenCreateGroupModal(true)}
+                    >
+                      <Ionicons name="add" size={16} color="#FFFFFF" />
+                      <Text style={groupStyles.emptyCreateBtnText}>Create a Group</Text>
+                    </Pressable>
+                  </View>
+                }
+              />
+            )}
+          </View>
+        )}
 
-      <CreateProjectModal
-        visible={openCreateModal}
-        onClose={() => setOpenCreateModal(false)}
-        onCreated={() => { setOpenCreateModal(false); fetchProjects(); }}
-      />
+        <ProjectStatusFilterModal
+          visible={openStatusFilterModal}
+          value={statusFilter}
+          onClose={() => setOpenStatusFilterModal(false)}
+          onChange={setStatusFilter}
+        />
 
-      <CreateGroupModal
-        visible={openCreateGroupModal}
-        onClose={() => setOpenCreateGroupModal(false)}
-        onCreated={(group) => {
-          setOpenCreateGroupModal(false);
-          fetchGroups();
-          router.push(`/group/${group.groupId}` as any);
-        }}
-      />
-    </SafeAreaView>
+        <CreateProjectModal
+          visible={openCreateModal}
+          onClose={() => setOpenCreateModal(false)}
+          onCreated={() => { setOpenCreateModal(false); fetchProjects(); }}
+        />
+
+        <CreateGroupModal
+          visible={openCreateGroupModal}
+          onClose={() => setOpenCreateGroupModal(false)}
+          onCreated={(group) => {
+            setOpenCreateGroupModal(false);
+            fetchGroups();
+            router.push(`/group/${group.groupId}` as any);
+          }}
+        />
+      </SafeAreaView>
+    </KeyboardScreen>
   );
 }
 
