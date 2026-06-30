@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   FlatList,
   StatusBar,
-  Alert,
   RefreshControl,
   Animated,
 } from "react-native";
@@ -34,8 +33,7 @@ import { useAIInsight } from "../../src/hooks/useAIInsight";
 import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
 import LatestProjectsSection, { LatestProjectItem } from "../../src/components/home/LatestProjectsSection";
-import SetupIncomeModal from "../../src/components/home/SetupIncomeModal";
-import SetupFinancialProfileModal from "../../src/components/home/SetupFinancialProfileModal";
+import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
 import { ProjectAPI } from "../../src/api/project.api";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
 import { panelRef } from "../_layout";
@@ -44,11 +42,8 @@ import transactionApi from "../../src/api/transaction.api";
 import { CircularProgress } from "../../src/components/CircularProgress";
 import { formatVND } from "../../src/utils/formatCurrency";
 import { useAuth } from "../../src/context/AuthContext";
-import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
-import { GenerateBudgetAllocationPayload } from "../../src/types/budget_allocation.types";
 import analyticsAPI from "../../src/api/transaction_analytics.api";
 import { t } from "../../src/i18n";
-import { useLanguage } from "../../src/i18n/LanguageProvider";
 
 // Category icon mapping (giữ nguyên)
 const categoryIconMap: { [key: string]: { icon: string; color: string; displayName: string } } = {
@@ -99,8 +94,7 @@ export default function HomePage() {
   const [voiceVisible, setVoiceVisible] = useState(false);
   const [manualVisible, setManualVisible] = useState(false);
   const [isCreateProjectVisible, setCreateProjectVisible] = useState(false);
-  const [showSetupIncome, setShowSetupIncome] = useState(false);
-  const [showSetupFinancial, setShowSetupFinancial] = useState(false);
+  const [showFinancialSetup, setShowFinancialSetup] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
   const { insight, loading: insightLoading, reload } = useAIInsight();
@@ -237,20 +231,8 @@ export default function HomePage() {
   };
 
   const openRequiredSetupModal = (currentUser: UserResponse | null | undefined) => {
-    setShowSetupIncome(false);
-    setShowSetupFinancial(false);
-
     if (!currentUser) return;
-    if (currentUser.onboardingCompleted) return;
-
-    if (!currentUser.incomeSetupCompleted) {
-      setShowSetupIncome(true);
-      return;
-    }
-
-    if (!currentUser.financialSetupCompleted) {
-      setShowSetupFinancial(true);
-    }
+    setShowFinancialSetup(!currentUser.financialSetupCompleted);
   };
 
   useEffect(() => {
@@ -259,39 +241,13 @@ export default function HomePage() {
     openRequiredSetupModal(user);
   }, [
     user?.id,
-    user?.incomeSetupCompleted,
     user?.financialSetupCompleted,
-    user?.onboardingCompleted,
   ]);
 
-  const handleIncomeSetupSuccess = async () => {
-    setShowSetupIncome(false);
-
+  const handleFinancialSetupSuccess = async () => {
+    setShowFinancialSetup(false);
     const latestUser = await refreshUser();
     setUser(latestUser);
-
-    if (latestUser && !latestUser.financialSetupCompleted) {
-      setShowSetupFinancial(true);
-    }
-  };
-
-  const handleFinancialSetupSubmit = async (
-    payload: GenerateBudgetAllocationPayload
-  ) => {
-    try {
-      const response = await BudgetAllocationApi.createUserFinancialProfile(payload);
-
-      if (!response.success) {
-        Alert.alert("Error", response.message || "Failed to create financial profile");
-        return;
-      }
-
-      setShowSetupFinancial(false);
-      const latestUser = await refreshUser();
-      setUser(latestUser);
-    } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to create financial profile");
-    }
   };
 
   useEffect(() => {
@@ -733,16 +689,10 @@ export default function HomePage() {
         onClose={() => setCreateProjectVisible(false)}
       />
 
-      <SetupIncomeModal
-        visible={showSetupIncome}
-        onClose={() => setShowSetupIncome(false)}
-        onSuccess={handleIncomeSetupSuccess}
-      />
-
-      <SetupFinancialProfileModal
-        visible={showSetupFinancial}
-        onClose={() => setShowSetupFinancial(false)}
-        onSubmit={handleFinancialSetupSubmit}
+      <FinancialSetupModal
+        visible={showFinancialSetup}
+        mode="onboarding"
+        onSuccess={handleFinancialSetupSuccess}
       />
     </SafeAreaView>
   );

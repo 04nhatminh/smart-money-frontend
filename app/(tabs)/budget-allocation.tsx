@@ -26,7 +26,7 @@ import BudgetAllocationReview from "../../src/components/projects/BudgetAllocati
 // ==============================
 // CACHE HELPERS
 // ==============================
-const getFinancialProfileReadyFromCache = async (): Promise<boolean> => {
+const getFinancialSetupReadyFromCache = async (): Promise<boolean> => {
   const cachedUser = await userStorage.getUser();
 
   if (!cachedUser) {
@@ -35,7 +35,7 @@ const getFinancialProfileReadyFromCache = async (): Promise<boolean> => {
 
   const userData = cachedUser as any;
 
-  return userData.onboardingCompleted
+  return !!userData.financialSetupCompleted
 
 };
 
@@ -48,7 +48,7 @@ export default function BudgetAllocationPage() {
 
     const unsubscribeBudgetJobRef = useRef<(() => void) | null>(null);
 
-    const [financialProfileReady, setFinancialProfileReady] = useState(true);
+    const [financialSetupReady, setFinancialSetupReady] = useState(true);
 
     const [budgetLoading, setBudgetLoading] = useState(false);
     const [budgetJobCreated, setBudgetJobCreated] = useState(false);
@@ -57,7 +57,7 @@ export default function BudgetAllocationPage() {
     const [budgetSaveLoading, setBudgetSaveLoading] = useState(false);
 
     useEffect(() => {
-        checkFinancialProfileCache();
+        checkFinancialSetupCache();
 
         return () => {
             unsubscribeBudgetJobRef.current?.();
@@ -72,27 +72,27 @@ export default function BudgetAllocationPage() {
         );
     }, [budgetResult]);
 
-    const checkFinancialProfileCache = async () => {
+    const checkFinancialSetupCache = async () => {
         try {
-            const ready = await getFinancialProfileReadyFromCache();
+            const ready = user?.financialSetupCompleted ?? await getFinancialSetupReadyFromCache();
 
             /**
              * Nếu cache không có flag thì không block màn hình này.
              * Backend generateBudget vẫn có thể validate profile ở phía server.
              */
             if (ready === false) {
-                setFinancialProfileReady(false);
+                setFinancialSetupReady(false);
             } else {
-                setFinancialProfileReady(true);
+                setFinancialSetupReady(true);
             }
         } catch (error) {
-            console.warn("Failed to read financial profile cache:", error);
+            console.warn("Failed to read financial setup cache:", error);
 
             /**
              * Không đọc được cache thì vẫn cho generate.
              * Không nên gọi API profile ở page này nữa.
              */
-            setFinancialProfileReady(true);
+            setFinancialSetupReady(true);
         }
     };
 
@@ -124,15 +124,15 @@ export default function BudgetAllocationPage() {
                 return;
             }
 
-            const ready = await getFinancialProfileReadyFromCache();
+            const ready = user?.financialSetupCompleted ?? await getFinancialSetupReadyFromCache();
 
             if (ready === false) {
-                setFinancialProfileReady(false);
+                setFinancialSetupReady(false);
                 setBudgetError(t("budget.financial_profile_required_to_generate_personalized_budget_allocation_suggestions"));
                 return;
             }
 
-            setFinancialProfileReady(true);
+            setFinancialSetupReady(true);
             setBudgetLoading(true);
 
             await initWebSocket(user.id);
@@ -251,7 +251,7 @@ export default function BudgetAllocationPage() {
                         {t("budget.financial_profile_help")}
                     </Text>
 
-                    {!financialProfileReady && (
+                    {!financialSetupReady && (
                         <View style={styles.warningCard}>
                             <Ionicons name="alert-circle" size={16} color="#D97706" />
                             <Text style={styles.warningText}>
@@ -270,10 +270,10 @@ export default function BudgetAllocationPage() {
                     <TouchableOpacity
                         style={[
                             styles.aiBtn,
-                            (budgetLoading || !financialProfileReady) && styles.aiBtnDisabled,
+                            (budgetLoading || !financialSetupReady) && styles.aiBtnDisabled,
                         ]}
                         onPress={handleGenerateBudget}
-                        disabled={budgetLoading || !financialProfileReady}
+                        disabled={budgetLoading || !financialSetupReady}
                     >
                         {budgetLoading ? (
                             <ActivityIndicator size="small" color="#FFFFFF" />

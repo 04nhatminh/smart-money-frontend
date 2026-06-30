@@ -90,7 +90,6 @@ export interface UserResponse {
   rate: number;
   role: string;
   active: boolean;
-  incomeSetupCompleted: boolean;
   financialSetupCompleted: boolean;
   onboardingCompleted: boolean;
 }

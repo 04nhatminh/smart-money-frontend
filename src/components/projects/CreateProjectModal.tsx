@@ -15,7 +15,7 @@ import {
 } from "../../types/project.types";
 import CreateProjectStep from "./CreateProjectStep";
 import SavingPlanModeStep, { SavingPlanAction }from "./SavingPlanModeStep";
-import SetupIncomeModal from "../home/SetupIncomeModal";
+import FinancialSetupModal from "../financialSetup/FinancialSetupModal";
 import BudgetAllocationSuggestionStep from "./BudgetAllocationSuggestionStep";
 import { t } from "../../i18n";
 import { ProjectAPI } from "../../api/project.api";
@@ -29,7 +29,7 @@ import BudgetAllocationReview from "./BudgetAllocationReview";
 type PendingCreateProjectAction =
     | "NEXT_STEP"
     | "CALL_ADVISOR"
-    | "LOAD_INCOME";
+    | "LOAD_BUDGET";
 
 const normalizeBudgetAllocationResult = (raw: any): BudgetAllocationResult | null => {
     const source = raw?.result ?? raw?.data ?? raw?.budgets ?? raw;
@@ -107,8 +107,7 @@ export default function CreateProjectModal({
     const [step, setStep] = useState<CreateProjectModalStep>(1);
     const [mode, setMode] = useState<SavingPlanMode | null>(null);
 
-    const [showSetupIncome, setShowSetupIncome] = useState(false);
-    const [incomeCheckLoading, setIncomeCheckLoading] = useState(false);
+    const [showFinancialSetup, setShowFinancialSetup] = useState(false);
     const [loadingAction, setLoadingAction] = useState<SavingPlanAction>(null);
     const [advisorLoading, setAdvisorLoading] = useState(false);
     const [advisorData, setAdvisorData] = useState<ProjectAdvisorResponse | null>(null);
@@ -244,11 +243,10 @@ export default function CreateProjectModal({
         setAdvisorError(null);
         setAdvisorLoading(false);
         setLoadingAction(null);
-        setShowSetupIncome(false);
+        setShowFinancialSetup(false);
         setBudgetLoading(false);
         setBudgetResult(null);
         setBudgetSaveLoading(false);
-        setIncomeCheckLoading(false);
         setShowBudgetGeneration(false);
         setPendingCreateProjectAction(null);
     };
@@ -270,26 +268,24 @@ export default function CreateProjectModal({
     };
 
     const handleNextFromCreate = () => {
-        if (!user?.incomeSetupCompleted) {
+        if (!user?.financialSetupCompleted) {
             setPendingCreateProjectAction("NEXT_STEP");
-            setShowSetupIncome(true);
+            setShowFinancialSetup(true);
             return;
         }
 
         setStep(2);
     };
 
-    const isMissingIncomeError = (errorCode?: string) =>
-        [
-            "USER_INCOME_REQUIRED",
-            "PROJECT_USER_INCOME_REQUIRED",
-            "INCOME_PROFILE_REQUIRED",
-        ].includes(errorCode ?? "");
-
-    const isMissingFinancialProfileError = (errorCode?: string) =>
+    const isMissingFinancialSetupError = (errorCode?: string) =>
         [
             "FINANCIAL_PROFILE_REQUIRED",
             "USER_FINANCIAL_PROFILE_REQUIRED",
+            "USER_FINANCIAL_SETUP_REQUIRED",
+            "FINANCIAL_SETUP_REQUIRED",
+            "USER_INCOME_REQUIRED",
+            "PROJECT_USER_INCOME_REQUIRED",
+            "INCOME_PROFILE_REQUIRED",
         ].includes(errorCode ?? "");
 
     const callProjectAdvisor = async (selectedMode = mode) => {
@@ -312,9 +308,9 @@ export default function CreateProjectModal({
             });
 
             if (!response?.success || !response?.data) {
-                if (isMissingIncomeError(response?.errorCode)) {
+                if (isMissingFinancialSetupError(response?.errorCode)) {
                     setPendingCreateProjectAction("CALL_ADVISOR");
-                    setShowSetupIncome(true);
+                    setShowFinancialSetup(true);
                     return;
                 }
 
@@ -336,9 +332,9 @@ export default function CreateProjectModal({
     const handleSelectMode = async (selectedMode: SavingPlanMode) => {
         setMode(selectedMode);
 
-        if (!user?.incomeSetupCompleted) {
+        if (!user?.financialSetupCompleted) {
             setPendingCreateProjectAction("CALL_ADVISOR");
-            setShowSetupIncome(true);
+            setShowFinancialSetup(true);
             return;
         }
 
@@ -500,13 +496,9 @@ export default function CreateProjectModal({
             return;
         }
 
-        if (!currentUser.incomeSetupCompleted) {
-            setPendingCreateProjectAction("LOAD_INCOME");
-            setShowSetupIncome(true);
-            return;
-        }
-
         if (!currentUser.financialSetupCompleted) {
+            setPendingCreateProjectAction("LOAD_BUDGET");
+            setShowFinancialSetup(true);
             return;
         }
 
@@ -519,15 +511,9 @@ export default function CreateProjectModal({
             const generateResponse = await BudgetAIAPI.generate();
 
             if (!generateResponse?.success || !generateResponse.data?.jobId) {
-                if (isMissingIncomeError(generateResponse?.errorCode)) {
-                    setPendingCreateProjectAction("LOAD_INCOME");
-                    setShowSetupIncome(true);
-                    setBudgetLoading(false);
-                    return;
-                }
-
-                if (isMissingFinancialProfileError(generateResponse?.errorCode)) {
-                    await refreshUser();
+                if (isMissingFinancialSetupError(generateResponse?.errorCode)) {
+                    setPendingCreateProjectAction("LOAD_BUDGET");
+                    setShowFinancialSetup(true);
                     setBudgetLoading(false);
                     return;
                 }
@@ -584,24 +570,20 @@ export default function CreateProjectModal({
         };
 
     const handleCreateBudgetAllocation = async () => {
-        if (!user?.incomeSetupCompleted) {
-            setPendingCreateProjectAction("LOAD_INCOME");
-            setShowSetupIncome(true);
-            return;
-        }
-
         if (!user?.financialSetupCompleted) {
+            setPendingCreateProjectAction("LOAD_BUDGET");
+            setShowFinancialSetup(true);
             return;
         }
 
         await runBudgetGeneration();
         };
 
-    const handleIncomeSetupSuccess = async () => {
-        setShowSetupIncome(false);
+    const handleFinancialSetupSuccess = async () => {
+        setShowFinancialSetup(false);
         const latestUser = await refreshUser();
 
-        if (!latestUser?.incomeSetupCompleted) {
+        if (!latestUser?.financialSetupCompleted) {
             setPendingCreateProjectAction(null);
             return;
         }
@@ -619,7 +601,7 @@ export default function CreateProjectModal({
             return;
         }
 
-        if (pendingAction === "LOAD_INCOME") {
+        if (pendingAction === "LOAD_BUDGET") {
             await runBudgetGeneration(latestUser);
             return;
         }
@@ -656,7 +638,7 @@ export default function CreateProjectModal({
                                     values={values}
                                     errors={errors}
                                     previewDeadline={previewDeadline}
-                                    loading={loading || incomeCheckLoading}
+                                    loading={loading}
                                     checkingPriorities={checkingPriorities}
                                     canCreateProject={canCreateProject}
                                     availablePriorities={availablePriorities}
@@ -728,10 +710,10 @@ export default function CreateProjectModal({
                 confirmText={t("common.continue")}
             />
 
-            <SetupIncomeModal
-                visible={showSetupIncome}
-                onClose={() => setShowSetupIncome(false)}
-                onSuccess={handleIncomeSetupSuccess}
+            <FinancialSetupModal
+                visible={showFinancialSetup}
+                mode="onboarding"
+                onSuccess={handleFinancialSetupSuccess}
             />
         </>
     );

@@ -1,10 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ButtonSave } from "../ButtonSave";
 import { useAuth } from "../../context/AuthContext";
-import { UserIncomeApi } from "../../api/userIncome.api";
-import { UserFinancialProfileAPI } from "../../api/userFinancialProfile.api";
 import { t } from "../../i18n";
 
 type Props = {
@@ -19,36 +17,16 @@ export default function BudgetAllocationSuggestionStep({
   onCreate,
 }: Props) {
   const { user } = useAuth();
-  const [detailLoading, setDetailLoading] = useState(false);
-  const isIncomeReady = !!user?.incomeSetupCompleted;
   const isFinancialReady = !!user?.financialSetupCompleted;
-  const isLoading = loading || detailLoading;
+  const isLoading = loading;
 
-  const description = !isIncomeReady
-    ? t("budget.set_up_income_before_budget_allocation_suggestions")
-    : !isFinancialReady
+  const description = !isFinancialReady
       ? t("budget.financial_profile_required_to_generate_personalized_budget_allocation_suggestions")
       : t("budget.your_project_is_ready_set_up_ai_powered_budget_allocation_based_on_your_financial_profile_to_stay_on_track");
 
   const handleCreate = async () => {
-    if (!isIncomeReady || !isFinancialReady) return;
-
-    try {
-      setDetailLoading(true);
-
-      const [incomeResponse, financialResponse] = await Promise.all([
-        UserIncomeApi.getMe(),
-        UserFinancialProfileAPI.getMe(),
-      ]);
-
-      if (!incomeResponse?.success || !financialResponse?.success) {
-        return;
-      }
-
-      await onCreate();
-    } finally {
-      setDetailLoading(false);
-    }
+    if (!isFinancialReady) return;
+    await onCreate();
   };
 
   return (
@@ -61,7 +39,7 @@ export default function BudgetAllocationSuggestionStep({
 
       <Text style={styles.description}>{description}</Text>
 
-      {isIncomeReady && isFinancialReady ? (
+      {isFinancialReady ? (
         <View style={styles.featureCard}>
           <View style={styles.featureRow}>
             <View style={styles.featureIconBox}>
@@ -93,7 +71,7 @@ export default function BudgetAllocationSuggestionStep({
       ) : (
         <View style={styles.noticeCard}>
           <Ionicons
-            name={isIncomeReady ? "person-circle-outline" : "wallet-outline"}
+            name="person-circle-outline"
             size={18}
             color="#4B3FD6"
           />
@@ -108,12 +86,12 @@ export default function BudgetAllocationSuggestionStep({
           onPress={onSkip}
           disabled={isLoading}
         />
-        {isIncomeReady && isFinancialReady && (
+        {isFinancialReady && (
           <ButtonSave
             label={t("budget.create_budget")}
             onPress={handleCreate}
             loading={isLoading}
-            loadingText={detailLoading ? t("budget.checking_profile") : t("budget.generating")}
+            loadingText={t("budget.generating")}
           />
         )}
       </View>

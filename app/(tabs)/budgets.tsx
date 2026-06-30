@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+
+import { KeyboardScreen } from "../KeyboardScreen";
 import { budgetAPI, BudgetItem } from "../../src/api/budget.api";
 import { CircularProgress } from "../../src/components/CircularProgress";
 import { formatVND } from "../../src/utils/formatCurrency";
@@ -21,45 +23,10 @@ import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceIn
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { Receipt } from "../../src/types/transaction.types";
-import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
-import { UserFinancialProfileData } from "../../src/types/budget_allocation.types";
+import { FinancialSetupApi } from "../../src/api/financialSetup.api";
+import { FinancialSetup, getFinancialSetupLabel } from "../../src/types/financialSetup";
+import FinancialSetupSettingsModal from "../../src/components/financialSetup/FinancialSetupSettingsModal";
 import { t } from "../../src/i18n";
-// import EditFinancialProfileModal from "../../src/components/projects/EditFinancialProfileModal";
-
-const PROFILE_LABELS: Record<string, string> = {
-    BUSINESS_OWNER: "budget.role_business_owner",
-    FREELANCER: "budget.role_freelancer",
-    OFFICE_WORKER: "budget.role_office_worker",
-    STUDENT: "budget.role_student",
-    DORM: "budget.living_dorm",
-    OWN_HOUSE: "budget.living_own_house",
-    RENT_ROOM: "budget.living_rent_room",
-    WITH_FAMILY: "budget.living_with_family",
-    HIGH: "budget.level_high",
-    LOW: "budget.level_low",
-    MEDIUM: "budget.level_medium",
-    BUS: "budget.transport_bus",
-    CAR: "budget.transport_car",
-    MOTORBIKE: "budget.transport_motorbike",
-    RIDE_HAILING: "budget.transport_ride_hailing",
-    BALANCED: "budget.spending_balanced",
-    FRUGAL: "budget.spending_frugal",
-    SPENDER: "budget.spending_spender",
-    HYBRID: "budget.work_hybrid",
-    NONE: "budget.work_none",
-    ONSITE: "budget.work_onsite",
-    PART_TIME: "budget.work_part_time",
-    REMOTE: "budget.work_remote",
-    MARRIED: "budget.family_married",
-    SINGLE: "budget.family_single",
-    COURSE_HEAVY: "budget.study_course_heavy",
-    NORMAL: "budget.study_normal",
-};
-
-const fmt = (v: string) => {
-    const key = PROFILE_LABELS[v?.toUpperCase?.() ?? ""];
-    return key ? t(key) : v;
-};
 
 const getAlertLabel = (alertLevel: string) => {
     switch (alertLevel) {
@@ -93,9 +60,9 @@ export default function BudgetListPage() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    const [financialProfile, setFinancialProfile] = useState<UserFinancialProfileData | null>(null);
-    const [profileLoading, setProfileLoading] = useState(true);
-    const [showEditProfile, setShowEditProfile] = useState(false);
+    const [financialSetup, setFinancialSetup] = useState<FinancialSetup | null>(null);
+    const [setupLoading, setSetupLoading] = useState(true);
+    const [showEditSetup, setShowEditSetup] = useState(false);
 
     // States for Quick Action Modals
     const [cameraVisible, setCameraVisible] = useState(false);
@@ -106,22 +73,22 @@ export default function BudgetListPage() {
 
     useEffect(() => {
         loadBudgets();
-        loadProfile();
+        loadFinancialSetup();
     }, []);
 
-    const loadProfile = async () => {
+    const loadFinancialSetup = async () => {
         try {
-            setProfileLoading(true);
-            const res = await BudgetAllocationApi.getUserFinancialProfile();
+            setSetupLoading(true);
+            const res = await FinancialSetupApi.getFinancialSetup();
             if (res.success && res.data) {
-                setFinancialProfile(res.data);
+                setFinancialSetup(res.data as FinancialSetup);
             } else {
-                setFinancialProfile(null);
+                setFinancialSetup(null);
             }
         } catch {
-            setFinancialProfile(null);
+            setFinancialSetup(null);
         } finally {
-            setProfileLoading(false);
+            setSetupLoading(false);
         }
     };
 
@@ -144,7 +111,7 @@ export default function BudgetListPage() {
 
     const handleRefresh = async () => {
         setRefreshing(true);
-        await Promise.all([loadBudgets(), loadProfile()]);
+        await Promise.all([loadBudgets(), loadFinancialSetup()]);
         setRefreshing(false);
     };
 
@@ -232,8 +199,8 @@ export default function BudgetListPage() {
         );
     };
 
-    const renderFinancialProfileSection = () => {
-        if (profileLoading) {
+    const renderFinancialSetupSection = () => {
+        if (setupLoading) {
             return (
                 <View style={styles.profileCard}>
                     <ActivityIndicator size="small" color="#4B3FD6" />
@@ -241,49 +208,60 @@ export default function BudgetListPage() {
             );
         }
 
-        if (!financialProfile) {
+        if (!financialSetup || !financialSetup.financialSetupCompleted) {
             return (
                 <View style={styles.profileCard}>
                     <View style={styles.profileCardHeader}>
                         <View style={styles.profileCardTitleRow}>
-                            <Ionicons name="person-circle-outline" size={22} color="#4B3FD6" />
-                            <Text style={styles.profileCardTitle}>{t("budget.financial_profile_title")}</Text>
+                            <Ionicons name="wallet-outline" size={22} color="#4B3FD6" />
+                            <Text style={styles.profileCardTitle}>Financial Setup</Text>
                         </View>
                     </View>
-                    <Text style={styles.profileEmptyText}>{t("budget.financial_profile_empty")}</Text>
+                    <Text style={styles.profileEmptyText}>
+                        Income, rhythm and how SmartMoney supports you
+                    </Text>
                     <TouchableOpacity
                         style={styles.profileSetupBtn}
-                        onPress={() => router.push('/(tabs)/budget-allocation')}
+                        onPress={() => setShowEditSetup(true)}
                     >
-                        <Ionicons name="sparkles" size={15} color="#FFFFFF" />
-                        <Text style={styles.profileSetupBtnText}>{t("budget.set_up_profile")}</Text>
+                        <Ionicons name="wallet-outline" size={15} color="#FFFFFF" />
+                        <Text style={styles.profileSetupBtnText}>Thiết lập ngay</Text>
                     </TouchableOpacity>
                 </View>
             );
         }
 
-        const profileRows = [
-            { label: t("budget.role"), value: fmt(financialProfile.role) },
-            { label: t("budget.living"), value: fmt(financialProfile.living_status) },
-            { label: t("budget.income"), value: fmt(financialProfile.income_level) },
-            { label: t("budget.transport"), value: fmt(financialProfile.transport_mode) },
-            { label: t("budget.spending_style"), value: fmt(financialProfile.spending_style) },
-            { label: t("budget.work_style"), value: fmt(financialProfile.work_style) },
-            { label: t("budget.family"), value: fmt(financialProfile.family_status) },
-            { label: t("budget.study"), value: fmt(financialProfile.study_intensity) },
-            { label: t("budget.health_need"), value: fmt(financialProfile.health_need) },
+        const setupRows = [
+            {
+                label: "Income",
+                value: formatVND(financialSetup.income),
+            },
+            {
+                label: "Pace",
+                value: getFinancialSetupLabel(financialSetup.savingPace),
+            },
+            {
+                label: "Support",
+                value: getFinancialSetupLabel(
+                financialSetup.interventionLevel
+                ),
+            },
+            {
+                label: "Focus",
+                value: getFinancialSetupLabel(financialSetup.focusMode),
+            },
         ];
 
         return (
             <View style={styles.profileCard}>
                 <View style={styles.profileCardHeader}>
-                    <View style={styles.profileCardTitleRow}>
-                        <Ionicons name="person-circle-outline" size={22} color="#4B3FD6" />
-                        <Text style={styles.profileCardTitle}>{t("budget.financial_profile_title")}</Text>
+                        <View style={styles.profileCardTitleRow}>
+                        <Ionicons name="wallet-outline" size={22} color="#4B3FD6" />
+                        <Text style={styles.profileCardTitle}>Financial Setup</Text>
                     </View>
                     <TouchableOpacity
                         style={styles.editBtn}
-                        onPress={() => setShowEditProfile(true)}
+                        onPress={() => setShowEditSetup(true)}
                     >
                         <Ionicons name="pencil-outline" size={16} color="#4B3FD6" />
                         <Text style={styles.editBtnText}>{t("common.edit")}</Text>
@@ -291,7 +269,7 @@ export default function BudgetListPage() {
                 </View>
 
                 <View style={styles.profileGrid}>
-                    {profileRows.map((row) => (
+                    {setupRows.map((row) => (
                         <View key={row.label} style={styles.profileGridItem}>
                             <Text style={styles.profileGridLabel}>{row.label}</Text>
                             <Text style={styles.profileGridValue}>{row.value}</Text>
@@ -331,84 +309,94 @@ export default function BudgetListPage() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <KeyboardScreen keyboardVerticalOffset={80}>
+            <SafeAreaView style={styles.container}>
+                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-            {/* Sticky Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#333" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{t("budget.tab_title")}</Text>
-                <TouchableOpacity
-                    onPress={() => router.push('/(tabs)/budget-allocation')}
-                    style={styles.generateButton}
-                >
-                    <Ionicons name="sparkles" size={18} color="#3629B7" />
-                </TouchableOpacity>
-            </View>
-
-            <ScrollView
-                style={styles.scrollView}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={handleRefresh}
-                        colors={['#3629B7']}
-                        tintColor="#3629B7"
-                    />
-                }
-            >
-                <View style={styles.content}>
-                    {renderFinancialProfileSection()}
-
-                    {budgets.length > 0 ? (
-                        <>
-                            {budgets.map((budget) => renderBudgetCard(budget))}
-                        </>
-                    ) : (
-                        <View style={styles.emptyContainer}>
-                            <Ionicons name="wallet-outline" size={60} color="#CCC" />
-                            <Text style={styles.emptyText}>{t("budget.no_budgets_yet")}</Text>
-                            <Text style={styles.emptySubText}>{t("budget.use_ai_to_create_first_budget")}</Text>
-                            <TouchableOpacity
-                                style={styles.emptyButton}
-                                onPress={() => router.push('/(tabs)/budget-allocation')}
-                            >
-                                <Ionicons name="sparkles" size={16} color="#FFFFFF" />
-                                <Text style={styles.emptyButtonText}>{t("budget.generate_budget")}</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+                {/* Sticky Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={24} color="#333" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>{t("budget.tab_title")}</Text>
+                    <TouchableOpacity
+                        onPress={() => router.push('/(tabs)/budget-allocation')}
+                        style={styles.generateButton}
+                    >
+                        <Ionicons name="sparkles" size={18} color="#3629B7" />
+                    </TouchableOpacity>
                 </View>
-            </ScrollView>
 
-            {/* App Bottom Bar */}
-            <AppBottomBar
-                onCameraOpen={() => setCameraVisible(true)}
-                onVoiceOpen={() => setVoiceVisible(true)}
-                onFormOpen={() => setManualVisible(true)}
-            />
+                <ScrollView
+                    style={styles.scrollView}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={handleRefresh}
+                            colors={['#3629B7']}
+                            tintColor="#3629B7"
+                        />
+                    }
+                >
+                    <View style={styles.content}>
+                        {renderFinancialSetupSection()}
 
-            {/* Modals for App Bottom Bar Quick Actions */}
-            <CameraModal
-                visible={cameraVisible}
-                onClose={() => setCameraVisible(false)}
-                onCaptureBill={handleCreateReceiptTransaction}
-            />
+                        {budgets.length > 0 ? (
+                            <>
+                                {budgets.map((budget) => renderBudgetCard(budget))}
+                            </>
+                        ) : (
+                            <View style={styles.emptyContainer}>
+                                <Ionicons name="wallet-outline" size={60} color="#CCC" />
+                                <Text style={styles.emptyText}>{t("budget.no_budgets_yet")}</Text>
+                                <Text style={styles.emptySubText}>{t("budget.use_ai_to_create_first_budget")}</Text>
+                                <TouchableOpacity
+                                    style={styles.emptyButton}
+                                    onPress={() => router.push('/(tabs)/budget-allocation')}
+                                >
+                                    <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                                    <Text style={styles.emptyButtonText}>{t("budget.generate_budget")}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                </ScrollView>
 
-            <VoiceInputModal
-                visible={voiceVisible}
-                onClose={() => setVoiceVisible(false)}
-                onCaptureVoice={handleCreateVoiceTransaction}
-            />
+                {/* App Bottom Bar */}
+                <AppBottomBar
+                    onCameraOpen={() => setCameraVisible(true)}
+                    onVoiceOpen={() => setVoiceVisible(true)}
+                    onFormOpen={() => setManualVisible(true)}
+                />
 
-            <AddTransactionModal
-                visible={manualVisible}
-                onClose={() => setManualVisible(false)}
-            />
-        </SafeAreaView>
+                {/* Modals for App Bottom Bar Quick Actions */}
+                <CameraModal
+                    visible={cameraVisible}
+                    onClose={() => setCameraVisible(false)}
+                    onCaptureBill={handleCreateReceiptTransaction}
+                />
+
+                <VoiceInputModal
+                    visible={voiceVisible}
+                    onClose={() => setVoiceVisible(false)}
+                    onCaptureVoice={handleCreateVoiceTransaction}
+                />
+
+                <AddTransactionModal
+                    visible={manualVisible}
+                    onClose={() => setManualVisible(false)}
+                />
+
+                <FinancialSetupSettingsModal
+                    visible={showEditSetup}
+                    onClose={() => {
+                        setShowEditSetup(false);
+                        loadFinancialSetup();
+                    }}
+                />
+            </SafeAreaView>
+        </KeyboardScreen>
     );
 }
 
