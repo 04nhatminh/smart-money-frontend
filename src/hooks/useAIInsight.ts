@@ -5,6 +5,7 @@ import aiInsightStorage from "../storage/aiInsightStorage";
 import { subscribeJob } from "../services/websocket";
 import { parseAIResult as resultAIParse } from "../utils/resultAIParse";
 import { parseAIJson } from "../utils/parseAIJson";
+import { useAuth } from "../context/AuthContext";
 
 const CACHE_DURATION = 30 * 60 * 1000;
 
@@ -17,6 +18,7 @@ const sleep = (ms: number) =>
   new Promise(resolve => setTimeout(resolve, ms));
 
 export function useAIInsight() {
+  const { isSignedIn } = useAuth();
   const [insight, setInsight] = useState<InsightItem[]>([]);
 
   const [loading, setLoading] =
@@ -26,12 +28,16 @@ export function useAIInsight() {
     useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (!isSignedIn) {
+      return;
+    }
+
     init();
 
     return () => {
       controllerRef.current?.abort();
     };
-  }, []);
+  }, [isSignedIn]);
 
   const init = async () => {
     try {

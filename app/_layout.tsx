@@ -170,8 +170,8 @@ function RootLayoutNav() {
         <Stack.Screen name="(transactions)" />
         <Stack.Screen name="accept-invite" />
         <Stack.Screen name="group-invite" />
-        <Stack.Screen name="group" />
-        <Stack.Screen name="group-project" />
+        <Stack.Screen name="group/[id]" />
+        <Stack.Screen name="group-project/[id]" />
       </Stack>
 
       <NotificationToast />

@@ -1,7 +1,7 @@
 import { http } from './http';
 import { tokenStorage } from '../storage/tokenStorage';
 import { CheckResponse } from '../types/auth.types';
-import { AIJobResponse } from '../types/ai.types';
+import { AIJobResponse, ChatResponse } from '../types/ai.types';
 import EventSource, { EventSourceEvent } from "react-native-sse";
 type EventSourceMessage = {
   data: string | null;
@@ -241,21 +241,23 @@ class AIAPI {
     return response.data;
   }
 
-  async promptAI(
-    message: string
-  ): Promise<
-    CheckResponse<{
-      reply: string;
-    }>
-  > {
+  /**
+   * Sync structured chat — POST /api/v1/ai/chat.
+   * Returns {reply, intent, budgetSuggestions?, simulationResult?, savingsSuggestions?}
+   * so the UI can render confirm/deny action cards for BUDGET_UPDATE, SIMULATION,
+   * INCOME_WINDFALL and LARGE_EXPENSE intents. History is managed server-side.
+   */
+  async chat(
+    message: string,
+    month?: number,
+    year?: number
+  ): Promise<CheckResponse<ChatResponse>> {
     try {
       const headers = await this.getAuthHeader();
 
       const res = await http.post(
         "/api/v1/ai/chat",
-        {
-          message,
-        },
+        { message, month, year },
         {
           headers: {
             ...headers,
@@ -272,9 +274,13 @@ class AIAPI {
     } catch (error: any) {
       console.error("❌ AI CHAT ERROR:", error);
 
-      return error.response?.data || {
+      const status = error.response?.status;
+      const serverMessage = error.response?.data?.error;
+
+      return {
         success: false,
-        message: error.message || "Chat AI failed",
+        message: serverMessage || error.message || "Chat AI failed",
+        errorCode: status === 429 ? "RATE_LIMIT" : undefined,
       };
     }
   }
@@ -291,7 +297,9 @@ class AIAPI {
     message: string,
     onChunk: (chunk: string) => void,
     onError: (error: any) => void,
-    onComplete: () => void
+    onComplete: () => void,
+    month?: number,
+    year?: number
   ): Promise<() => void> {
     try {
       const headers = await this.getAuthHeader();
@@ -301,7 +309,9 @@ class AIAPI {
         throw new Error('Missing API base URL');
       }
 
-      const url = `${baseUrl}/api/v1/ai/chat/stream?message=${encodeURIComponent(message)}`;
+      let url = `${baseUrl}/api/v1/ai/chat/stream?message=${encodeURIComponent(message)}`;
+      if (month != null) url += `&month=${month}`;
+      if (year != null) url += `&year=${year}`;
 
       const eventSource = new EventSource(url, {
         headers: {

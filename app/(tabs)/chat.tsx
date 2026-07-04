@@ -10,29 +10,250 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import Markdown from "react-native-markdown-display";
 import { Ionicons } from "@expo/vector-icons";
 import AIAPI from "../../src/api/ai.api";
+import { budgetAPI } from "../../src/api/budget.api";
+import { ProjectAPI } from "../../src/api/project.api";
 import { useAISuggestions } from "../../src/context/AISuggestionContext";
 import { t } from "../../src/i18n";          // ← thêm import
 import { useLanguage } from "../../src/i18n/LanguageProvider"; // (tuỳ chọn)
+import { formatVND } from "../../src/utils/formatCurrency";
+import {
+  ChatIntent,
+  BudgetUpdateSuggestion,
+  SavingsPlanSuggestion,
+  SimulationResult,
+} from "../../src/types/ai.types";
+
+type MessagePhase = "context" | "thinking" | "streaming" | "done" | "error";
+type SuggestionStatus = "pending" | "applying" | "confirmed" | "denied" | "error";
+
+type BudgetSuggestionItem = BudgetUpdateSuggestion & {
+  status: SuggestionStatus;
+  errorMsg?: string;
+};
+
+type SavingsSuggestionItem = SavingsPlanSuggestion & {
+  status: SuggestionStatus;
+  errorMsg?: string;
+};
 
 type Message = {
   id: string;
   text: string;
   role: "user" | "assistant";
+  phase?: MessagePhase;
+  intent?: ChatIntent;
+  budgetSuggestions?: BudgetSuggestionItem[];
+  simulationResult?: SimulationResult;
+  savingsSuggestions?: SavingsSuggestionItem[];
 };
+
+// Typewriter reveal speed for the "real-time generation" effect on the
+// (already-complete) reply returned by POST /api/v1/ai/chat.
+const TYPEWRITER_TICK_MS = 16;
+const TYPEWRITER_TOTAL_TICKS = 45;
+// Delay before switching the placeholder label from "loading context" to
+// "thinking" — purely cosmetic staging since both happen inside one HTTP call.
+const CONTEXT_PHASE_MS = 550;
+
+function ThinkingIndicator({ label }: { label: string }) {
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const makeLoop = (value: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(value, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(value, { toValue: 0, duration: 300, useNativeDriver: true }),
+        ])
+      );
+
+    const loops = [makeLoop(dot1, 0), makeLoop(dot2, 150), makeLoop(dot3, 300)];
+    loops.forEach((loop) => loop.start());
+    return () => loops.forEach((loop) => loop.stop());
+  }, [dot1, dot2, dot3]);
+
+  const dotStyle = (value: Animated.Value) => ({
+    opacity: value.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
+    transform: [
+      { translateY: value.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) },
+    ],
+  });
+
+  return (
+    <View style={styles.thinkingRow}>
+      <Text style={styles.thinkingLabel}>{label}</Text>
+      <View style={styles.thinkingDots}>
+        <Animated.View style={[styles.thinkingDot, dotStyle(dot1)]} />
+        <Animated.View style={[styles.thinkingDot, dotStyle(dot2)]} />
+        <Animated.View style={[styles.thinkingDot, dotStyle(dot3)]} />
+      </View>
+    </View>
+  );
+}
+
+function SuggestionActions({
+  status,
+  errorMsg,
+  onConfirm,
+  onDeny,
+}: {
+  status: SuggestionStatus;
+  errorMsg?: string;
+  onConfirm: () => void;
+  onDeny: () => void;
+}) {
+  if (status === "applying") {
+    return (
+      <View style={styles.suggestionStatusRow}>
+        <ActivityIndicator size="small" color="#3629B7" />
+        <Text style={styles.suggestionStatusText}>{t('ai.suggestion_applying')}</Text>
+      </View>
+    );
+  }
+  if (status === "confirmed") {
+    return (
+      <View style={styles.suggestionStatusRow}>
+        <Ionicons name="checkmark-circle" size={16} color="#2E9E5B" />
+        <Text style={[styles.suggestionStatusText, { color: "#2E9E5B" }]}>
+          {t('ai.suggestion_confirmed')}
+        </Text>
+      </View>
+    );
+  }
+  if (status === "denied") {
+    return (
+      <View style={styles.suggestionStatusRow}>
+        <Text style={styles.suggestionStatusText}>{t('ai.suggestion_denied')}</Text>
+      </View>
+    );
+  }
+  if (status === "error") {
+    return (
+      <View style={styles.suggestionStatusRow}>
+        <Text style={[styles.suggestionStatusText, { color: "#D64545" }]}>
+          {errorMsg || t('ai.suggestion_error')}
+        </Text>
+        <TouchableOpacity onPress={onConfirm} style={styles.retryBtn}>
+          <Text style={styles.retryBtnText}>{t('ai.suggestion_confirm')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.suggestionActions}>
+      <TouchableOpacity onPress={onDeny} style={styles.denyBtn}>
+        <Text style={styles.denyBtnText}>{t('ai.suggestion_deny')}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onConfirm} style={styles.confirmBtn}>
+        <Text style={styles.confirmBtnText}>{t('ai.suggestion_confirm')}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function BudgetSuggestionCard({
+  suggestion,
+  onConfirm,
+  onDeny,
+}: {
+  suggestion: BudgetSuggestionItem;
+  onConfirm: () => void;
+  onDeny: () => void;
+}) {
+  return (
+    <View style={styles.suggestionCard}>
+      <Text style={styles.suggestionCardTitle}>{suggestion.category}</Text>
+      <Text style={styles.suggestionCardAmounts}>
+        {formatVND(suggestion.currentAmount)} → {formatVND(suggestion.suggestedAmount)}
+      </Text>
+      <Text style={styles.suggestionCardReason}>{suggestion.reason}</Text>
+      <SuggestionActions
+        status={suggestion.status}
+        errorMsg={suggestion.errorMsg}
+        onConfirm={onConfirm}
+        onDeny={onDeny}
+      />
+    </View>
+  );
+}
+
+function SavingsSuggestionCard({
+  suggestion,
+  onConfirm,
+  onDeny,
+}: {
+  suggestion: SavingsSuggestionItem;
+  onConfirm: () => void;
+  onDeny: () => void;
+}) {
+  const isDeferral = suggestion.suggestedMonthLeft != null;
+  return (
+    <View style={styles.suggestionCard}>
+      <Text style={styles.suggestionCardTitle}>{suggestion.projectName}</Text>
+      {isDeferral ? (
+        <Text style={styles.suggestionCardAmounts}>
+          {t('ai.savings_month_left_label')}: {suggestion.suggestedMonthLeft}
+        </Text>
+      ) : (
+        <Text style={styles.suggestionCardAmounts}>
+          {formatVND(suggestion.currentMoneySaved)} → {formatVND(suggestion.newMoneySaved ?? suggestion.currentMoneySaved)}
+        </Text>
+      )}
+      <Text style={styles.suggestionCardReason}>{suggestion.reason}</Text>
+      <SuggestionActions
+        status={suggestion.status}
+        errorMsg={suggestion.errorMsg}
+        onConfirm={onConfirm}
+        onDeny={onDeny}
+      />
+    </View>
+  );
+}
+
+function SimulationPanel({ result }: { result: SimulationResult }) {
+  return (
+    <View style={[styles.suggestionCard, styles.simulationPanel]}>
+      <Text style={styles.suggestionCardTitle}>{t('ai.simulation_title')}</Text>
+      <Text style={styles.suggestionCardReason}>{result.scenario}</Text>
+      <Text style={styles.simulationRow}>
+        {t('ai.simulation_new_safe_spending')}: {formatVND(result.newSafeSpending)}
+      </Text>
+      {!!result.projectImpact && (
+        <Text style={styles.simulationRow}>
+          {t('ai.simulation_project_impact')}: {result.projectImpact}
+        </Text>
+      )}
+      {result.violates20Rule && (
+        <View style={styles.simulationWarning}>
+          <Ionicons name="warning" size={14} color="#B45309" />
+          <Text style={styles.simulationWarningText}>
+            {t('ai.simulation_violation_warning')}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function AIScreen() {
   const flatListRef = useRef<FlatList>(null);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const phaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typewriterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       role: "assistant",
       text: t('ai.welcome'), // ← dùng dịch
+      phase: "done",
     },
   ]);
   const [input, setInput] = useState("");
@@ -45,12 +266,10 @@ export default function AIScreen() {
   };
 
   useEffect(() => {
-    // Cleanup khi unmount: hủy stream nếu còn
+    // Cleanup khi unmount: hủy các timer đang chạy nếu còn
     return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
+      if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
+      if (typewriterTimerRef.current) clearInterval(typewriterTimerRef.current);
     };
   }, []);
 
@@ -87,31 +306,46 @@ export default function AIScreen() {
     };
   };
 
-  const appendChunk = (current: string, chunk: string): string => {
-    if (!current) return chunk;
-    const lastChar = current[current.length - 1];
-    const firstChar = chunk[0];
-    // Nếu đã có khoảng trắng ở biên thì không thêm
-    if (lastChar === ' ' || firstChar === ' ') return current + chunk;
-    // Nếu kết thúc hoặc bắt đầu bằng dấu câu thì không thêm
-    const punct = /[.,!?;:)]/;
-    if (punct.test(lastChar) || punct.test(firstChar)) return current + chunk;
-    // Nếu cả hai đều là ký tự chữ/số, thêm khoảng trắng
-    if (/\w/.test(lastChar) && /\w/.test(firstChar)) {
-      return current + ' ' + chunk;
+  // Reveals `fullText` progressively on message `id` to simulate real-time
+  // generation, since POST /chat returns the full reply in one response.
+  const startTypewriter = (id: string, fullText: string, onDone: () => void) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, phase: "streaming" } : m))
+    );
+
+    if (!fullText) {
+      onDone();
+      return;
     }
-    return current + chunk;
+
+    let index = 0;
+    const step = Math.max(1, Math.ceil(fullText.length / TYPEWRITER_TOTAL_TICKS));
+
+    if (typewriterTimerRef.current) clearInterval(typewriterTimerRef.current);
+    typewriterTimerRef.current = setInterval(() => {
+      index += step;
+      const shown = fullText.slice(0, index);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, text: shown } : m))
+      );
+      scrollToBottom();
+
+      if (index >= fullText.length) {
+        if (typewriterTimerRef.current) {
+          clearInterval(typewriterTimerRef.current);
+          typewriterTimerRef.current = null;
+        }
+        onDone();
+      }
+    }, TYPEWRITER_TICK_MS);
   };
 
   const sendMessage = async () => {
     const message = input.trim();
     if (!message || loading) return;
 
-    // Hủy stream cũ nếu có
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-      unsubscribeRef.current = null;
-    }
+    if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
+    if (typewriterTimerRef.current) clearInterval(typewriterTimerRef.current);
 
     // Thêm tin nhắn của user
     const userMessage: Message = {
@@ -122,72 +356,176 @@ export default function AIScreen() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
 
-    // Tạo placeholder cho assistant (đang loading)
-    const loadingId = `${Date.now()}-loading`;
+    // Placeholder cho assistant: bắt đầu ở pha "đang tải dữ liệu tài chính"
+    const assistantId = `${Date.now()}-assistant`;
     setMessages((prev) => [
       ...prev,
-      { id: loadingId, text: "", role: "assistant" },
+      { id: assistantId, text: "", role: "assistant", phase: "context" },
     ]);
     setLoading(true);
+    scrollToBottom();
 
-    let fullReply = "";
-    let pendingBuffer = "";
-    let flushTimer: ReturnType<typeof setTimeout>;
-    try {
-      const unsubscribe = await AIAPI.streamChat(
-        message,
-        // onChunk
-        (chunk) => {
-          fullReply = chunk;   // ← gán trực tiếp
-
-          setMessages(prev =>
-            prev.map(item =>
-              item.id === loadingId
-                ? { ...item, text: fullReply }
-                : item
-            )
-          );
-          scrollToBottom();
-        },
-        // onError
-        (error) => {
-          console.error("Stream error:", error);
-          setMessages((prev) =>
-            prev.map((item) =>
-              item.id === loadingId
-                ? { ...item, text: t('ai.error_connection') } // ← dịch
-                : item
-            )
-          );
-          setLoading(false);
-        },
-        // onComplete
-        () => {
-          setLoading(false);
-          scrollToBottom();
-        }
-      );
-
-      // Lưu hàm hủy để dọn dẹp sau
-      unsubscribeRef.current = unsubscribe;
-    } catch (error) {
-      console.error("Failed to start stream:", error);
+    // Sau một khoảng ngắn, chuyển sang pha "đang suy nghĩ" trong lúc chờ API
+    phaseTimerRef.current = setTimeout(() => {
       setMessages((prev) =>
-        prev.map((item) =>
-          item.id === loadingId
-            ? { ...item, text: t('ai.error_unable') } // ← dịch
-            : item
+        prev.map((m) =>
+          m.id === assistantId && m.phase === "context"
+            ? { ...m, phase: "thinking" }
+            : m
+        )
+      );
+    }, CONTEXT_PHASE_MS);
+
+    try {
+      const res = await AIAPI.chat(message);
+
+      if (phaseTimerRef.current) {
+        clearTimeout(phaseTimerRef.current);
+        phaseTimerRef.current = null;
+      }
+
+      if (!res.success || !res.data) {
+        const errorText =
+          res.errorCode === "RATE_LIMIT"
+            ? t('ai.error_rate_limit')
+            : t('ai.error_connection');
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, phase: "error", text: errorText } : m
+          )
+        );
+        setLoading(false);
+        return;
+      }
+
+      const data = res.data;
+      startTypewriter(assistantId, data.reply || "", () => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  phase: "done",
+                  intent: data.intent,
+                  budgetSuggestions: (data.budgetSuggestions || []).map((s) => ({
+                    ...s,
+                    status: "pending" as SuggestionStatus,
+                  })),
+                  simulationResult: data.simulationResult || undefined,
+                  savingsSuggestions: (data.savingsSuggestions || []).map((s) => ({
+                    ...s,
+                    status: "pending" as SuggestionStatus,
+                  })),
+                }
+              : m
+          )
+        );
+        setLoading(false);
+        scrollToBottom();
+      });
+    } catch (error) {
+      console.error("Failed to send chat message:", error);
+      if (phaseTimerRef.current) {
+        clearTimeout(phaseTimerRef.current);
+        phaseTimerRef.current = null;
+      }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, phase: "error", text: t('ai.error_unable') }
+            : m
         )
       );
       setLoading(false);
     }
   };
 
+  const updateBudgetSuggestion = (
+    messageId: string,
+    budgetId: string,
+    patch: Partial<BudgetSuggestionItem>
+  ) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id !== messageId
+          ? m
+          : {
+              ...m,
+              budgetSuggestions: m.budgetSuggestions?.map((s) =>
+                s.budgetId === budgetId ? { ...s, ...patch } : s
+              ),
+            }
+      )
+    );
+  };
+
+  const updateSavingsSuggestion = (
+    messageId: string,
+    projectId: string,
+    patch: Partial<SavingsSuggestionItem>
+  ) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id !== messageId
+          ? m
+          : {
+              ...m,
+              savingsSuggestions: m.savingsSuggestions?.map((s) =>
+                s.projectId === projectId ? { ...s, ...patch } : s
+              ),
+            }
+      )
+    );
+  };
+
+  const handleConfirmBudget = async (messageId: string, suggestion: BudgetSuggestionItem) => {
+    updateBudgetSuggestion(messageId, suggestion.budgetId, { status: "applying" });
+    const res = await budgetAPI.updateBudget(suggestion.budgetId, {
+      amountLimit: suggestion.suggestedAmount,
+    });
+    if (res.success) {
+      updateBudgetSuggestion(messageId, suggestion.budgetId, { status: "confirmed" });
+    } else {
+      updateBudgetSuggestion(messageId, suggestion.budgetId, {
+        status: "error",
+        errorMsg: res.message,
+      });
+    }
+  };
+
+  const handleDenyBudget = (messageId: string, budgetId: string) => {
+    updateBudgetSuggestion(messageId, budgetId, { status: "denied" });
+  };
+
+  const handleConfirmSavings = async (messageId: string, suggestion: SavingsSuggestionItem) => {
+    updateSavingsSuggestion(messageId, suggestion.projectId, { status: "applying" });
+    const payload =
+      suggestion.suggestedAddAmount != null
+        ? { moneySaved: suggestion.newMoneySaved ?? undefined }
+        : { monthLeft: suggestion.suggestedMonthLeft ?? undefined };
+    const res = await ProjectAPI.updateTracking(suggestion.projectId, payload);
+    if (res.success) {
+      updateSavingsSuggestion(messageId, suggestion.projectId, { status: "confirmed" });
+    } else {
+      updateSavingsSuggestion(messageId, suggestion.projectId, {
+        status: "error",
+        errorMsg: res.message,
+      });
+    }
+  };
+
+  const handleDenySavings = (messageId: string, projectId: string) => {
+    updateSavingsSuggestion(messageId, projectId, { status: "denied" });
+  };
+
   const renderItem = ({ item }: { item: Message }) => {
     const isUser = item.role === "user";
-    let fullReply = "";
-    let pendingBuffer = "";
     const markdownStyles = getMarkdownStyles(isUser);
+    const isThinking = !isUser && (item.phase === "context" || item.phase === "thinking");
+    const hasBudgetSuggestions = !isUser && item.phase === "done" && (item.budgetSuggestions?.length ?? 0) > 0;
+    const hasSavingsSuggestions = !isUser && item.phase === "done" && (item.savingsSuggestions?.length ?? 0) > 0;
+    const hasSimulation = !isUser && item.phase === "done" && !!item.simulationResult;
+
     return (
       <View
         style={[
@@ -201,10 +539,46 @@ export default function AIScreen() {
             isUser ? styles.userBubble : styles.assistantBubble,
           ]}
         >
-          <Markdown style={markdownStyles} mergeStyle={true}>
-            {item.text || (loading && item.id.endsWith('-loading') ? '...' : '')}
-          </Markdown>
+          {isThinking ? (
+            <ThinkingIndicator
+              label={item.phase === "context" ? t('ai.loading_context') : t('ai.thinking')}
+            />
+          ) : (
+            <Markdown style={markdownStyles} mergeStyle={true}>
+              {item.text || ""}
+            </Markdown>
+          )}
         </View>
+
+        {hasSimulation && <SimulationPanel result={item.simulationResult!} />}
+
+        {hasBudgetSuggestions && (
+          <View style={styles.suggestionGroup}>
+            <Text style={styles.suggestionGroupTitle}>{t('ai.budget_suggestion_title')}</Text>
+            {item.budgetSuggestions!.map((s) => (
+              <BudgetSuggestionCard
+                key={s.budgetId}
+                suggestion={s}
+                onConfirm={() => handleConfirmBudget(item.id, s)}
+                onDeny={() => handleDenyBudget(item.id, s.budgetId)}
+              />
+            ))}
+          </View>
+        )}
+
+        {hasSavingsSuggestions && (
+          <View style={styles.suggestionGroup}>
+            <Text style={styles.suggestionGroupTitle}>{t('ai.savings_suggestion_title')}</Text>
+            {item.savingsSuggestions!.map((s) => (
+              <SavingsSuggestionCard
+                key={s.projectId}
+                suggestion={s}
+                onConfirm={() => handleConfirmSavings(item.id, s)}
+                onDeny={() => handleDenySavings(item.id, s.projectId)}
+              />
+            ))}
+          </View>
+        )}
       </View>
     );
   };
@@ -472,5 +846,140 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginRight: 10,
+  },
+
+  // ── Thinking / loading-context indicator ─────────────────────────────────
+  thinkingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  thinkingLabel: {
+    fontSize: 13,
+    color: "#777",
+    marginRight: 8,
+    fontStyle: "italic",
+  },
+  thinkingDots: {
+    flexDirection: "row",
+  },
+  thinkingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#3629B7",
+    marginHorizontal: 2,
+  },
+
+  // ── Suggestion cards (budget / savings / simulation) ─────────────────────
+  suggestionGroup: {
+    maxWidth: "90%",
+    marginTop: 8,
+  },
+  suggestionGroupTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#777",
+    textTransform: "uppercase",
+    marginTop: 4,
+  },
+  suggestionCard: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#ECECEC",
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 8,
+  },
+  suggestionCardTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#222",
+  },
+  suggestionCardAmounts: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#3629B7",
+    marginTop: 4,
+  },
+  suggestionCardReason: {
+    fontSize: 13,
+    color: "#666",
+    marginTop: 4,
+  },
+  suggestionActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 10,
+  },
+  confirmBtn: {
+    backgroundColor: "#3629B7",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    marginLeft: 8,
+  },
+  confirmBtnText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  denyBtn: {
+    backgroundColor: "#F3F4F8",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  denyBtnText: {
+    color: "#666",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  suggestionStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 10,
+  },
+  suggestionStatusText: {
+    fontSize: 13,
+    color: "#777",
+    marginLeft: 6,
+  },
+  retryBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: "#3629B7",
+  },
+  retryBtnText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  // ── Simulation panel ──────────────────────────────────────────────────────
+  simulationPanel: {
+    borderColor: "#D8D4F7",
+    backgroundColor: "#FAF9FF",
+  },
+  simulationRow: {
+    fontSize: 13,
+    color: "#333",
+    marginTop: 4,
+  },
+  simulationWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#FEF3C7",
+  },
+  simulationWarningText: {
+    fontSize: 12,
+    color: "#92400E",
+    marginLeft: 6,
+    flexShrink: 1,
   },
 });
