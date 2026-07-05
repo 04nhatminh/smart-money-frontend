@@ -230,6 +230,11 @@ export default {
     simulation_violation_warning: "Exceeds the 20% safe-spending rule",
     simulation_new_safe_spending: "New safe spending",
     simulation_project_impact: "Impact on goals",
+    out_of_scope_label: "Outside supported scope",
+    copy: "Copy",
+    copied: "Copied",
+    retry: "Retry",
+    waiting_for_reply: "Waiting for AI to reply...",
   },
   wait: {
     waiting: "Waiting a moment",

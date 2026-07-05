@@ -45,4 +45,9 @@ export interface ChatResponse {
   budgetSuggestions?: BudgetUpdateSuggestion[] | null;
   simulationResult?: SimulationResult | null;
   savingsSuggestions?: SavingsPlanSuggestion[] | null;
+  // True only when a viable budget/savings suggestion actually accompanies this
+  // reply — the presence of a suggestion can't be inferred from `intent` alone.
+  actionRequired: boolean;
+  // Up to 3 follow-up questions the user can tap to continue the conversation.
+  relatedQuestions?: string[] | null;
 }

@@ -231,6 +231,11 @@ export default {
     simulation_violation_warning: "Vượt quy tắc 20% chi tiêu an toàn",
     simulation_new_safe_spending: "Chi tiêu an toàn mới",
     simulation_project_impact: "Ảnh hưởng đến mục tiêu",
+    out_of_scope_label: "Ngoài phạm vi hỗ trợ",
+    copy: "Sao chép",
+    copied: "Đã sao chép",
+    retry: "Thử lại",
+    waiting_for_reply: "Đang chờ AI phản hồi...",
   },
   wait: {
       waiting: "Chờ Một Xí",

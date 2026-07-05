@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import Markdown from "react-native-markdown-display";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import AIAPI from "../../src/api/ai.api";
 import { budgetAPI } from "../../src/api/budget.api";
 import { ProjectAPI } from "../../src/api/project.api";
@@ -50,6 +51,10 @@ type Message = {
   budgetSuggestions?: BudgetSuggestionItem[];
   simulationResult?: SimulationResult;
   savingsSuggestions?: SavingsSuggestionItem[];
+  actionRequired?: boolean;
+  relatedQuestions?: string[];
+  // For assistant messages: the user request that produced this reply, so it can be resent on retry.
+  sourceText?: string;
 };
 
 // Typewriter reveal speed for the "real-time generation" effect on the
@@ -258,6 +263,9 @@ export default function AIScreen() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [activeCopyId, setActiveCopyId] = useState<string | null>(null);
+  const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -270,8 +278,20 @@ export default function AIScreen() {
     return () => {
       if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
       if (typewriterTimerRef.current) clearInterval(typewriterTimerRef.current);
+      if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
     };
   }, []);
+
+  const handleCopy = async (id: string, text: string) => {
+    if (!text) return;
+    await Clipboard.setStringAsync(text);
+    if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    setCopiedId(id);
+    copyResetTimerRef.current = setTimeout(() => {
+      setCopiedId(null);
+      setActiveCopyId(null);
+    }, 1200);
+  };
 
   const {
     questions,
@@ -340,30 +360,10 @@ export default function AIScreen() {
     }, TYPEWRITER_TICK_MS);
   };
 
-  const sendMessage = async () => {
-    const message = input.trim();
-    if (!message || loading) return;
-
-    if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
-    if (typewriterTimerRef.current) clearInterval(typewriterTimerRef.current);
-
-    // Thêm tin nhắn của user
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: message,
-      role: "user",
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-
-    // Placeholder cho assistant: bắt đầu ở pha "đang tải dữ liệu tài chính"
-    const assistantId = `${Date.now()}-assistant`;
-    setMessages((prev) => [
-      ...prev,
-      { id: assistantId, text: "", role: "assistant", phase: "context" },
-    ]);
+  // Runs (or re-runs) the API call + typewriter reveal for a given assistant
+  // placeholder message. Shared by both the initial send and retry-on-error.
+  const runAssistantRequest = async (userText: string, assistantId: string) => {
     setLoading(true);
-    scrollToBottom();
 
     // Sau một khoảng ngắn, chuyển sang pha "đang suy nghĩ" trong lúc chờ API
     phaseTimerRef.current = setTimeout(() => {
@@ -377,7 +377,7 @@ export default function AIScreen() {
     }, CONTEXT_PHASE_MS);
 
     try {
-      const res = await AIAPI.chat(message);
+      const res = await AIAPI.chat(userText);
 
       if (phaseTimerRef.current) {
         clearTimeout(phaseTimerRef.current);
@@ -416,6 +416,8 @@ export default function AIScreen() {
                     ...s,
                     status: "pending" as SuggestionStatus,
                   })),
+                  actionRequired: data.actionRequired,
+                  relatedQuestions: data.relatedQuestions || [],
                 }
               : m
           )
@@ -438,6 +440,53 @@ export default function AIScreen() {
       );
       setLoading(false);
     }
+  };
+
+  const sendMessage = async (overrideText?: string) => {
+    const message = (overrideText ?? input).trim();
+    if (!message || loading) return;
+
+    if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
+    if (typewriterTimerRef.current) clearInterval(typewriterTimerRef.current);
+
+    // Thêm tin nhắn của user
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: message,
+      role: "user",
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+
+    // Placeholder cho assistant: bắt đầu ở pha "đang tải dữ liệu tài chính"
+    const assistantId = `${Date.now()}-assistant`;
+    setMessages((prev) => [
+      ...prev,
+      { id: assistantId, text: "", role: "assistant", phase: "context", sourceText: message },
+    ]);
+    scrollToBottom();
+
+    await runAssistantRequest(message, assistantId);
+  };
+
+  // Re-sends the original user request for an assistant message that errored out,
+  // reusing the same message slot instead of appending a new one.
+  const retryMessage = async (assistantId: string) => {
+    if (loading) return;
+    const target = messages.find((m) => m.id === assistantId);
+    if (!target || !target.sourceText) return;
+
+    if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
+    if (typewriterTimerRef.current) clearInterval(typewriterTimerRef.current);
+
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === assistantId ? { ...m, phase: "context", text: "" } : m
+      )
+    );
+    scrollToBottom();
+
+    await runAssistantRequest(target.sourceText, assistantId);
   };
 
   const updateBudgetSuggestion = (
@@ -522,9 +571,15 @@ export default function AIScreen() {
     const isUser = item.role === "user";
     const markdownStyles = getMarkdownStyles(isUser);
     const isThinking = !isUser && (item.phase === "context" || item.phase === "thinking");
-    const hasBudgetSuggestions = !isUser && item.phase === "done" && (item.budgetSuggestions?.length ?? 0) > 0;
-    const hasSavingsSuggestions = !isUser && item.phase === "done" && (item.savingsSuggestions?.length ?? 0) > 0;
+    const isOutOfScope = !isUser && item.phase === "done" && item.intent === "OUT_OF_SCOPE";
+    const hasBudgetSuggestions = !isUser && item.phase === "done" && item.actionRequired && (item.budgetSuggestions?.length ?? 0) > 0;
+    const hasSavingsSuggestions = !isUser && item.phase === "done" && item.actionRequired && (item.savingsSuggestions?.length ?? 0) > 0;
     const hasSimulation = !isUser && item.phase === "done" && !!item.simulationResult;
+    const hasRelatedQuestions = !isUser && item.phase === "done" && (item.relatedQuestions?.length ?? 0) > 0;
+    const canCopy = !!item.text && (isUser || item.phase === "done" || item.phase === "error");
+    const canRetry = !isUser && item.phase === "error";
+    const isCopied = copiedId === item.id;
+    const isMenuOpen = activeCopyId === item.id;
 
     return (
       <View
@@ -533,10 +588,28 @@ export default function AIScreen() {
           isUser ? styles.userWrapper : styles.assistantWrapper,
         ]}
       >
-        <View
+        {isMenuOpen && canCopy && (
+          <TouchableOpacity
+            onPress={() => handleCopy(item.id, item.text)}
+            style={styles.copyPopup}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={isCopied ? "checkmark" : "copy-outline"} size={14} color="#FFF" />
+            <Text style={styles.copyPopupText}>
+              {isCopied ? t('ai.copied') : t('ai.copy')}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          disabled={!canCopy}
+          delayLongPress={350}
+          onLongPress={() => setActiveCopyId(item.id)}
+          onPress={() => isMenuOpen && setActiveCopyId(null)}
           style={[
             styles.bubble,
-            isUser ? styles.userBubble : styles.assistantBubble,
+            isUser ? styles.userBubble : (isOutOfScope ? styles.outOfScopeBubble : styles.assistantBubble),
           ]}
         >
           {isThinking ? (
@@ -544,11 +617,40 @@ export default function AIScreen() {
               label={item.phase === "context" ? t('ai.loading_context') : t('ai.thinking')}
             />
           ) : (
-            <Markdown style={markdownStyles} mergeStyle={true}>
-              {item.text || ""}
-            </Markdown>
+            <>
+              {isOutOfScope && (
+                <View style={styles.outOfScopeLabelRow}>
+                  <Ionicons name="alert-circle-outline" size={14} color="#B45309" />
+                  <Text style={styles.outOfScopeLabelText}>{t('ai.out_of_scope_label')}</Text>
+                </View>
+              )}
+              <Markdown style={markdownStyles} mergeStyle={true}>
+                {item.text || ""}
+              </Markdown>
+            </>
           )}
-        </View>
+        </TouchableOpacity>
+
+        {canRetry && (
+          <View
+            style={[
+              styles.messageActions,
+              isUser ? styles.messageActionsUser : styles.messageActionsAssistant,
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => retryMessage(item.id)}
+              disabled={loading}
+              style={styles.actionBtn}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Ionicons name="refresh" size={14} color="#3629B7" />
+              <Text style={[styles.actionBtnText, { color: "#3629B7" }]}>
+                {t('ai.retry')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {hasSimulation && <SimulationPanel result={item.simulationResult!} />}
 
@@ -576,6 +678,21 @@ export default function AIScreen() {
                 onConfirm={() => handleConfirmSavings(item.id, s)}
                 onDeny={() => handleDenySavings(item.id, s.projectId)}
               />
+            ))}
+          </View>
+        )}
+
+        {hasRelatedQuestions && (
+          <View style={styles.relatedQuestionsGroup}>
+            {item.relatedQuestions!.map((question, index) => (
+              <TouchableOpacity
+                key={`${item.id}-related-${index}`}
+                style={[styles.relatedQuestionChip, loading && styles.suggestionChipDisabled]}
+                onPress={() => sendMessage(question)}
+                disabled={loading}
+              >
+                <Text style={styles.relatedQuestionText}>{question}</Text>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -629,8 +746,9 @@ export default function AIScreen() {
               keyExtractor={(item, index) => `${index}`}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.suggestionChip}
+                  style={[styles.suggestionChip, loading && styles.suggestionChipDisabled]}
                   onPress={() => setInput(item)}
+                  disabled={loading}
                 >
                   <Text style={styles.suggestionText}>
                     {item}
@@ -646,14 +764,15 @@ export default function AIScreen() {
           <TextInput
             value={input}
             onChangeText={setInput}
-            placeholder={t('ai.placeholder')}
+            placeholder={loading ? t('ai.waiting_for_reply') : t('ai.placeholder')}
             multiline
-            style={styles.input}
+            editable={!loading}
+            style={[styles.input, loading && styles.inputDisabled]}
           />
           <TouchableOpacity
-            onPress={sendMessage}
+            onPress={() => sendMessage()}
             disabled={loading}
-            style={styles.sendBtn}
+            style={[styles.sendBtn, loading && styles.sendBtnDisabled]}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -765,6 +884,56 @@ const styles = StyleSheet.create({
   assistantWrapper: {
     alignItems: "flex-start",
   },
+
+  messageActions: {
+    flexDirection: "row",
+    marginTop: 4,
+  },
+
+  messageActionsUser: {
+    justifyContent: "flex-end",
+  },
+
+  messageActionsAssistant: {
+    justifyContent: "flex-start",
+  },
+
+  actionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 6,
+  },
+
+  actionBtnText: {
+    fontSize: 12,
+    color: "#888",
+    marginLeft: 4,
+  },
+
+  // ── Hold-to-copy popup (shown on long-press of a bubble) ─────────────────
+  copyPopup: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#333",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    marginBottom: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  copyPopupText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+
   suggestionContainer: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -779,6 +948,31 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
+  },
+
+  suggestionChipDisabled: {
+    opacity: 0.5,
+  },
+
+  relatedQuestionsGroup: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    maxWidth: "90%",
+    marginTop: 8,
+  },
+
+  relatedQuestionChip: {
+    backgroundColor: "#F3F4F8",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+
+  relatedQuestionText: {
+    fontSize: 13,
+    color: "#3629B7",
   },
 
   suggestionText: {
@@ -804,6 +998,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     borderWidth: 1,
     borderColor: "#ECECEC",
+  },
+
+  outOfScopeBubble: {
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+
+  outOfScopeLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+
+  outOfScopeLabelText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#B45309",
+    marginLeft: 4,
+    textTransform: "uppercase",
   },
 
   messageText: {
@@ -838,6 +1052,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#3629B7"
   },
 
+  sendBtnDisabled: {
+    backgroundColor: "#A79EDB",
+  },
+
   input: {
     flex: 1,
     maxHeight: 120,
@@ -846,6 +1064,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginRight: 10,
+  },
+
+  inputDisabled: {
+    opacity: 0.6,
   },
 
   // ── Thinking / loading-context indicator ─────────────────────────────────
