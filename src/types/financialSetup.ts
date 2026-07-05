@@ -3,7 +3,8 @@ import { ApiResponse } from "./auth.types";
 export const SAVING_PACES = [
   "RELAXED",
   "BALANCED",
-  "AGGRESSIVE",
+  // Backend enum spelling has one S (Saving_Pace.AGGRESIVE) — do not "fix" it here.
+  "AGGRESIVE",
 ] as const;
 
 export type SavingPace = (typeof SAVING_PACES)[number];
@@ -51,7 +52,7 @@ export const FINANCIAL_SETUP_LABELS: Record<
 > = {
   RELAXED: "Relaxed",
   BALANCED: "Balanced",
-  AGGRESSIVE: "Focused",
+  AGGRESIVE: "Focused",
 
   NOTIFY: "Notify",
   GENTLE: "Remind",
@@ -85,7 +86,7 @@ export const FINANCIAL_SETUP_OPTIONS = {
       icon: "scale-outline",
     },
     {
-      value: "AGGRESSIVE" as const,
+      value: "AGGRESIVE" as const,
       label: "Focused",
       icon: "flash-outline",
     },

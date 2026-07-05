@@ -13,6 +13,7 @@ export interface Notification {
   content: string;
   createdAt: string;         // ISO date string
   deepLink?: string | null;  // route to navigate to when tapped; null for older notifications
+  read?: boolean;            // server-side read flag; may be absent on older rows
 }
 
 // ==============================

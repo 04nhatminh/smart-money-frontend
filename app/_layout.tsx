@@ -133,7 +133,7 @@ function RootLayoutNav() {
 
     // 👉 ĐÃ LOGIN
     // 👉 ĐẠT TRẠNG THÁI KHÁC
-    if (!isFirstLaunch && isSignedIn && !inTabs && segment !== "(transactions)" && segment !== "(wait)" && segment !== "accept-invite" && segment !== "group-invite" && segment !== "group" && segment !== "group-project") {
+    if (!isFirstLaunch && isSignedIn && !inTabs && segment !== "(transactions)" && segment !== "(wait)" && segment !== "accept-invite" && segment !== "group-invite" && segment !== "group" && segment !== "group-project" && segment !== "insights" && segment !== "suggestions") {
       router.replace("/(tabs)");
       return;
     }
@@ -172,6 +172,8 @@ function RootLayoutNav() {
         <Stack.Screen name="group-invite" />
         <Stack.Screen name="group" />
         <Stack.Screen name="group-project" />
+        <Stack.Screen name="insights" />
+        <Stack.Screen name="suggestions" />
       </Stack>
 
       <NotificationToast />

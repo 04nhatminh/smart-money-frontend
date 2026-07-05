@@ -11,6 +11,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { ButtonSave } from "../ButtonSave";
 import { InputField } from "../InputField";
+import { t } from "../../i18n";
+import { useLanguage } from "../../i18n/LanguageProvider";
 import {
   FinancialSetup,
   FINANCIAL_SETUP_OPTIONS,
@@ -46,11 +48,14 @@ function OptionGroup<T extends string>({
   value,
   options,
   onChange,
+  getLabel,
 }: {
   title: string;
   value: T | null;
   options: readonly Option<T>[];
   onChange: (value: T) => void;
+  /** Resolves a localized label; falls back to the option's static label. */
+  getLabel?: (value: T) => string;
 }) {
   return (
     <View style={styles.group}>
@@ -92,7 +97,7 @@ function OptionGroup<T extends string>({
                   selected && styles.optionLabelSelected,
                 ]}
               >
-                {option.label}
+                {getLabel ? getLabel(option.value) : option.label}
               </Text>
             </Pressable>
           );
@@ -111,6 +116,7 @@ export default function FinancialSetupForm({
   onSubmit,
   onCancel,
 }: Props) {
+  useLanguage(); // re-render on EN/VI switch
   const [income, setIncome] = useState("");
   const [savingPace, setSavingPace] =
     useState<SavingPace | null>(FINANCIAL_SETUP_OPTIONS.savingPace[1].value);
@@ -138,7 +144,10 @@ export default function FinancialSetupForm({
     initialValue?.focusMode,
   ]);
 
-  const ctaLabel = mode === "edit" ? "Save changes" : "Get started";
+  const ctaLabel =
+    mode === "edit"
+      ? t("financialSetup.cta_edit")
+      : t("financialSetup.cta_onboarding");
 
   const canSubmit = useMemo(() => {
     const parsedIncome = parseCurrencyToNumber(income);
@@ -173,7 +182,7 @@ export default function FinancialSetupForm({
     const parsedIncome = parseCurrencyToNumber(income);
 
     if (parsedIncome <= 0) {
-      setIncomeError("Enter an amount above 0.");
+      setIncomeError(t("financialSetup.income_error"));
       return;
     }
 
@@ -204,19 +213,21 @@ export default function FinancialSetupForm({
             <Ionicons name="wallet-outline" size={18} color="#FFFFFF" />
           </View>
 
-          <Text style={styles.title}>Make SmartMoney work for you</Text>
+          <Text style={styles.title}>{t("financialSetup.title")}</Text>
 
           <Text style={styles.subtitle}>
-            Update these choices anytime.
+            {t("financialSetup.subtitle")}
           </Text>
         </View>
 
         <View style={styles.group}>
-          <Text style={styles.groupTitle}>Monthly income</Text>
+          <Text style={styles.groupTitle}>
+            {t("financialSetup.income_label")}
+          </Text>
 
           <InputField
             iconName="cash-outline"
-            placeholder="e.g. 10,000,000"
+            placeholder={t("financialSetup.income_placeholder")}
             value={income}
             onChangeText={handleIncomeChange}
             keyboardType="numeric"
@@ -225,29 +236,32 @@ export default function FinancialSetupForm({
           />
 
           <Text style={styles.supportText}>
-            Used to personalize your plan.
+            {t("financialSetup.income_support")}
           </Text>
         </View>
 
         <OptionGroup<SavingPace>
-          title="Your pace"
+          title={t("financialSetup.pace_title")}
           value={savingPace}
           options={FINANCIAL_SETUP_OPTIONS.savingPace}
           onChange={setSavingPace}
+          getLabel={(v) => t(`financialSetup.savingPace.${v}`)}
         />
 
         <OptionGroup<InterventionLevel>
-          title="Support style"
+          title={t("financialSetup.support_title")}
           value={interventionLevel}
           options={FINANCIAL_SETUP_OPTIONS.interventionLevel}
           onChange={setInterventionLevel}
+          getLabel={(v) => t(`financialSetup.interventionLevel.${v}`)}
         />
 
         <OptionGroup<FocusMode>
-          title="Main focus"
+          title={t("financialSetup.focus_title")}
           value={focusMode}
           options={FINANCIAL_SETUP_OPTIONS.focusMode}
           onChange={setFocusMode}
+          getLabel={(v) => t(`financialSetup.focusMode.${v}`)}
         />
 
         {!!error && (
@@ -278,7 +292,7 @@ export default function FinancialSetupForm({
           {mode === "edit" && onCancel && (
             <View style={styles.halfButton}>
               <ButtonSave
-                label="Cancel"
+                label={t("financialSetup.cancel")}
                 variant="secondary"
                 onPress={onCancel}
                 disabled={loading}
@@ -293,7 +307,7 @@ export default function FinancialSetupForm({
               label={ctaLabel}
               onPress={handleSubmit}
               loading={loading}
-              loadingText="Saving..."
+              loadingText={t("financialSetup.saving")}
               disabled={!canSubmit}
             />
           </View>

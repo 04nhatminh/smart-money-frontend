@@ -33,6 +33,8 @@ import { useAIInsight } from "../../src/hooks/useAIInsight";
 import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
 import LatestProjectsSection, { LatestProjectItem } from "../../src/components/home/LatestProjectsSection";
+import InsightsPreviewSection from "../../src/components/home/InsightsPreviewSection";
+import PendingSuggestionsSection from "../../src/components/home/PendingSuggestionsSection";
 import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
 import { ProjectAPI } from "../../src/api/project.api";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
@@ -198,8 +200,19 @@ export default function HomePage() {
       await fetchLatestProjects();
       await loadAnalyticsSummary();
 
+      // Fast initial badge from local storage (may be stale)
       const saved = await notificationStorage.getUnreadCount();
       setUnreadCount(saved);
+
+      // Reconcile badge from server (source of truth)
+      try {
+        const serverNotifs = await notificationService.getNotifications();
+        const serverUnread = serverNotifs.filter((n) => n.read === false).length;
+        setUnreadCount(serverUnread);
+        await notificationStorage.setUnreadCount(serverUnread);
+      } catch {
+        // Reconciliation failed; keep the local value — no crash
+      }
     };
 
     init();
@@ -267,6 +280,9 @@ export default function HomePage() {
       setLoadingNotification(true);
       const data = await notificationService.getNotifications();
       setNotifications(data);
+
+      // Reconcile badge and batch mark-read after fresh server data arrives
+      await reconcileAndMarkRead(data);
     } catch (err) {
       console.log("Load notification error:", err);
     } finally {
@@ -277,9 +293,39 @@ export default function HomePage() {
   const handleToggleNotification = async () => {
     setShowNotification(true);
     setNotificationScreenActive(true);
-    setUnreadCount(0);
-    await notificationStorage.setUnreadCount(0);
+
+    // 1. Fetch fresh notifications from server
     await loadNotifications();
+  };
+
+  // Called by the modal once it opens and the notification list is available.
+  // Reconciles the badge from the server's read flags and batch-marks unread
+  // items so the server agrees the user has seen them.
+  const reconcileAndMarkRead = async (serverNotifications: Notification[]) => {
+    try {
+      // 2. Derive true unread set from server data
+      const unreadIds = serverNotifications
+        .filter((n) => n.read === false)
+        .map((n) => n.id);
+
+      // 3. Clear badge immediately for snappy UI
+      setUnreadCount(0);
+      await notificationStorage.setUnreadCount(0);
+
+      // 4. Batch mark-read on the server (fire-and-forget, errors are logged)
+      if (unreadIds.length > 0) {
+        // Optimistically clear the unread styling in the open modal.
+        setNotifications((prev) =>
+          prev.map((n) => (n.read === false ? { ...n, read: true } : n))
+        );
+
+        notificationService.markManyAsRead(unreadIds).catch((err) => {
+          console.warn("Batch mark-read failed:", err);
+        });
+      }
+    } catch (err) {
+      console.warn("reconcileAndMarkRead error:", err);
+    }
   };
 
   const fetchLatestProjects = async () => {
@@ -353,6 +399,17 @@ export default function HomePage() {
     await loadBudgets();
     await loadTransactions();
     await loadAnalyticsSummary();
+
+    // Reconcile notification badge from server
+    try {
+      const serverNotifs = await notificationService.getNotifications();
+      const serverUnread = serverNotifs.filter((n) => n.read === false).length;
+      setUnreadCount(serverUnread);
+      await notificationStorage.setUnreadCount(serverUnread);
+    } catch {
+      // Non-critical; keep the existing badge count
+    }
+
     setRefreshing(false);
   };
 
@@ -580,6 +637,12 @@ export default function HomePage() {
             onOpenClassify={() => { panelRef.current?.open(); }}
           />
 
+          {/* Adaptive-engine pending suggestions (actionable — sits above insights) */}
+          <PendingSuggestionsSection />
+
+          {/* Adaptive-engine insights teaser */}
+          <InsightsPreviewSection />
+
           {/* Latest Projects */}
           <LatestProjectsSection
             projects={latestProjects}
@@ -650,10 +713,7 @@ export default function HomePage() {
         }}
         notifications={notifications}
         loading={loadingNotification}
-        onResetUnread={() => {
-          setUnreadCount(0);
-          notificationStorage.setUnreadCount(0);
-        }}
+        onResetUnread={() => reconcileAndMarkRead(notifications)}
       />
 
       <AppBottomBar

@@ -90,6 +90,30 @@ class NotificationApi {
   }
 
   // ==============================
+  // Batch mark as read
+  // ==============================
+  async markManyAsRead(
+    notificationIds: string[]
+  ): Promise<CheckResponse<void>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.patch(
+        "/api/v1/notifications/read",
+        { notificationIds },
+        { headers }
+      );
+
+      return res.data;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || "Mark notifications as read failed",
+      };
+    }
+  }
+
+  // ==============================
   // (Optional) Mark as read
   // ==============================
   async markAsRead(id: string): Promise<CheckResponse<void>> {
