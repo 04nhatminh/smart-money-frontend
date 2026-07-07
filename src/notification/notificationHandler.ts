@@ -1,25 +1,40 @@
 import * as Notifications from 'expo-notifications';
 import { Notification } from "../types/notification.type";
-import { notificationStorage } from "../storage/notificationStorage";
 import React, { useEffect, useState } from "react";
 import { notificationEmitter } from '../utils/notificationEmitter';
+import notificationService from "../notification/notificationService";
+import { t } from "../i18n"
+import { useLanguage } from "../../src/i18n/LanguageProvider";
 
-let isAppInNotificationScreen = false; // để tránh spam khi đang mở modal
-
-const requestPermission = async () => {
-  const { status } = await Notifications.requestPermissionsAsync();
-  console.log("Permission:", status);
+const CATEGORY_MAP: Record<string, string> = {
+  FOOD: t("category.food"),
+  TRANSPORT: t("category.transport"),
+  SHOPPING: t("category.shopping"),
+  ENTERTAINMENT: t("category.entertainment"),
 };
 
-useEffect(() => {
-  requestPermission();
-}, []);
+const normalizeNotification = (content: string) => {
+  const [key, type, amount, category] = content.split("|");
+
+  switch (key) {
+    case "notification.notification_done":
+      return t(key, {
+        type: t(type), // expense -> Spent
+        amount: Number(amount).toLocaleString(),
+        category: t(`category.${category.toLowerCase()}`),
+      });
+
+    default:
+      return t(key);
+  }
+};
+
+let isAppInNotificationScreen = false;
 
 export const setNotificationScreenActive = (active: boolean) => {
   isAppInNotificationScreen = active;
 };
 
-// 🔥 function chính
 export const handleIncomingNotification = async (
   newNotification: Notification,
   options?: {
@@ -29,48 +44,38 @@ export const handleIncomingNotification = async (
   }
 ) => {
   try {
-    // 1. tránh duplicate
     if (options?.existingList?.some(n => n.id === newNotification.id)) {
       return;
     }
 
-    // 2. update list UI nếu có
     options?.setList?.((prev) => {
-        if (prev.some(n => n.id === newNotification.id)) return prev;
-        return [newNotification, ...prev];
-        });
-
-    // 3. update unread count
-    if (!isAppInNotificationScreen) {
-      const current = await notificationStorage.getUnreadCount();
-      const newCount = current + 1;
-
-      await notificationStorage.setUnreadCount(newCount);
-
-      // 🔥 emit để UI update
-      notificationEmitter.emit("NEW_NOTIFICATION", newCount);
-    }
-
-    // 4. 🔔 push local notification
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "🔔 New Notification",
-        body: newNotification.content,
-        data: {
-          id: newNotification.id,
-          content: newNotification.content,
-          // Backend sends the deep link as `deepLink` over REST/WebSocket; the
-          // OS notification payload carries it under the `url` key so the tap
-          // listener in _layout can feed it to the deep-link resolver.
-          ...(newNotification.deepLink ? { url: newNotification.deepLink } : {}),
-        },
-      },
-      trigger: null,
+      if (prev.some(n => n.id === newNotification.id)) return prev;
+      return [newNotification, ...prev];
     });
+
+    if (!isAppInNotificationScreen) {
+      const unread = await notificationService.getUnreadCount();
+
+      options?.setUnread?.(() => unread);
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: t("notification.new_notification"),
+          body: normalizeNotification(newNotification.content),
+          data: {
+            id: newNotification.id,
+            ...(newNotification.deepLink
+              ? { url: newNotification.deepLink }
+              : {}),
+          },
+        },
+        trigger: null,
+      });
+
+      notificationEmitter.emit("NEW_NOTIFICATION", unread);
+    }
 
   } catch (err) {
     console.log("handleIncomingNotification error:", err);
   }
-
-  
 };

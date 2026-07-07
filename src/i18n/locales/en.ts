@@ -182,6 +182,7 @@ export default {
   notification: {
     notifications: "Notifications",
     no_notifications: "No Notification",
+    new_notification: "🔔 New Notification",
     notification_description: "Notifications help you stay on top of your spending",
     on: "On",
     off: "Off",
@@ -218,7 +219,16 @@ export default {
   wait: {
     waiting: "Waiting a moment",
   },
-
+  category: {
+    food: "Food",
+    transportation: "Transportation",
+    clothing: "Clothing",
+    utilities: "Utilities",
+    entertainment: "Entertainment",
+    health: "Health",
+    education: "Education",
+    other: "Other"
+  },
   transaction: {
     addTitle: "Add Transaction",
     editTitle: "Edit Transaction",
@@ -279,7 +289,20 @@ export default {
     pending_transactions: "Pending Transactions",
     no_pending: "No pending transactions",
     approve: "Approve",
-    ai_processing: "AI is processing your receipt. This may take up to a few seconds. Please wait a moment...",
+    reject: "Reject",
+    expense_prefix: "Spent",
+    income_prefix: "Received",
+    for_label: "for",
+    from_label: "from",
+    uploading: "Uploading...",
+    ai_submitting: "Submitting...",
+    ai_processing: "AI processing...",
+    items_count: "{{count}} items",
+    source_camera: "Camera",
+    source_voice: "Voice",
+    source_notification: "Notification",
+    source_other: "Other",
+    date_format_placeholder: "YYYY-MM-DD HH:MM",
     ai_processing_subtext: "If it takes too long, it may be due to WebSocket connection. The system will automatically fall back to fetching results via API after a timeout.",
     edit_pending: "Edit pending transaction",
     delete: "Delete",
