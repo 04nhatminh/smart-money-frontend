@@ -17,6 +17,7 @@ import { useLanguage } from '../../i18n/LanguageProvider';
 import NotificationNative from '../../notification/NotificationNative';
 import { NotificationListenerService } from '../../notification/NotificationListenerService';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AppState, AppStateStatus } from "react-native";
 
 const ENABLE_KEY = "notification_listener_enabled";
 interface PrivacyAndSecurityModalProps {
@@ -40,10 +41,16 @@ export const PrivacyAndSecurityModal: React.FC<PrivacyAndSecurityModalProps> = (
 
 
   useEffect(() => {
-    if (visible) {
-      checkPermission();
-      loadEnabled(); // ✅ thêm cái này
-    }
+    const subscription = AppState.addEventListener(
+      "change",
+      async (state: AppStateStatus) => {
+        if (state === "active" && visible) {
+          await checkPermission();
+        }
+      }
+    );
+
+    return () => subscription.remove();
   }, [visible]);
 
   const checkPermission = async () => {

@@ -40,6 +40,12 @@ const onRefreshed = (token: string) => {
 // Request interceptor - Thêm token vào headers
 http.interceptors.request.use(
   async (config) => {
+    const isRefreshRequest = config.url?.includes("/api/v1/auth/refresh-token");
+
+    if (isRefreshRequest) {
+      return config;
+    }
+
     const accessToken = await tokenStorage.getAccessToken();
     if (accessToken) {
       config.headers = config.headers || {};
@@ -58,7 +64,9 @@ http.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as CustomAxiosRequestConfig;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const isRefreshRequest = originalRequest?.url?.includes("/api/v1/auth/refresh-token");
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
       if (isRefreshing) {
         return new Promise(resolve => {
           subscribeTokenRefresh((token: string) => {
@@ -74,6 +82,11 @@ http.interceptors.response.use(
 
       try {
         const refreshToken = await tokenStorage.getRefreshToken();
+
+        if (!refreshToken || !refreshToken.trim()) {
+          await tokenStorage.clear();
+          throw new Error("Refresh token is required");
+        }
 
         const response = await refreshHttp.post("/api/v1/auth/refresh-token", {
           refreshToken,
@@ -102,5 +115,5 @@ http.interceptors.response.use(
   }
 );
 
-export { http };
+export { http, refreshHttp };
 export default http;

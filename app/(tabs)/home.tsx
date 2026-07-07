@@ -13,7 +13,6 @@ import {
   Animated,
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { notificationStorage } from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
 import notificationService from "../../src/notification/notificationService";
 import { Notification } from "../../src/types/notification.type";
@@ -200,19 +199,6 @@ export default function HomePage() {
       await fetchLatestProjects();
       await loadAnalyticsSummary();
 
-      // Fast initial badge from local storage (may be stale)
-      const saved = await notificationStorage.getUnreadCount();
-      setUnreadCount(saved);
-
-      // Reconcile badge from server (source of truth)
-      try {
-        const serverNotifs = await notificationService.getNotifications();
-        const serverUnread = serverNotifs.filter((n) => n.read === false).length;
-        setUnreadCount(serverUnread);
-        await notificationStorage.setUnreadCount(serverUnread);
-      } catch {
-        // Reconciliation failed; keep the local value — no crash
-      }
     };
 
     init();
@@ -226,6 +212,15 @@ export default function HomePage() {
     return () => {
       notificationEmitter.off("NEW_NOTIFICATION", listener);
     };
+  }, []);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+    };
+
+    fetchUnread();
   }, []);
 
   useEffect(() => {
@@ -275,56 +270,31 @@ export default function HomePage() {
     init().catch((err) => console.error("WebSocket init failed:", err));
   }, [user?.id]);
 
-  const loadNotifications = async () => {
-    try {
-      setLoadingNotification(true);
-      const data = await notificationService.getNotifications();
-      setNotifications(data);
-
-      // Reconcile badge and batch mark-read after fresh server data arrives
-      await reconcileAndMarkRead(data);
-    } catch (err) {
-      console.log("Load notification error:", err);
-    } finally {
-      setLoadingNotification(false);
-    }
-  };
-
   const handleToggleNotification = async () => {
     setShowNotification(true);
     setNotificationScreenActive(true);
 
-    // 1. Fetch fresh notifications from server
-    await loadNotifications();
-  };
-
-  // Called by the modal once it opens and the notification list is available.
-  // Reconciles the badge from the server's read flags and batch-marks unread
-  // items so the server agrees the user has seen them.
-  const reconcileAndMarkRead = async (serverNotifications: Notification[]) => {
     try {
-      // 2. Derive true unread set from server data
-      const unreadIds = serverNotifications
-        .filter((n) => n.read === false)
-        .map((n) => n.id);
+      const data = await notificationService.getNotifications();
 
-      // 3. Clear badge immediately for snappy UI
-      setUnreadCount(0);
-      await notificationStorage.setUnreadCount(0);
+      console.log("API data:", data);
 
-      // 4. Batch mark-read on the server (fire-and-forget, errors are logged)
+      setNotifications(data)
+
+      const unreadIds = data
+        .filter(n => !n.read)
+        .map(n => n.id);
+
+      console.log("Unread Ids:", unreadIds);
+
       if (unreadIds.length > 0) {
-        // Optimistically clear the unread styling in the open modal.
-        setNotifications((prev) =>
-          prev.map((n) => (n.read === false ? { ...n, read: true } : n))
-        );
-
-        notificationService.markManyAsRead(unreadIds).catch((err) => {
-          console.warn("Batch mark-read failed:", err);
-        });
+        await notificationService.markAllAsRead(unreadIds);
       }
+
+      setUnreadCount(0);
+
     } catch (err) {
-      console.warn("reconcileAndMarkRead error:", err);
+      console.log("error:", err);
     }
   };
 
@@ -405,7 +375,6 @@ export default function HomePage() {
       const serverNotifs = await notificationService.getNotifications();
       const serverUnread = serverNotifs.filter((n) => n.read === false).length;
       setUnreadCount(serverUnread);
-      await notificationStorage.setUnreadCount(serverUnread);
     } catch {
       // Non-critical; keep the existing badge count
     }
@@ -713,7 +682,9 @@ export default function HomePage() {
         }}
         notifications={notifications}
         loading={loadingNotification}
-        onResetUnread={() => reconcileAndMarkRead(notifications)}
+        onResetUnread={() => {
+          setUnreadCount(0);
+        }}
       />
 
       <AppBottomBar
@@ -866,10 +837,10 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   moodContainer: {
-  width: 44,
-  height: 44,
-  justifyContent: 'center',
-  alignItems: 'center',
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   moodImage: {
     width: 32,

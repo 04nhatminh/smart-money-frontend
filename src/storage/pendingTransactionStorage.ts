@@ -21,9 +21,12 @@ export type PendingTransaction = {
   amount: number;
   category: string;
   type: "INCOME" | "EXPENSE";
-  description: string;
   date: string;
   source: "camera" | "voice" | "notification"; 
+  groupId?: string;
+  groupText?: string;
+  processingStatus?: ProcessingStatus;
+  processingError?: string;
 };
 
 class PendingStorage {

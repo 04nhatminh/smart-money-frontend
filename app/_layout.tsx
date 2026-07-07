@@ -16,12 +16,13 @@ import { AISuggestionProvider } from "../src/context/AISuggestionContext";
 import { useAISuggestions } from "../src/context/AISuggestionContext";
 import { InteractionManager } from "react-native";
 import { resolveDeepLink } from "../src/utils/notificationDeepLink";
-
+import { useNotificationPermission } from "../src/hooks/useNotificationHandler";
 export const panelRef = React.createRef<PendingPanelRef>();
 
 SplashScreen.preventAutoHideAsync().catch(() => { });
 
 function RootLayoutNav() {
+  
   const { isSignedIn, isLoading: authLoading } = useAuth();
   const { isFirstLaunch, isLoading: onboardingLoading } = useOnboarding();
   const { preload } = useAISuggestions();
@@ -33,6 +34,8 @@ function RootLayoutNav() {
 
   const isLoading =
     isFirstLaunch === null || authLoading || onboardingLoading;
+
+  useNotificationPermission(isSignedIn);
 
   useEffect(() => {
     isSignedInRef.current = isSignedIn;
@@ -50,6 +53,7 @@ function RootLayoutNav() {
       handleNotification: async () => ({
         shouldShowBanner: true,
         shouldShowList: true,
+        shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
       }),

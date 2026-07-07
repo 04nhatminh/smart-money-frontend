@@ -169,7 +169,7 @@ export function useAIInsight() {
     signal?: AbortSignal
   ): Promise<string | null> => {
 
-    const MAX_RETRY = 20;
+    const MAX_RETRY = 5;
 
     for (
       let retry = 0;

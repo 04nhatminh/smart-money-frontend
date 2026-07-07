@@ -1,4 +1,4 @@
-import { http } from './http';
+import { http, refreshHttp } from './http';
 import {
   RegisterRequest,
   LoginRequest,
@@ -137,7 +137,7 @@ class AuthApi {
   // Refresh access token
   async refreshToken(data: RefreshTokenRequest): Promise<CheckResponse<AuthResponse>> {
     try {
-      const res = await http.post('/api/v1/auth/refresh-token', data);
+      const res = await refreshHttp.post('/api/v1/auth/refresh-token', data);
       return res.data;
     } catch (error: any) {
       return error.response?.data || {
