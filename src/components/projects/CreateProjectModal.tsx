@@ -96,12 +96,19 @@ type Props = {
     visible: boolean;
     onClose: () => void;
     onCreated?: () => void;
+    /**
+     * Seed target amount, pre-filled when the modal opens. Carried by the
+     * create-saving-project nudge (app://projects/create?amount=<seed>); the
+     * user edits it (and everything else) freely.
+     */
+    initialAmount?: number;
 };
 
 export default function CreateProjectModal({
     visible,
     onClose,
-    onCreated
+    onCreated,
+    initialAmount,
 }: Props) {
     const { user, refreshUser } = useAuth();
     const [step, setStep] = useState<CreateProjectModalStep>(1);
@@ -187,6 +194,14 @@ export default function CreateProjectModal({
             fetchUsedPriorities();
         }
     }, [visible]);
+
+    // Pre-fill the target amount from the create-project nudge seed when the
+    // modal opens. onChangeTargetAmount handles formatting.
+    useEffect(() => {
+        if (visible && initialAmount && initialAmount > 0) {
+            onChangeTargetAmount(String(initialAmount));
+        }
+    }, [visible, initialAmount]);
 
     useEffect(() => {
         console.log(

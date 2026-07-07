@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { KeyboardScreen } from "../KeyboardScreen";
 import ProjectSummaryCards from "../../src/components/projects/ProjectSummaryCards";
 import ProjectCard from "../../src/components/projects/ProjectCard";
@@ -73,6 +73,21 @@ export default function ProjectScreen() {
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [openStatusFilterModal, setOpenStatusFilterModal] = useState(false);
   const [openCreateGroupModal, setOpenCreateGroupModal] = useState(false);
+  // Seed amount for the create-project nudge (app://projects/create?amount=<seed>).
+  const [createSeedAmount, setCreateSeedAmount] = useState<number | undefined>(undefined);
+
+  // Deep link app://projects/create -> auto-open the create modal pre-filled.
+  const { create, amount } = useLocalSearchParams<{ create?: string; amount?: string }>();
+  useEffect(() => {
+    if (create === "1") {
+      const seed = Number(amount);
+      setCreateSeedAmount(Number.isFinite(seed) && seed > 0 ? seed : undefined);
+      setTabMode("personal");
+      setOpenCreateModal(true);
+      // Consume the params so switching tabs / re-render doesn't re-open it.
+      router.setParams({ create: undefined, amount: undefined });
+    }
+  }, [create, amount]);
 
   // Personal project state
   const {
@@ -258,8 +273,9 @@ export default function ProjectScreen() {
 
         <CreateProjectModal
           visible={openCreateModal}
-          onClose={() => setOpenCreateModal(false)}
-          onCreated={() => { setOpenCreateModal(false); fetchProjects(); }}
+          initialAmount={createSeedAmount}
+          onClose={() => { setOpenCreateModal(false); setCreateSeedAmount(undefined); }}
+          onCreated={() => { setOpenCreateModal(false); setCreateSeedAmount(undefined); fetchProjects(); }}
         />
 
         <CreateGroupModal

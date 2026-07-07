@@ -18,6 +18,11 @@ export type ProjectStatus =
 // Statuses that are terminal AND represent failure (target never reached).
 export const TERMINAL_FAILED_STATUSES: ProjectStatus[] = ["EXPIRED", "ABANDONED", "CANCELLED"];
 
+// Statuses that accept a manual contribution. Anything else (FROZEN / EXPIRED /
+// ABANDONED / COMPLETED / CANCELLED) makes POST /contributions return 400, so the
+// contribute button is hidden for them.
+export const CONTRIBUTABLE_STATUSES: ProjectStatus[] = ["ACTIVE", "ONGOING", "OVERDUE"];
+
 // Phase 0 enrichment enums — backend emits these machine-readable values; the FE
 // owns all display copy/colour. See docs/project-tracking-api-contract.md.
 

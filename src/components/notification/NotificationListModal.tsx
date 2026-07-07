@@ -64,15 +64,27 @@ export const NotificationListModal: React.FC<Props> = ({
     let params: Record<string, string> = {};
 
     switch (key) {
+      // Category-argument keys: the arg is a Category enum to localize.
       case "notification.suggestion.raise_budget":
       case "notification.suggestion.create_budget":
+      case "notification.suggestion.set_category_limit":
+      case "notification.suggestion.reduce_budget":
+      case "notification.suggestion.reallocate_budget":
+      case "notification.insight.large_transaction":
+      case "notification.insight.duplicate_charge":
         params = {
           category: t(`category.${args[0]}`, { defaultValue: args[0] }),
         };
         break;
+      // Project-name-argument keys: the arg is the project name itself, not an enum.
       case "notification.suggestion.contribute_to_project":
-        // The arg is the project name itself, not an enum.
+      case "notification.suggestion.increase_contribution":
+      case "notification.insight.project_milestone":
         params = { projectName: args[0] };
+        break;
+      // The arg is the subscription's raw description.
+      case "notification.suggestion.review_subscription":
+        params = { description: args[0] };
         break;
       case "notification.digest.weekly":
         params = { count: args[0] };
@@ -104,9 +116,18 @@ export const NotificationListModal: React.FC<Props> = ({
     if (key === "notification.notification_done") {
       return { image: categoryIcons[args[2]] || categoryIcons.OTHER };
     }
+    // Celebratory pings: milestone crossed / clean month.
+    if (
+      key === "notification.insight.project_milestone" ||
+      key === "notification.insight.good_month"
+    ) {
+      return { glyph: "trophy-outline" };
+    }
     if (
       key.startsWith("notification.suggestion.") ||
-      key.startsWith("notification.digest.")
+      key.startsWith("notification.digest.") ||
+      key.startsWith("notification.insight.") ||
+      key.startsWith("notification.nudge.")
     ) {
       return { glyph: "bulb-outline" };
     }
