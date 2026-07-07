@@ -14,7 +14,6 @@ import {
   Animated,
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { notificationStorage } from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
 import notificationService from "../../src/notification/notificationService";
 import { Notification } from "../../src/types/notification.type";
@@ -204,8 +203,6 @@ export default function HomePage() {
       await fetchLatestProjects();
       await loadAnalyticsSummary();
 
-      const saved = await notificationStorage.getUnreadCount();
-      setUnreadCount(saved);
     };
 
     init();
@@ -219,6 +216,15 @@ export default function HomePage() {
     return () => {
       notificationEmitter.off("NEW_NOTIFICATION", listener);
     };
+  }, []);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+    };
+
+    fetchUnread();
   }, []);
 
   useEffect(() => {
@@ -310,6 +316,7 @@ export default function HomePage() {
     try {
       setLoadingNotification(true);
       const data = await notificationService.getNotifications();
+      console.log(data)
       setNotifications(data);
     } catch (err) {
       console.log("Load notification error:", err);
@@ -321,9 +328,29 @@ export default function HomePage() {
   const handleToggleNotification = async () => {
     setShowNotification(true);
     setNotificationScreenActive(true);
-    setUnreadCount(0);
-    await notificationStorage.setUnreadCount(0);
-    await loadNotifications();
+
+    try {
+      const data = await notificationService.getNotifications();
+
+      console.log("API data:", data);
+
+      setNotifications(data)
+
+      const unreadIds = data
+        .filter(n => !n.read)
+        .map(n => n.id);
+
+      console.log("Unread Ids:", unreadIds);
+
+      if (unreadIds.length > 0) {
+        await notificationService.markAllAsRead(unreadIds);
+      }
+
+      setUnreadCount(0);
+
+    } catch (err) {
+      console.log("error:", err);
+    }
   };
 
   const fetchLatestProjects = async () => {
@@ -696,7 +723,6 @@ export default function HomePage() {
         loading={loadingNotification}
         onResetUnread={() => {
           setUnreadCount(0);
-          notificationStorage.setUnreadCount(0);
         }}
       />
 
@@ -856,10 +882,10 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   moodContainer: {
-  width: 44,
-  height: 44,
-  justifyContent: 'center',
-  alignItems: 'center',
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   moodImage: {
     width: 32,

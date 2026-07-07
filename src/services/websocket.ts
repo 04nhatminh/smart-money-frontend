@@ -298,13 +298,12 @@ const subscribeUserAI = () => {
 
         console.log("🎯 AI result for job:", jobId);
 
-        // Route to the registered callback for this job
         const callback = jobCallbacks.get(jobId);
         if (callback) {
           callback(data);
-          jobCallbacks.delete(jobId); // ✅ Unregister after callback is called
         } else {
           console.warn("⚠️ No callback registered for job:", jobId);
+          pendingJobMessages.set(jobId, data);
         }
       } catch (err) {
         console.error("❌ Parse error", err);
@@ -335,6 +334,16 @@ export const subscribeJob = async (
   }
 
   jobCallbacks.set(jobId, onResult);
+
+    const pending = pendingJobMessages.get(jobId);
+
+    if (pending) {
+        pendingJobMessages.delete(jobId);
+
+        console.log("⚡ Deliver cached result:", jobId);
+
+        onResult(pending);
+    }
 
   console.log("✅ Registered callback for job:", jobId);
 

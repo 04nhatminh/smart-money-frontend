@@ -59,7 +59,6 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
         amount: 0,
         category: "OTHER",
         type: "EXPENSE",
-        description: "Processing receipt...",
         date: new Date().toISOString(),
         source: "camera",
       });

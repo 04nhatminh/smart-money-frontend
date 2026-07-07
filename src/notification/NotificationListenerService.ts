@@ -10,6 +10,8 @@ import { TransactionType } from "../types/transaction.types";
 import { formatDateTime } from "../utils/dateFormatter";
 import PendingStorage, { pendingEventBus, ProcessingEvent, ProcessingStatus } from "../storage/pendingTransactionStorage";
 import TransactionParser from "../utils/transactionParser";
+import { normalizeAIResult } from "../utils/normalizeAIResult";
+
 const { NotificationModule } = NativeModules;
 const emitter = new NativeEventEmitter(NotificationModule);
 
@@ -19,13 +21,16 @@ const STORAGE_KEY = "processed_notifications_v1";
 
 type Fingerprint = string;
 
-  // Helper phát sự kiện
-  function emitStatus(pendingId: string, status: ProcessingStatus, message?: string, error?: string) {
-  console.log("EMIT", status);
-    const event: ProcessingEvent = { pendingId, status, message, error };
-    pendingEventBus.emit('processing_update', event);
-  }
-  
+// Helper phát sự kiện
+async function emitStatus(pendingId: string, status: ProcessingStatus, error?: string) {
+    await PendingStorage.update(pendingId,{
+        processingStatus: status,
+        processingError: error,
+    });
+  const event: ProcessingEvent = { pendingId, status, error };
+  pendingEventBus.emit('processing_update', event);
+}
+
 
 export class NotificationListenerService {
   private static isInitialized = false;
@@ -46,6 +51,10 @@ export class NotificationListenerService {
 
   // ================= INIT =================
   static async initialize() {
+    console.log("INIT", {
+      isInitialized: this.isInitialized,
+      hasSubscription: !!this.nativeSubscription,
+    });
     if (this.isInitialized) return;
     this.isInitialized = true;
 
@@ -189,60 +198,92 @@ export class NotificationListenerService {
       normalized.includes("techcom") ||
       normalized.includes("vpbank") ||
       normalized.includes("sacombank") ||
-      normalized.includes("gm") 
+      normalized.includes("gm")
     );
   }
 
-  private static TRANSACTION_KEYWORDS = [
-    "chuyển",
-    "nhận",
-    "ghi có",
-    "ghi nợ",
-    "thanh toán",
-    "giao dịch",
-    "số dư",
-    "nạp",
-    "rút",
-  ];
+  private static SCORE_THRESHOLD = 35; // Ngưỡng điểm, bạn có thể tăng/giảm để lọc
+
+  private static normalizeVietnamese(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  // Hàm tính điểm chính
+  private static calculateTransactionScore(text: string): number {
+    if (!text) return 0;
+    const normalized = this.normalizeVietnamese(text);
+    let score = 0;
+
+    // 1. CHECK DẤU + / - TRƯỚC SỐ TIỀN (Quan trọng nhất)
+    // Bắt các mẫu: -500.000đ, + 2.000.000, -1tr, + 5k
+    const signedMoneyRegex = /([+-])\s*(\d+([.,]\d+)?)\s*(k|nghin|ngan|tr|trieu|vnd|vnđ|d)/i;
+    if (signedMoneyRegex.test(normalized)) {
+      score += 50; // Cộng cực mạnh
+    }
+
+    // 2. CHECK SỐ TIỀN (không cần dấu)
+    if (this.MONEY_REGEX.test(normalized)) {
+      score += 10;
+    }
+
+    // 3. CHECK SỐ TÀI KHOẢN
+    if (this.ACCOUNT_REGEX.test(normalized)) {
+      score += 10;
+    }
+
+    // 4. CHECK TỪ KHÓA GIAO DỊCH (Transaction Keywords)
+    const txKeywords = ["chuyển", "nhận", "ghi có", "ghi nợ", "thanh toán", "nạp", "rút"];
+    let txMatch = 0;
+    for (const kw of txKeywords) {
+      if (normalized.includes(this.normalizeVietnamese(kw))) {
+        txMatch += 1;
+      }
+    }
+    // Từ "giao dịch" vẫn là keyword nhưng bị loãng do quảng cáo, nên điểm thấp hơn
+    if (normalized.includes("giao dich")) {
+      txMatch += 0.5;
+    }
+    score += txMatch * 15;
+
+    // 5. CHECK "SỐ DƯ" (Balance) - điểm thấp hơn vì thường là tra cứu
+    if (normalized.includes("so du") || normalized.includes("số dư")) {
+      score += 5;
+    }
+
+    // 6. 📉 PHẠT QUẢNG CÁO (Promotion / Ads)
+    const promoKeywords = ["giảm giá", "giảm", "khuyến mãi", "km", "ưu đãi", "sale", "hoàn tiền", "voucher", "quà tặng", "tặng"];
+    let promoMatch = 0;
+    for (const kw of promoKeywords) {
+      if (normalized.includes(this.normalizeVietnamese(kw))) {
+        promoMatch += 1;
+      }
+    }
+    score -= promoMatch * 15;
+
+    // 7. 📉 PHẠT NẶNG ĐẶC BIỆT: "giảm giá cho giao dịch từ X" (case của Agribank)
+    if (normalized.includes("giam gia") && normalized.includes("giao dich")) {
+      score -= 10; // Phạt thêm để đẩy xuống dưới ngưỡng
+    }
+
+    console.log(`📊 Score for "${text.substring(0, 40)}...": ${score}`);
+    return score;
+  }
+
+  // Hàm này thay thế hàm isTransactionNotification cũ
+  private static isTransactionNotification(text: string): boolean {
+    if (!text) return false;
+    const score = this.calculateTransactionScore(text);
+    return score >= this.SCORE_THRESHOLD; // Chỉ true khi đạt ngưỡng
+  }
 
   private static MONEY_REGEX =
     /\b\d+([.,]\d+)?\s?(k|nghin|ngan|tr|trieu|vnd|vnđ|d)\b/i;
 
   private static ACCOUNT_REGEX = /(tk|tài khoản|account)/i;
 
-  private static normalizeVietnamese(text: string): string {
-    return text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, ""); // remove dấu
-  }
-
-  private static isTransactionNotification(text: string): boolean {
-    if (!text) return false;
-
-    const normalized = this.normalizeVietnamese(text);
-
-    const hasKeyword = this.TRANSACTION_KEYWORDS.some((kw) =>
-      normalized.includes(this.normalizeVietnamese(kw))
-    );
-
-    const hasMoney = this.MONEY_REGEX.test(normalized);
-    const hasAccount = this.ACCOUNT_REGEX.test(normalized);
-
-    // 🎯 Rule mạnh hơn:
-    // - phải có tiền
-    // - và (keyword hoặc account)
-    const isTransaction = hasMoney && (hasKeyword || hasAccount);
-
-    console.log("🔍 Transaction check:", {
-      hasKeyword,
-      hasMoney,
-      hasAccount,
-      isTransaction,
-    });
-
-    return isTransaction;
-  }
 
   // ================= HANDLERS =================
 
@@ -315,20 +356,18 @@ export class NotificationListenerService {
     }
   }
 
-  private static async pollResult(jobId: string, maxAttempts = 5, delay = 2000) {
+  private static async pollResult(jobId: string, maxAttempts = 12, delay = 5000) {
     for (let i = 0; i < maxAttempts; i++) {
-      const res = await AIAPI.getResult(jobId);
-
-      if (res?.success && res.data) {
-        return {
-          status: "SUCCESS",
-          data: res.data   // 👈 wrap lại cho giống WS
-        };
+      try {
+        const res = await AIAPI.getResult(jobId);
+        if (res?.success && res.data) {
+          return { status: "SUCCESS", data: res.data };
+        }
+      } catch (err: any) {
+        if (err?.response?.status !== 404) throw err;
       }
-
       await new Promise(r => setTimeout(r, delay));
     }
-
     return { status: "TIMEOUT" };
   }
 
@@ -342,12 +381,11 @@ export class NotificationListenerService {
         amount: 0,
         category: "OTHER",
         type: "EXPENSE",
-        description: "Processing voice...",
         date: new Date().toISOString(),
         source: "notification" as const,
       });
 
-      emitStatus(pendingTx.id, 'ai_submitting', 'Submitting to AI...');
+      emitStatus(pendingTx.id, 'ai_submitting', undefined);
 
       const submitRes = await AIAPI.submitText(rawText);
 
@@ -362,10 +400,14 @@ export class NotificationListenerService {
 
       let finalResult = aiResult?.data || aiResult; // WS có thể trả thẳng data hoặc object {status, data}
 
+      console.log(finalResult)
+
       if (aiResult.status === "TIMEOUT") {
         console.log("⚠️ WS timeout → polling backend");
 
         const fallback = await this.pollResult(jobId);
+
+        console.log("📡 Polling result:", fallback);
 
         if (!fallback || fallback.status !== "SUCCESS") {
           throw new Error("AI result not available");
@@ -374,33 +416,35 @@ export class NotificationListenerService {
         finalResult = fallback.data; // 👈 LẤY DATA
       }
 
-      // 👇 dùng chung flow
-      const amount = TransactionParser.parseAmount(
-        finalResult.expense || finalResult.amount || 0
-      );
+      console.log("AI RESULT =", aiResult);
+      console.log("FINAL RESULT =", finalResult);
+      console.log("TYPE =", typeof finalResult);
 
-      if (amount === null || amount <= 0) {
-        throw new Error(`Invalid amount: ${finalResult.expense || finalResult.amount}`);
+      const normalized = normalizeAIResult(finalResult);
+
+      if (normalized.transactions.length === 0) {
+        throw new Error("No transaction returned from AI");
       }
 
-      await PendingStorage.remove(pendingTx.id); // Remove pending
+      await PendingStorage.remove(pendingTx.id);
 
-      const payload = {
-        amount,
-        category: finalResult.category || "OTHER",
-        type:
-          finalResult.type === "INCOME"
-            ? "INCOME"
-            : ("EXPENSE" as TransactionType),
-        description: finalResult.description || rawText,
-        date: finalResult.date || formatDateTime(new Date()),
-        source: "notification" as const,
-      };
+      for (const tx of normalized.transactions) {
+        const amount = TransactionParser.parseAmount(tx.expense);
 
-      await PendingStorage.add(payload);
+        if (amount === null || amount <= 0) {
+          console.warn("Skip invalid transaction:", tx);
+          continue;
+        }
 
-      console.log("✅ Added to pending queue:", payload);
-    
+        await PendingStorage.add({
+          amount,
+          category: tx.category,
+          type: tx.type as TransactionType,
+          groupText: tx.description,
+          date: normalized.date || formatDateTime(new Date()),
+          source: "notification",
+        });
+      }
 
     } catch (error: any) {
       console.error("❌ Error processing AI result:", error);

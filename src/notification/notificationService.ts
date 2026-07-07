@@ -22,7 +22,11 @@ class NotificationService {
   // Get all notifications
   // ==============================
 
+  async getUnreadCount(): Promise<number> {
+    const notifications = await this.getNotifications();
 
+    return notifications.filter(n => !n.read).length;
+  }
 
   async getNotifications(): Promise<Notification[]> {
     const res = await notificationApi.getNotifications();
@@ -59,6 +63,19 @@ class NotificationService {
       throw new Error(res.message || "Failed to mark notification as read");
     }
   }
+
+
+  // ==============================
+  // Mark all as read
+  // ==============================
+  async markAllAsRead(ids: string[]): Promise<void> {
+    const res = await notificationApi.markAllAsRead(ids);
+
+    if (!res.success) {
+      throw new Error(res.message || "Failed to mark notification as read");
+    }
+  }
+
 
   // ==============================
   // Delete notification

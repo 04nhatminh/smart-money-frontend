@@ -84,26 +84,13 @@ const CATEGORY_COLORS = [
   "#F2F1F9",
 ];
 
-async function getAuthHeader() {
-  const token = await tokenStorage.getAccessToken();
-
-  if (!token) {
-    throw new Error("No token found");
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-}
 
 async function getTransactionAnalytics(
   month: number,
   year: number
 ): Promise<AnalyticsResponse> {
   try {
-    const headers = await getAuthHeader();
 
-    console.log("Header", headers);
 
     const res = await http.post(
       "/api/v1/transactions/analytics",
@@ -113,7 +100,6 @@ async function getTransactionAnalytics(
       },
       {
         headers: {
-          ...headers,
           Accept: "application/json",
           "Content-Type": "application/json",
         },
