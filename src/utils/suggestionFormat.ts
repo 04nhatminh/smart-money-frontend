@@ -106,4 +106,5 @@ export const SUGGESTION_TYPE_ICONS: Record<Suggestion["type"], string> = {
   REALLOCATE_BUDGET: "git-compare-outline",
   REVIEW_SUBSCRIPTION: "repeat-outline",
   INCREASE_CONTRIBUTION: "rocket-outline",
+  CREATE_PROJECT: "add-circle-outline",
 };

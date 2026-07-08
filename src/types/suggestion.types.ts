@@ -12,7 +12,8 @@ export type SuggestionType =
   | "REBALANCE_BUDGETS"
   | "REALLOCATE_BUDGET"
   | "REVIEW_SUBSCRIPTION"
-  | "INCREASE_CONTRIBUTION";
+  | "INCREASE_CONTRIBUTION"
+  | "CREATE_PROJECT";
 
 export const SUGGESTION_STATUSES = [
   "PENDING",
@@ -46,6 +47,15 @@ export interface ProposedAction {
   resolvedValue?: number;
   /** Present on REBALANCE_BUDGETS / REALLOCATE_BUDGET — render as a table. */
   budgetAdjustments?: BudgetAdjustment[];
+  /**
+   * CREATE_PROJECT only. Seeds to pre-fill the create-project form (all
+   * editable). `resolvedValue` is the target/total goal; `monthlySaving` is the
+   * per-month contribution, already clamped to the user's cap; `deadline` is an
+   * ISO date (e.g. "2026-12-15"). target + deadline together determine the
+   * plan — the form's implied monthly saving matches `monthlySaving`.
+   */
+  monthlySaving?: number;
+  deadline?: string;
 }
 
 export interface Suggestion {

@@ -126,8 +126,7 @@ export const NotificationListModal: React.FC<Props> = ({
     if (
       key.startsWith("notification.suggestion.") ||
       key.startsWith("notification.digest.") ||
-      key.startsWith("notification.insight.") ||
-      key.startsWith("notification.nudge.")
+      key.startsWith("notification.insight.")
     ) {
       return { glyph: "bulb-outline" };
     }

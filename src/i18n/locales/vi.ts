@@ -203,6 +203,7 @@ export default {
       reallocate_budget: "Ngân sách {{category}} có thể bị vượt — bù từ các ngân sách bạn chưa dùng?",
       review_subscription: "\"{{description}}\" vừa tăng giá — bạn muốn xem lại không?",
       increase_contribution: "\"{{projectName}}\" đang chậm tiến độ — góp thêm một chút để bắt kịp?",
+      create_project: "Tháng này bạn có tiền dư — bắt đầu một mục tiêu tiết kiệm cho khoản đó nhé?",
     },
     insight: {
       large_transaction: "Đây là một khoản chi {{category}} lớn — chúng tôi chỉ nhắc bạn lưu ý.",
@@ -211,9 +212,6 @@ export default {
       cashflow_negative: "Tháng trước bạn chi nhiều hơn thu — hãy xem qua.",
       project_milestone: "Bạn đã đạt một cột mốc của \"{{projectName}}\" — làm tốt lắm!",
       good_month: "Tháng trước mọi ngân sách đều nằm trong giới hạn — tuyệt vời!",
-    },
-    nudge: {
-      create_saving_project: "Bạn có tiền dư để tích lũy — bắt đầu một mục tiêu tiết kiệm nhé?",
     },
     digest: {
       pending_suggestions: "Bạn có các gợi ý đang chờ xem xét.",
@@ -852,6 +850,10 @@ export default {
     increase_contribution: {
       title: "Bắt kịp mục tiêu",
       ask: "\"{{projectName}}\" đang chậm tiến độ — góp thêm {{resolvedValue}} trong tháng này để bắt kịp?",
+    },
+    create_project: {
+      title: "Bắt đầu mục tiêu tiết kiệm",
+      ask: "Tháng này bạn có tiền dư — bắt đầu một mục tiêu tiết kiệm với {{resolvedValue}}?",
     },
     adjustments_title: "Những thay đổi",
     action: {

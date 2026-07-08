@@ -202,6 +202,7 @@ export default {
       reallocate_budget: "Your {{category}} budget may overflow — cover it from budgets you're not using?",
       review_subscription: "\"{{description}}\" just got more expensive — want to review it?",
       increase_contribution: "\"{{projectName}}\" is behind schedule — add a bit more to catch up?",
+      create_project: "You have spare money this month — start a saving project for it?",
     },
     insight: {
       large_transaction: "That was a large {{category}} charge — just flagging it for you.",
@@ -210,9 +211,6 @@ export default {
       cashflow_negative: "Last month you spent more than you earned — take a look.",
       project_milestone: "You've hit a milestone on \"{{projectName}}\" — nice work!",
       good_month: "Every budget stayed under its limit last month — great job!",
-    },
-    nudge: {
-      create_saving_project: "You have spare money to save — want to start a saving goal?",
     },
     digest: {
       pending_suggestions: "You have suggestions waiting for review.",
@@ -878,6 +876,10 @@ export default {
     increase_contribution: {
       title: "Catch up on a goal",
       ask: "\"{{projectName}}\" is behind — add {{resolvedValue}} this month to catch up?",
+    },
+    create_project: {
+      title: "Start a saving project",
+      ask: "You have spare money this month — start a saving project for {{resolvedValue}}?",
     },
     adjustments_title: "What changes",
     action: {

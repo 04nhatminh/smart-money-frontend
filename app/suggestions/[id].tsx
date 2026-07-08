@@ -131,6 +131,26 @@ export default function SuggestionCardScreen() {
     setRespondingAccept(null);
 
     if (res.success) {
+      // CREATE_PROJECT is navigate-only: the server ran nothing, it just marked
+      // the suggestion ACCEPTED. Route to the create-project form pre-filled with
+      // the proposedAction seeds (target amount + deadline; the implied monthly
+      // saving matches the capped monthlySaving). Every field stays editable and
+      // the project name is left blank. Decline falls through to the normal
+      // dismissal confirmation below.
+      if (accept && suggestion.type === "CREATE_PROJECT") {
+        const action = suggestion.payload.proposedAction;
+        router.replace({
+          pathname: "/(tabs)/project",
+          params: {
+            create: "1",
+            ...(action?.resolvedValue != null
+              ? { amount: String(action.resolvedValue) }
+              : {}),
+            ...(action?.deadline ? { deadline: action.deadline } : {}),
+          },
+        } as any);
+        return;
+      }
       // Idempotent endpoint: an already-decided suggestion comes back with its
       // current state — treat any success as decided. Only trust res.data when
       // it's a real suggestion object; otherwise synthesize the decided state.

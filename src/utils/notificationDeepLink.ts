@@ -15,7 +15,6 @@ import * as Linking from "expo-linking";
  *   - app://suggestions                    -> suggestions inbox (daily roll-up)
  *   - app://insights                       -> insights feed (weekly digest)
  *   - app://transactions                   -> transactions list (anomaly/recap)
- *   - app://projects/create?amount=<seed>  -> create-project form, pre-filled
  *   - app://projects/{id}                  -> project detail (milestone ping)
  *   - app://budgets                        -> budgets screen (GOOD_MONTH ping)
  *
@@ -78,18 +77,6 @@ export function resolveDeepLink(deepLink?: string | null): boolean {
     // app://budgets -> budgets screen (GOOD_MONTH celebration).
     else if (deepLink === "app://budgets") {
       router.push("/(tabs)/budgets" as any);
-      return true;
-    }
-    // app://projects/create?amount=<seed> -> create-project form pre-filled with
-    // the seed amount (the create-saving-project nudge). Checked BEFORE the
-    // {id} branch so "create" isn't mistaken for a project id.
-    else if (deepLink.startsWith("app://projects/create")) {
-      const parsed = Linking.parse(deepLink);
-      const amount = parsed.queryParams?.amount as string | undefined;
-      router.push({
-        pathname: "/(tabs)/project",
-        params: { create: "1", ...(amount ? { amount } : {}) },
-      } as any);
       return true;
     }
     // app://projects/{id} -> that project's detail (milestone celebration).
