@@ -78,6 +78,19 @@ class NotificationService {
 
 
   // ==============================
+  // Batch mark as read
+  // ==============================
+  async markManyAsRead(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const res = await notificationApi.markManyAsRead(ids);
+
+    if (!res.success) {
+      throw new Error(res.message || "Failed to batch-mark notifications as read");
+    }
+  }
+
+  // ==============================
   // Delete notification
   // ==============================
   async deleteNotification(id: string): Promise<void> {

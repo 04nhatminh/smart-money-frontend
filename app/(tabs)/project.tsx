@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { KeyboardScreen } from "../KeyboardScreen";
 import ProjectSummaryCards from "../../src/components/projects/ProjectSummaryCards";
 import ProjectCard from "../../src/components/projects/ProjectCard";
@@ -73,6 +73,28 @@ export default function ProjectScreen() {
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [openStatusFilterModal, setOpenStatusFilterModal] = useState(false);
   const [openCreateGroupModal, setOpenCreateGroupModal] = useState(false);
+  // Seeds from an accepted CREATE_PROJECT suggestion (target amount + ISO
+  // deadline), used to pre-fill the create modal. Every field stays editable.
+  const [createSeedAmount, setCreateSeedAmount] = useState<number | undefined>(undefined);
+  const [createSeedDeadline, setCreateSeedDeadline] = useState<string | undefined>(undefined);
+
+  // create=1 route param -> auto-open the create modal pre-filled with the seeds.
+  const { create, amount, deadline } = useLocalSearchParams<{
+    create?: string;
+    amount?: string;
+    deadline?: string;
+  }>();
+  useEffect(() => {
+    if (create === "1") {
+      const seed = Number(amount);
+      setCreateSeedAmount(Number.isFinite(seed) && seed > 0 ? seed : undefined);
+      setCreateSeedDeadline(deadline || undefined);
+      setTabMode("personal");
+      setOpenCreateModal(true);
+      // Consume the params so switching tabs / re-render doesn't re-open it.
+      router.setParams({ create: undefined, amount: undefined, deadline: undefined });
+    }
+  }, [create, amount, deadline]);
 
   // Personal project state
   const {
@@ -258,8 +280,10 @@ export default function ProjectScreen() {
 
         <CreateProjectModal
           visible={openCreateModal}
-          onClose={() => setOpenCreateModal(false)}
-          onCreated={() => { setOpenCreateModal(false); fetchProjects(); }}
+          initialAmount={createSeedAmount}
+          initialDeadline={createSeedDeadline}
+          onClose={() => { setOpenCreateModal(false); setCreateSeedAmount(undefined); setCreateSeedDeadline(undefined); }}
+          onCreated={() => { setOpenCreateModal(false); setCreateSeedAmount(undefined); setCreateSeedDeadline(undefined); fetchProjects(); }}
         />
 
         <CreateGroupModal

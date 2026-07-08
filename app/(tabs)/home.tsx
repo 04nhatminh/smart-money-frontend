@@ -32,6 +32,8 @@ import { useAIInsight } from "../../src/hooks/useAIInsight";
 import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
 import LatestProjectsSection, { LatestProjectItem } from "../../src/components/home/LatestProjectsSection";
+import InsightsPreviewSection from "../../src/components/home/InsightsPreviewSection";
+import PendingSuggestionsSection from "../../src/components/home/PendingSuggestionsSection";
 import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
 import { ProjectAPI } from "../../src/api/project.api";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
@@ -268,19 +270,6 @@ export default function HomePage() {
     init().catch((err) => console.error("WebSocket init failed:", err));
   }, [user?.id]);
 
-  const loadNotifications = async () => {
-    try {
-      setLoadingNotification(true);
-      const data = await notificationService.getNotifications();
-      console.log(data)
-      setNotifications(data);
-    } catch (err) {
-      console.log("Load notification error:", err);
-    } finally {
-      setLoadingNotification(false);
-    }
-  };
-
   const handleToggleNotification = async () => {
     setShowNotification(true);
     setNotificationScreenActive(true);
@@ -380,6 +369,16 @@ export default function HomePage() {
     await loadBudgets();
     await loadTransactions();
     await loadAnalyticsSummary();
+
+    // Reconcile notification badge from server
+    try {
+      const serverNotifs = await notificationService.getNotifications();
+      const serverUnread = serverNotifs.filter((n) => n.read === false).length;
+      setUnreadCount(serverUnread);
+    } catch {
+      // Non-critical; keep the existing badge count
+    }
+
     setRefreshing(false);
   };
 
@@ -606,6 +605,12 @@ export default function HomePage() {
             onOpenCreateProject={() => setCreateProjectVisible(true)}
             onOpenClassify={() => { panelRef.current?.open(); }}
           />
+
+          {/* Adaptive-engine pending suggestions (actionable — sits above insights) */}
+          <PendingSuggestionsSection />
+
+          {/* Adaptive-engine insights teaser */}
+          <InsightsPreviewSection />
 
           {/* Latest Projects */}
           <LatestProjectsSection

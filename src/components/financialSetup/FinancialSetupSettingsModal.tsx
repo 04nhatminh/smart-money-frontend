@@ -16,6 +16,8 @@ import {
 } from "../../types/financialSetup";
 import { FinancialSetupApi } from "../../api/financialSetup.api";
 import { useAuth } from "../../context/AuthContext";
+import { t } from "../../i18n";
+import { useLanguage } from "../../i18n/LanguageProvider";
 
 type Props = {
   visible: boolean;
@@ -27,6 +29,7 @@ export default function FinancialSetupSettingsModal({
   onClose,
 }: Props) {
   const { updateCachedUser } = useAuth();
+  useLanguage(); // re-render on EN/VI switch
 
   const [setup, setSetup] = useState<FinancialSetup | null>(null);
   const [loadingSetup, setLoadingSetup] = useState(false);
@@ -49,13 +52,11 @@ export default function FinancialSetupSettingsModal({
           setSetup(response.data as FinancialSetup);
         } else {
           setSetup(null);
-          setError(response.message || "Can not load financial setup at this time. Please try again.");
+          setError(response.message || t("financialSetup.load_error"));
         }
       } catch (err: any) {
         setSetup(null);
-        setError(
-          err?.message || "Can not load financial setup at this time. Please try again."
-        );
+        setError(err?.message || t("financialSetup.load_error"));
       } finally {
         setLoadingSetup(false);
       }
@@ -73,10 +74,7 @@ export default function FinancialSetupSettingsModal({
       const response = await FinancialSetupApi.updateFinancialSetup(payload);
 
       if (!response.success || !response.data) {
-        setError(
-          response.message ||
-            "Can not save financial setup at this time. Please try again."
-        );
+        setError(response.message || t("financialSetup.save_error"));
         return;
       }
 
@@ -88,11 +86,9 @@ export default function FinancialSetupSettingsModal({
         financialSetupCompleted: true,
       });
 
-      setSuccessMessage("Your financial setup has been updated.");
+      setSuccessMessage(t("financialSetup.save_success"));
     } catch (err: any) {
-      setError(
-        err?.message || "Can not save financial setup at this time. Please try again."
-      );
+      setError(err?.message || t("financialSetup.save_error"));
     } finally {
       setSaving(false);
     }
@@ -115,7 +111,9 @@ export default function FinancialSetupSettingsModal({
             {loadingSetup ? (
               <View style={styles.loadingBox}>
                 <ActivityIndicator size="large" color="#4B3FD6" />
-                <Text style={styles.loadingText}>Loading setup...</Text>
+                <Text style={styles.loadingText}>
+                  {t("financialSetup.loading")}
+                </Text>
               </View>
             ) : (
               <FinancialSetupForm

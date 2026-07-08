@@ -52,17 +52,85 @@ export const NotificationListModal: React.FC<Props> = ({
     }
   }, [visible]);
 
-  function parseNotification(content: string) {
-    const parts = content.split("|");
+  // Backend `content` is "notification.some.key|arg|..." with a per-key arg
+  // count; anything without the "notification." prefix is a server-narrated
+  // sentence and is rendered verbatim.
+  function localizeContent(content: string): string {
+    if (!content.startsWith("notification.")) {
+      return content;
+    }
 
-    return {
-      key: parts[0],
-      params: {
-        type: parts[1],
-        amount: parts[2],
-        category: parts[3],
-      },
-    };
+    const [key, ...args] = content.split("|");
+    let params: Record<string, string> = {};
+
+    switch (key) {
+      // Category-argument keys: the arg is a Category enum to localize.
+      case "notification.suggestion.raise_budget":
+      case "notification.suggestion.create_budget":
+      case "notification.suggestion.set_category_limit":
+      case "notification.suggestion.reduce_budget":
+      case "notification.suggestion.reallocate_budget":
+      case "notification.insight.large_transaction":
+      case "notification.insight.duplicate_charge":
+        params = {
+          category: t(`category.${args[0]}`, { defaultValue: args[0] }),
+        };
+        break;
+      // Project-name-argument keys: the arg is the project name itself, not an enum.
+      case "notification.suggestion.contribute_to_project":
+      case "notification.suggestion.increase_contribution":
+      case "notification.insight.project_milestone":
+        params = { projectName: args[0] };
+        break;
+      // The arg is the subscription's raw description.
+      case "notification.suggestion.review_subscription":
+        params = { description: args[0] };
+        break;
+      case "notification.digest.weekly":
+        params = { count: args[0] };
+        break;
+      case "notification.notification_done": {
+        const amount = Number(args[1]);
+        params = {
+          type: t(args[0]),
+          amount: Number.isFinite(amount)
+            ? new Intl.NumberFormat("en-US").format(amount)
+            : args[1],
+          category: t(`category.${args[2]}`, { defaultValue: args[2] }),
+        };
+        break;
+      }
+      default:
+        break;
+    }
+
+    // Unknown keys fall back to the raw content rather than a "[missing]" marker.
+    return t(key, { ...params, defaultValue: content });
+  }
+
+  // Transaction receipts keep their category image; suggestion/digest pings
+  // get a glyph (their args carry no category enum to map).
+  function resolveIcon(content: string): { image?: any; glyph?: string } {
+    const [key, ...args] = content.split("|");
+
+    if (key === "notification.notification_done") {
+      return { image: categoryIcons[args[2]] || categoryIcons.OTHER };
+    }
+    // Celebratory pings: milestone crossed / clean month.
+    if (
+      key === "notification.insight.project_milestone" ||
+      key === "notification.insight.good_month"
+    ) {
+      return { glyph: "trophy-outline" };
+    }
+    if (
+      key.startsWith("notification.suggestion.") ||
+      key.startsWith("notification.digest.") ||
+      key.startsWith("notification.insight.")
+    ) {
+      return { glyph: "bulb-outline" };
+    }
+    return { glyph: "notifications-outline" };
   }
 
   const AnimatedItem = ({ children, index }: any) => {
@@ -120,9 +188,9 @@ export const NotificationListModal: React.FC<Props> = ({
   };
 
   const renderItem = ({ item, index }: { item: Notification; index: number }) => {
-    const parsed = parseNotification(item.content);
-    const category = parsed.params.category;
     const tappable = !!item.deepLink;
+    const unread = item.read === false;
+    const icon = resolveIcon(item.content);
 
     return (
       <AnimatedItem index={index}>
@@ -140,18 +208,17 @@ export const NotificationListModal: React.FC<Props> = ({
           />
 
           <View style={styles.contentWrapper}>
-            <Text style={styles.content}>
-              {t(parsed.key, {
-                type: t(parsed.params.type),
-                amount: parsed.params.amount,
-                category: parsed.params.category,
-              })}
+            <Text style={[styles.content, unread && styles.contentUnread]}>
+              {localizeContent(item.content)}
             </Text>
 
             <View style={styles.bottomRow}>
-              <Text style={styles.time}>
-                {new Date(item.createdAt).toLocaleString()}
-              </Text>
+              <View style={styles.timeRow}>
+                {unread && <View style={styles.unreadDot} />}
+                <Text style={styles.time}>
+                  {new Date(item.createdAt).toLocaleString()}
+                </Text>
+              </View>
               {tappable && (
                 <Ionicons name="chevron-forward" size={16} color="#3629B7" />
               )}
@@ -161,11 +228,19 @@ export const NotificationListModal: React.FC<Props> = ({
           <View style={styles.iconWrapper}>
             <View style={styles.iconOuter}>
               <View style={styles.iconInner}>
-                <Image
-                  source={categoryIcons[category] || categoryIcons.OTHER}
-                  style={styles.icon}
-                  resizeMode="contain"
-                />
+                {icon.image ? (
+                  <Image
+                    source={icon.image}
+                    style={styles.icon}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Ionicons
+                    name={icon.glyph as any}
+                    size={28}
+                    color="#3629B7"
+                  />
+                )}
               </View>
             </View>
           </View>
@@ -369,6 +444,23 @@ const styles = StyleSheet.create({
     color: "#000",
     fontWeight: "500",
     lineHeight: 20,
+  },
+
+  contentUnread: {
+    fontWeight: "700",
+  },
+
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#3629B7",
   },
 
   bottomRow: {
