@@ -24,6 +24,7 @@ import { ProjectListItemResponse } from "../../src/types/project.types";
 import { GroupListItemResponse, GroupStatus } from "../../src/types/group.types";
 import { GroupAPI } from "../../src/api/group.api";
 import { useAuth } from "../../src/context/AuthContext";
+import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/dataRefreshEmitter";
 
 type TabMode = "personal" | "group";
 
@@ -108,6 +109,15 @@ export default function ProjectScreen() {
   useEffect(() => {
     if (tabMode === "group") fetchGroups();
   }, [tabMode, fetchGroups]);
+
+  useEffect(() => {
+    // AI chat can execute a real project mutation on the user's behalf (confirm-then-execute via
+    // plain "yes"/"no") — there's no shared context/query cache for this data, so re-fetch here
+    // when that happens instead of showing stale numbers until the next manual reload.
+    const refreshListener = () => fetchProjects();
+    dataRefreshEmitter.on(FINANCIAL_DATA_UPDATED, refreshListener);
+    return () => dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener);
+  }, [fetchProjects]);
 
   const onGroupsRefresh = async () => {
     setGroupsRefreshing(true);

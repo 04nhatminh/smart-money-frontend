@@ -1,7 +1,7 @@
 import { http } from './http';
 import { tokenStorage } from '../storage/tokenStorage';
 import { CheckResponse } from '../types/auth.types';
-import { AIJobResponse, ChatResponse } from '../types/ai.types';
+import { AIJobResponse, ChatActionConfirmResponse, ChatResponse } from '../types/ai.types';
 import EventSource, { EventSourceEvent } from "react-native-sse";
 type EventSourceMessage = {
   data: string | null;
@@ -281,6 +281,43 @@ class AIAPI {
         success: false,
         message: serverMessage || error.message || "Chat AI failed",
         errorCode: status === 429 ? "RATE_LIMIT" : undefined,
+      };
+    }
+  }
+
+  /**
+   * Confirm (or deny) a pendingActionId returned by a previous chat() turn —
+   * POST /api/v1/ai/chat/confirm. Only on confirm: true does the backend
+   * execute the real mutation (project hypothesis or budget-increase swap).
+   */
+  async confirmChatAction(
+    actionId: string,
+    confirm: boolean
+  ): Promise<CheckResponse<ChatActionConfirmResponse>> {
+    try {
+      const headers = await this.getAuthHeader();
+
+      const res = await http.post(
+        "/api/v1/ai/chat/confirm",
+        { actionId, confirm },
+        {
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return {
+        success: true,
+        message: "Confirm chat action success",
+        data: res.data,
+      };
+    } catch (error: any) {
+      console.error("❌ AI CHAT CONFIRM ERROR:", error);
+      return {
+        success: false,
+        message: error.response?.data?.error || error.message || "Confirm chat action failed",
       };
     }
   }

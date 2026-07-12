@@ -36,6 +36,7 @@ import LatestProjectsSection, { LatestProjectItem } from "../../src/components/h
 import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
 import { ProjectAPI } from "../../src/api/project.api";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
+import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/dataRefreshEmitter";
 import { panelRef } from "../_layout";
 import { budgetAPI, BudgetItem } from "../../src/api/budget.api";
 import transactionApi from "../../src/api/transaction.api";
@@ -210,8 +211,18 @@ export default function HomePage() {
 
     notificationEmitter.on("NEW_NOTIFICATION", listener);
 
+    // AI chat can execute a real budget/project mutation on the user's behalf (confirm-then-execute
+    // via plain "yes"/"no") — there's no shared context/query cache for this data, so re-fetch here
+    // when that happens instead of showing stale numbers until the next manual reload.
+    const refreshListener = () => {
+      loadBudgets();
+      fetchLatestProjects();
+    };
+    dataRefreshEmitter.on(FINANCIAL_DATA_UPDATED, refreshListener);
+
     return () => {
       notificationEmitter.off("NEW_NOTIFICATION", listener);
+      dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener);
     };
   }, []);
 

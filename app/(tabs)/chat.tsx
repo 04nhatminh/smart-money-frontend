@@ -16,17 +16,16 @@ import Markdown from "react-native-markdown-display";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import AIAPI from "../../src/api/ai.api";
-import { budgetAPI } from "../../src/api/budget.api";
-import { ProjectAPI } from "../../src/api/project.api";
 import { useAISuggestions } from "../../src/context/AISuggestionContext";
-import { t } from "../../src/i18n";          // ← thêm import
+import { t, tLang } from "../../src/i18n";          // ← thêm import
 import { useLanguage } from "../../src/i18n/LanguageProvider"; // (tuỳ chọn)
-import { formatVND } from "../../src/utils/formatCurrency";
+import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/dataRefreshEmitter";
 import {
   ChatIntent,
   BudgetUpdateSuggestion,
   SavingsPlanSuggestion,
   SimulationResult,
+  ProjectChangeSuggestion,
 } from "../../src/types/ai.types";
 
 type MessagePhase = "context" | "thinking" | "streaming" | "done" | "error";
@@ -51,8 +50,13 @@ type Message = {
   budgetSuggestions?: BudgetSuggestionItem[];
   simulationResult?: SimulationResult;
   savingsSuggestions?: SavingsSuggestionItem[];
+  projectChangeSuggestions?: ProjectChangeSuggestion[];
   actionRequired?: boolean;
   relatedQuestions?: string[];
+  // Detected language of this turn's reply — undefined for the local "welcome" message and
+  // error placeholders that never hit the API. Drives the Yes/No decision-chip wording so it
+  // matches the actual conversation language, not just the app's fixed UI locale.
+  english?: boolean;
   // For assistant messages: the user request that produced this reply, so it can be resent on retry.
   sourceText?: string;
 };
@@ -100,150 +104,6 @@ function ThinkingIndicator({ label }: { label: string }) {
         <Animated.View style={[styles.thinkingDot, dotStyle(dot2)]} />
         <Animated.View style={[styles.thinkingDot, dotStyle(dot3)]} />
       </View>
-    </View>
-  );
-}
-
-function SuggestionActions({
-  status,
-  errorMsg,
-  onConfirm,
-  onDeny,
-}: {
-  status: SuggestionStatus;
-  errorMsg?: string;
-  onConfirm: () => void;
-  onDeny: () => void;
-}) {
-  if (status === "applying") {
-    return (
-      <View style={styles.suggestionStatusRow}>
-        <ActivityIndicator size="small" color="#3629B7" />
-        <Text style={styles.suggestionStatusText}>{t('ai.suggestion_applying')}</Text>
-      </View>
-    );
-  }
-  if (status === "confirmed") {
-    return (
-      <View style={styles.suggestionStatusRow}>
-        <Ionicons name="checkmark-circle" size={16} color="#2E9E5B" />
-        <Text style={[styles.suggestionStatusText, { color: "#2E9E5B" }]}>
-          {t('ai.suggestion_confirmed')}
-        </Text>
-      </View>
-    );
-  }
-  if (status === "denied") {
-    return (
-      <View style={styles.suggestionStatusRow}>
-        <Text style={styles.suggestionStatusText}>{t('ai.suggestion_denied')}</Text>
-      </View>
-    );
-  }
-  if (status === "error") {
-    return (
-      <View style={styles.suggestionStatusRow}>
-        <Text style={[styles.suggestionStatusText, { color: "#D64545" }]}>
-          {errorMsg || t('ai.suggestion_error')}
-        </Text>
-        <TouchableOpacity onPress={onConfirm} style={styles.retryBtn}>
-          <Text style={styles.retryBtnText}>{t('ai.suggestion_confirm')}</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.suggestionActions}>
-      <TouchableOpacity onPress={onDeny} style={styles.denyBtn}>
-        <Text style={styles.denyBtnText}>{t('ai.suggestion_deny')}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={onConfirm} style={styles.confirmBtn}>
-        <Text style={styles.confirmBtnText}>{t('ai.suggestion_confirm')}</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function BudgetSuggestionCard({
-  suggestion,
-  onConfirm,
-  onDeny,
-}: {
-  suggestion: BudgetSuggestionItem;
-  onConfirm: () => void;
-  onDeny: () => void;
-}) {
-  return (
-    <View style={styles.suggestionCard}>
-      <Text style={styles.suggestionCardTitle}>{suggestion.category}</Text>
-      <Text style={styles.suggestionCardAmounts}>
-        {formatVND(suggestion.currentAmount)} → {formatVND(suggestion.suggestedAmount)}
-      </Text>
-      <Text style={styles.suggestionCardReason}>{suggestion.reason}</Text>
-      <SuggestionActions
-        status={suggestion.status}
-        errorMsg={suggestion.errorMsg}
-        onConfirm={onConfirm}
-        onDeny={onDeny}
-      />
-    </View>
-  );
-}
-
-function SavingsSuggestionCard({
-  suggestion,
-  onConfirm,
-  onDeny,
-}: {
-  suggestion: SavingsSuggestionItem;
-  onConfirm: () => void;
-  onDeny: () => void;
-}) {
-  const isDeferral = suggestion.suggestedMonthLeft != null;
-  return (
-    <View style={styles.suggestionCard}>
-      <Text style={styles.suggestionCardTitle}>{suggestion.projectName}</Text>
-      {isDeferral ? (
-        <Text style={styles.suggestionCardAmounts}>
-          {t('ai.savings_month_left_label')}: {suggestion.suggestedMonthLeft}
-        </Text>
-      ) : (
-        <Text style={styles.suggestionCardAmounts}>
-          {formatVND(suggestion.currentMoneySaved)} → {formatVND(suggestion.newMoneySaved ?? suggestion.currentMoneySaved)}
-        </Text>
-      )}
-      <Text style={styles.suggestionCardReason}>{suggestion.reason}</Text>
-      <SuggestionActions
-        status={suggestion.status}
-        errorMsg={suggestion.errorMsg}
-        onConfirm={onConfirm}
-        onDeny={onDeny}
-      />
-    </View>
-  );
-}
-
-function SimulationPanel({ result }: { result: SimulationResult }) {
-  return (
-    <View style={[styles.suggestionCard, styles.simulationPanel]}>
-      <Text style={styles.suggestionCardTitle}>{t('ai.simulation_title')}</Text>
-      <Text style={styles.suggestionCardReason}>{result.scenario}</Text>
-      <Text style={styles.simulationRow}>
-        {t('ai.simulation_new_safe_spending')}: {formatVND(result.newSafeSpending)}
-      </Text>
-      {!!result.projectImpact && (
-        <Text style={styles.simulationRow}>
-          {t('ai.simulation_project_impact')}: {result.projectImpact}
-        </Text>
-      )}
-      {result.violates20Rule && (
-        <View style={styles.simulationWarning}>
-          <Ionicons name="warning" size={14} color="#B45309" />
-          <Text style={styles.simulationWarningText}>
-            {t('ai.simulation_violation_warning')}
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -362,7 +222,11 @@ export default function AIScreen() {
 
   // Runs (or re-runs) the API call + typewriter reveal for a given assistant
   // placeholder message. Shared by both the initial send and retry-on-error.
-  const runAssistantRequest = async (userText: string, assistantId: string) => {
+  // `resolvesDecision` is true when this message is the user's yes/no answer to the previous
+  // turn's pending suggestion — on success it tells the rest of the app (budgets/project screens,
+  // which keep their own local copies of this data) to re-fetch, since a real mutation may just
+  // have happened.
+  const runAssistantRequest = async (userText: string, assistantId: string, resolvesDecision = false) => {
     setLoading(true);
 
     // Sau một khoảng ngắn, chuyển sang pha "đang suy nghĩ" trong lúc chờ API
@@ -416,14 +280,21 @@ export default function AIScreen() {
                     ...s,
                     status: "pending" as SuggestionStatus,
                   })),
+                  projectChangeSuggestions: data.projectChangeSuggestions || [],
                   actionRequired: data.actionRequired,
                   relatedQuestions: data.relatedQuestions || [],
+                  english: data.english,
                 }
               : m
           )
         );
         setLoading(false);
         scrollToBottom();
+        if (resolvesDecision) {
+          // Best-effort: fires even on a denied/expired action — refetching unchanged data is
+          // harmless, and we don't parse `data.reply` to guess success/failure.
+          dataRefreshEmitter.emit(FINANCIAL_DATA_UPDATED);
+        }
       });
     } catch (error) {
       console.error("Failed to send chat message:", error);
@@ -442,9 +313,22 @@ export default function AIScreen() {
     }
   };
 
+  // True when the last message is a "done" assistant reply carrying an unresolved suggestion
+  // (actionRequired) — the chat is locked to a yes/no answer until this resolves. Never true for
+  // the out-of-scope warning, which isn't a suggestion to decide on.
+  const lastMessage = messages[messages.length - 1];
+  const awaitingDecision =
+    !!lastMessage &&
+    lastMessage.role === "assistant" &&
+    lastMessage.phase === "done" &&
+    !!lastMessage.actionRequired &&
+    lastMessage.intent !== "OUT_OF_SCOPE";
+
   const sendMessage = async (overrideText?: string) => {
     const message = (overrideText ?? input).trim();
     if (!message || loading) return;
+
+    const resolvesDecision = awaitingDecision;
 
     if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
     if (typewriterTimerRef.current) clearInterval(typewriterTimerRef.current);
@@ -466,7 +350,7 @@ export default function AIScreen() {
     ]);
     scrollToBottom();
 
-    await runAssistantRequest(message, assistantId);
+    await runAssistantRequest(message, assistantId, resolvesDecision);
   };
 
   // Re-sends the original user request for an assistant message that errored out,
@@ -489,93 +373,21 @@ export default function AIScreen() {
     await runAssistantRequest(target.sourceText, assistantId);
   };
 
-  const updateBudgetSuggestion = (
-    messageId: string,
-    budgetId: string,
-    patch: Partial<BudgetSuggestionItem>
-  ) => {
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id !== messageId
-          ? m
-          : {
-              ...m,
-              budgetSuggestions: m.budgetSuggestions?.map((s) =>
-                s.budgetId === budgetId ? { ...s, ...patch } : s
-              ),
-            }
-      )
-    );
-  };
-
-  const updateSavingsSuggestion = (
-    messageId: string,
-    projectId: string,
-    patch: Partial<SavingsSuggestionItem>
-  ) => {
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id !== messageId
-          ? m
-          : {
-              ...m,
-              savingsSuggestions: m.savingsSuggestions?.map((s) =>
-                s.projectId === projectId ? { ...s, ...patch } : s
-              ),
-            }
-      )
-    );
-  };
-
-  const handleConfirmBudget = async (messageId: string, suggestion: BudgetSuggestionItem) => {
-    updateBudgetSuggestion(messageId, suggestion.budgetId, { status: "applying" });
-    const res = await budgetAPI.updateBudget(suggestion.budgetId, {
-      amountLimit: suggestion.suggestedAmount,
-    });
-    if (res.success) {
-      updateBudgetSuggestion(messageId, suggestion.budgetId, { status: "confirmed" });
-    } else {
-      updateBudgetSuggestion(messageId, suggestion.budgetId, {
-        status: "error",
-        errorMsg: res.message,
-      });
-    }
-  };
-
-  const handleDenyBudget = (messageId: string, budgetId: string) => {
-    updateBudgetSuggestion(messageId, budgetId, { status: "denied" });
-  };
-
-  const handleConfirmSavings = async (messageId: string, suggestion: SavingsSuggestionItem) => {
-    updateSavingsSuggestion(messageId, suggestion.projectId, { status: "applying" });
-    const payload =
-      suggestion.suggestedAddAmount != null
-        ? { moneySaved: suggestion.newMoneySaved ?? undefined }
-        : { monthLeft: suggestion.suggestedMonthLeft ?? undefined };
-    const res = await ProjectAPI.updateTracking(suggestion.projectId, payload);
-    if (res.success) {
-      updateSavingsSuggestion(messageId, suggestion.projectId, { status: "confirmed" });
-    } else {
-      updateSavingsSuggestion(messageId, suggestion.projectId, {
-        status: "error",
-        errorMsg: res.message,
-      });
-    }
-  };
-
-  const handleDenySavings = (messageId: string, projectId: string) => {
-    updateSavingsSuggestion(messageId, projectId, { status: "denied" });
-  };
-
   const renderItem = ({ item }: { item: Message }) => {
     const isUser = item.role === "user";
     const markdownStyles = getMarkdownStyles(isUser);
     const isThinking = !isUser && (item.phase === "context" || item.phase === "thinking");
     const isOutOfScope = !isUser && item.phase === "done" && item.intent === "OUT_OF_SCOPE";
-    const hasBudgetSuggestions = !isUser && item.phase === "done" && item.actionRequired && (item.budgetSuggestions?.length ?? 0) > 0;
-    const hasSavingsSuggestions = !isUser && item.phase === "done" && item.actionRequired && (item.savingsSuggestions?.length ?? 0) > 0;
-    const hasSimulation = !isUser && item.phase === "done" && !!item.simulationResult;
-    const hasRelatedQuestions = !isUser && item.phase === "done" && (item.relatedQuestions?.length ?? 0) > 0;
+    const isLastMessage = messages.length > 0 && messages[messages.length - 1].id === item.id;
+    // Yes/No decision chips: only on the LAST message, only when it's an actual suggestion
+    // (actionRequired), never for the out-of-scope warning.
+    const showDecisionChips = !isUser && isLastMessage && item.phase === "done" && !!item.actionRequired && !isOutOfScope;
+    // Hidden on EVERY message (not just this one) while a decision is pending elsewhere —
+    // otherwise an older message's related-question chip would let the user bypass the
+    // "chat locked until you answer yes/no" gate below.
+    const hasRelatedQuestions =
+      !isUser && item.phase === "done" && (item.relatedQuestions?.length ?? 0) > 0 &&
+      !showDecisionChips && !awaitingDecision;
     const canCopy = !!item.text && (isUser || item.phase === "done" || item.phase === "error");
     const canRetry = !isUser && item.phase === "error";
     const isCopied = copiedId === item.id;
@@ -652,35 +464,32 @@ export default function AIScreen() {
           </View>
         )}
 
-        {hasSimulation && <SimulationPanel result={item.simulationResult!} />}
-
-        {hasBudgetSuggestions && (
-          <View style={styles.suggestionGroup}>
-            <Text style={styles.suggestionGroupTitle}>{t('ai.budget_suggestion_title')}</Text>
-            {item.budgetSuggestions!.map((s) => (
-              <BudgetSuggestionCard
-                key={s.budgetId}
-                suggestion={s}
-                onConfirm={() => handleConfirmBudget(item.id, s)}
-                onDeny={() => handleDenyBudget(item.id, s.budgetId)}
-              />
-            ))}
-          </View>
-        )}
-
-        {hasSavingsSuggestions && (
-          <View style={styles.suggestionGroup}>
-            <Text style={styles.suggestionGroupTitle}>{t('ai.savings_suggestion_title')}</Text>
-            {item.savingsSuggestions!.map((s) => (
-              <SavingsSuggestionCard
-                key={s.projectId}
-                suggestion={s}
-                onConfirm={() => handleConfirmSavings(item.id, s)}
-                onDeny={() => handleDenySavings(item.id, s.projectId)}
-              />
-            ))}
-          </View>
-        )}
+        {showDecisionChips && (() => {
+          // Match the actual conversation language (from the backend's detection), not just the
+          // app's fixed UI locale — falls back to the app locale when undefined (e.g. an older
+          // cached response).
+          const lang = item.english === undefined ? undefined : (item.english ? "en" : "vi");
+          const noLabel = lang ? tLang('ai.quick_reply_no', lang) : t('ai.quick_reply_no');
+          const yesLabel = lang ? tLang('ai.quick_reply_yes', lang) : t('ai.quick_reply_yes');
+          return (
+            <View style={styles.decisionRow}>
+              <TouchableOpacity
+                style={styles.decisionChipNo}
+                onPress={() => sendMessage(noLabel)}
+                disabled={loading}
+              >
+                <Text style={styles.decisionChipNoText}>{noLabel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.decisionChipYes}
+                onPress={() => sendMessage(yesLabel)}
+                disabled={loading}
+              >
+                <Text style={styles.decisionChipYesText}>{yesLabel}</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
 
         {hasRelatedQuestions && (
           <View style={styles.relatedQuestionsGroup}>
@@ -746,9 +555,9 @@ export default function AIScreen() {
               keyExtractor={(item, index) => `${index}`}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.suggestionChip, loading && styles.suggestionChipDisabled]}
+                  style={[styles.suggestionChip, (loading || awaitingDecision) && styles.suggestionChipDisabled]}
                   onPress={() => setInput(item)}
-                  disabled={loading}
+                  disabled={loading || awaitingDecision}
                 >
                   <Text style={styles.suggestionText}>
                     {item}
@@ -764,15 +573,21 @@ export default function AIScreen() {
           <TextInput
             value={input}
             onChangeText={setInput}
-            placeholder={loading ? t('ai.waiting_for_reply') : t('ai.placeholder')}
+            placeholder={
+              awaitingDecision
+                ? t('ai.awaiting_decision_placeholder')
+                : loading
+                ? t('ai.waiting_for_reply')
+                : t('ai.placeholder')
+            }
             multiline
-            editable={!loading}
-            style={[styles.input, loading && styles.inputDisabled]}
+            editable={!loading && !awaitingDecision}
+            style={[styles.input, (loading || awaitingDecision) && styles.inputDisabled]}
           />
           <TouchableOpacity
             onPress={() => sendMessage()}
-            disabled={loading}
-            style={[styles.sendBtn, loading && styles.sendBtnDisabled]}
+            disabled={loading || awaitingDecision}
+            style={[styles.sendBtn, (loading || awaitingDecision) && styles.sendBtnDisabled]}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -1092,116 +907,32 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
 
-  // ── Suggestion cards (budget / savings / simulation) ─────────────────────
-  suggestionGroup: {
-    maxWidth: "90%",
-    marginTop: 8,
-  },
-  suggestionGroupTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#777",
-    textTransform: "uppercase",
-    marginTop: 4,
-  },
-  suggestionCard: {
-    backgroundColor: "#FFF",
-    borderWidth: 1,
-    borderColor: "#ECECEC",
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 8,
-  },
-  suggestionCardTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#222",
-  },
-  suggestionCardAmounts: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#3629B7",
-    marginTop: 4,
-  },
-  suggestionCardReason: {
-    fontSize: 13,
-    color: "#666",
-    marginTop: 4,
-  },
-  suggestionActions: {
+  // ── Yes/No decision chips (replaces the old confirm/dismiss card+buttons) ────
+  decisionRow: {
     flexDirection: "row",
-    justifyContent: "flex-end",
-    marginTop: 10,
+    marginTop: 8,
   },
-  confirmBtn: {
-    backgroundColor: "#3629B7",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    marginLeft: 8,
-  },
-  confirmBtnText: {
-    color: "#FFF",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  denyBtn: {
+  decisionChipNo: {
     backgroundColor: "#F3F4F8",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
   },
-  denyBtnText: {
+  decisionChipNoText: {
     color: "#666",
     fontSize: 13,
     fontWeight: "600",
   },
-  suggestionStatusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    marginTop: 10,
-  },
-  suggestionStatusText: {
-    fontSize: 13,
-    color: "#777",
-    marginLeft: 6,
-  },
-  retryBtn: {
-    marginLeft: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+  decisionChipYes: {
     backgroundColor: "#3629B7",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  retryBtnText: {
+  decisionChipYesText: {
     color: "#FFF",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-
-  // ── Simulation panel ──────────────────────────────────────────────────────
-  simulationPanel: {
-    borderColor: "#D8D4F7",
-    backgroundColor: "#FAF9FF",
-  },
-  simulationRow: {
     fontSize: 13,
-    color: "#333",
-    marginTop: 4,
-  },
-  simulationWarning: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: "#FEF3C7",
-  },
-  simulationWarningText: {
-    fontSize: 12,
-    color: "#92400E",
-    marginLeft: 6,
-    flexShrink: 1,
+    fontWeight: "600",
   },
 });
