@@ -24,8 +24,8 @@ import { AddTransactionModal } from "../../src/components/transactions/AddTransa
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { Receipt } from "../../src/types/transaction.types";
 import { FinancialSetupApi } from "../../src/api/financialSetup.api";
-import { FinancialSetup } from "../../src/types/financialSetup";
-import FinancialSetupSettingsModal from "../../src/components/financialSetup/FinancialSetupSettingsModal";
+import { FinancialSetup, getFinancialSetupLabel } from "../../src/types/financialSetup";
+import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
 import { t } from "../../src/i18n";
 import { useLanguage } from "../../src/i18n/LanguageProvider";
 
@@ -396,7 +396,7 @@ export default function BudgetListPage() {
                     onClose={() => setManualVisible(false)}
                 />
 
-                <FinancialSetupSettingsModal
+                <FinancialSetupModal
                     visible={showEditSetup}
                     onClose={() => {
                         setShowEditSetup(false);

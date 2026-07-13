@@ -36,7 +36,7 @@ import { ResetPasswordModal } from "../../src/components/profile/ResetPasswordMo
 import { NotificationsModal } from "../../src/components/profile/NotificationsModal";
 import { PrivacyAndSecurityModal } from "../../src/components/profile/PrivacyAndSecurityModal";
 import { ProfileActions } from "../../src/components/profile/ProfileActions";
-import FinancialSetupSettingsModal from "../../src/components/financialSetup/FinancialSetupSettingsModal";
+import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 
 const ProfileScreen: React.FC = () => {
@@ -361,9 +361,10 @@ const ProfileScreen: React.FC = () => {
         visible={privacyModalVisible}
         onClose={() => setPrivacyModalVisible(false)}
       />
-
-      <FinancialSetupSettingsModal
+      
+      <FinancialSetupModal
         visible={financialSetupModalVisible}
+        mode="edit"
         onClose={() => setFinancialSetupModalVisible(false)}
       />
 

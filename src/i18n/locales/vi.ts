@@ -799,7 +799,7 @@ export default {
     savingPace: {
       RELAXED: "Thong thả",
       BALANCED: "Cân bằng",
-      AGGRESIVE: "Tập trung",
+      AGGRESSIVE: "Tập trung",
     },
     interventionLevel: {
       NOTIFY: "Thông báo",
@@ -810,6 +810,58 @@ export default {
       SAVE_MORE: "Tiết kiệm",
       REDUCE_SPENDING: "Giảm chi",
       TRACK_ONLY: "Theo dõi",
+    },
+    saving_pace_description: "Chọn nhịp độ tiết kiệm phù hợp với bạn.",
+    intervention_level_description: "Chọn cách SmartMoney nhắc nhở bạn.",
+    focus_mode_description: "Chọn trọng tâm chính của bạn.",
+    title_onboarding: "Để SmartMoney phù hợp với bạn",
+    subtitle_onboarding:
+      "Hãy cho SmartMoney biết cách hỗ trợ các mục tiêu tài chính của bạn.",
+
+    title_edit: "Cập nhật thiết lập tài chính",
+    subtitle_edit:
+      "Bạn có thể điều chỉnh các lựa chọn này bất cứ lúc nào.",
+
+    pace_description:
+      "Chọn tốc độ bạn muốn SmartMoney điều chỉnh kế hoạch tài chính.",
+
+    support_description:
+      "Chọn mức độ SmartMoney nên hỗ trợ và nhắc nhở việc chi tiêu của bạn.",
+
+    focus_description:
+      "Chọn mục tiêu chính cho kế hoạch tài chính hàng tháng của bạn.",
+
+    continue: "Tiếp tục",
+    retry: "Thử lại",
+    close: "Đóng",
+
+    success_title_onboarding: "Thiết lập tài chính hoàn tất",
+    success_title_edit: "Cập nhật thành công",
+
+    success_description_onboarding:
+      "SmartMoney sẽ sử dụng các lựa chọn này để cá nhân hóa kế hoạch tài chính hàng tháng của bạn.",
+
+    success_description_edit:
+      "Các lựa chọn mới đã được lưu và sẽ được áp dụng cho kế hoạch tài chính của bạn.",
+
+    load_error_title: "Không thể tải thiết lập",
+
+    savingPaceDescription: {
+      RELAXED: "Thay đổi nhẹ nhàng",
+      BALANCED: "Kế hoạch ổn định",
+      AGGRESSIVE: "Tiết kiệm nhanh hơn",
+    },
+
+    interventionLevelDescription: {
+      NOTIFY: "Chỉ gửi cảnh báo",
+      GENTLE: "Nhắc nhở nhẹ nhàng",
+      HARD: "Kiểm soát chặt chẽ",
+    },
+
+    focusModeDescription: {
+      SAVE_MORE: "Giữ lại nhiều tiền hơn",
+      REDUCE_SPENDING: "Hạn chế chi tiêu",
+      TRACK_ONLY: "Chỉ theo dõi tình hình",
     },
   },
 

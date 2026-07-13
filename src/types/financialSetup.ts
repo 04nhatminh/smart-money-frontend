@@ -1,10 +1,11 @@
 import { ApiResponse } from "./auth.types";
+import { t } from "../i18n";
 
 export const SAVING_PACES = [
   "RELAXED",
   "BALANCED",
   // Backend enum spelling has one S (Saving_Pace.AGGRESIVE) — do not "fix" it here.
-  "AGGRESIVE",
+  "AGGRESSIVE",
 ] as const;
 
 export type SavingPace = (typeof SAVING_PACES)[number];
@@ -31,6 +32,34 @@ export type FinancialSetupChoice =
   | InterventionLevel
   | FocusMode;
 
+export const getFinancialSetupLabel = (
+  value?: FinancialSetupChoice | null
+): string => {
+  if (!value) {
+    return "-";
+  }
+
+  switch (value) {
+    case "RELAXED":
+    case "BALANCED":
+    case "AGGRESSIVE":
+      return t(`financialSetup.savingPace.${value}`);
+
+    case "NOTIFY":
+    case "GENTLE":
+    case "HARD":
+      return t(`financialSetup.interventionLevel.${value}`);
+
+    case "SAVE_MORE":
+    case "REDUCE_SPENDING":
+    case "TRACK_ONLY":
+      return t(`financialSetup.focusMode.${value}`);
+
+    default:
+      return "-";
+  }
+};
+
 export interface FinancialSetup {
   income: number;
   savingPace: SavingPace;
@@ -45,89 +74,6 @@ export interface UpdateFinancialSetupPayload {
   interventionLevel: InterventionLevel;
   focusMode: FocusMode;
 }
-
-export const FINANCIAL_SETUP_LABELS: Record<
-  FinancialSetupChoice,
-  string
-> = {
-  RELAXED: "Relaxed",
-  BALANCED: "Balanced",
-  AGGRESIVE: "Focused",
-
-  NOTIFY: "Notify",
-  GENTLE: "Remind",
-  HARD: "Limit",
-
-  SAVE_MORE: "Save",
-  REDUCE_SPENDING: "Reduce",
-  TRACK_ONLY: "Track",
-};
-
-export const getFinancialSetupLabel = (
-  value?: FinancialSetupChoice | null
-): string => {
-  if (!value) {
-    return "-";
-  }
-
-  return FINANCIAL_SETUP_LABELS[value] ?? "-";
-};
-
-export const FINANCIAL_SETUP_OPTIONS = {
-  savingPace: [
-    {
-      value: "RELAXED" as const,
-      label: "Relaxed",
-      icon: "leaf-outline",
-    },
-    {
-      value: "BALANCED" as const,
-      label: "Balanced",
-      icon: "scale-outline",
-    },
-    {
-      value: "AGGRESIVE" as const,
-      label: "Focused",
-      icon: "flash-outline",
-    },
-  ],
-
-  interventionLevel: [
-    {
-      value: "NOTIFY" as const,
-      label: "Notify",
-      icon: "notifications-outline",
-    },
-    {
-      value: "GENTLE" as const,
-      label: "Remind",
-      icon: "chatbubble-outline",
-    },
-    {
-      value: "HARD" as const,
-      label: "Limit",
-      icon: "shield-checkmark-outline",
-    },
-  ],
-
-  focusMode: [
-    {
-      value: "SAVE_MORE" as const,
-      label: "Save",
-      icon: "trending-up-outline",
-    },
-    {
-      value: "REDUCE_SPENDING" as const,
-      label: "Reduce",
-      icon: "cut-outline",
-    },
-    {
-      value: "TRACK_ONLY" as const,
-      label: "Track",
-      icon: "analytics-outline",
-    },
-  ],
-} as const;
 
 export interface FinancialSetup {
   income: number;

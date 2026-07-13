@@ -1,12 +1,17 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
   SafeAreaView,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
 import FinancialSetupForm from "./FinancialSetupForm";
 import {
   FinancialSetup,
@@ -19,10 +24,31 @@ import { t } from "../../i18n";
 type Props = {
   visible: boolean;
   mode?: "onboarding" | "edit";
+
+  /**
+   * Có thể truyền dữ liệu từ component cha.
+   * Nếu mode="edit" nhưng không có initialValue,
+   * modal sẽ tự gọi API để tải dữ liệu.
+   */
   initialValue?: Partial<FinancialSetup> | null;
+
   onClose?: () => void;
   onSuccess?: (setup: FinancialSetup) => void;
 };
+
+const LOAD_ERROR_MESSAGE =
+  "Can not load financial setup at this time. Please try again.";
+
+const SAVE_ERROR_MESSAGE =
+  "Can not save financial setup at this time. Please try again.";
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
 
 export default function FinancialSetupModal({
   visible,
@@ -33,26 +59,149 @@ export default function FinancialSetupModal({
 }: Props) {
   const { updateCachedUser } = useAuth();
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [setup, setSetup] = useState<Partial<FinancialSetup> | null>(
+    initialValue ?? null
+  );
+
+  const [loadingSetup, setLoadingSetup] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [submittedSetup, setSubmittedSetup] = useState<FinancialSetup | null>(null);
+
+  const loadFinancialSetup = useCallback(async () => {
+    try {
+      setLoadingSetup(true);
+      setLoadError(null);
+      setSubmitError(null);
+      setSuccessMessage(null);
+
+      const response = await FinancialSetupApi.getFinancialSetup();
+
+      if (!response.success || !response.data) {
+        setSetup(null);
+        setLoadError(response.message || t("financialSetup.load_error"));
+        return;
+      }
+
+      setSetup(response.data);
+    } catch (error: unknown) {
+      setSetup(null);
+      setLoadError(getErrorMessage(error, t("financialSetup.load_error")));
+    } finally {
+      setLoadingSetup(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!visible) {
+      setLoadingSetup(false);
+      setSaving(false);
+      setLoadError(null);
+      setSubmitError(null);
+      setSubmittedSetup(null);
+      return;
+    }
+
+    setSubmitError(null);
+    setSuccessMessage(null);
+
+    if (initialValue) {
+      setSetup(initialValue);
+      setLoadError(null);
+      return;
+    }
+
+    if (mode === "edit") {
+      void loadFinancialSetup();
+      return;
+    }
+
+    setSetup(null);
+    setLoadError(null);
+  }, [visible, mode, initialValue, loadFinancialSetup]);
 
   const handleSubmit = async (payload: UpdateFinancialSetupPayload) => {
     try {
-      setLoading(true);
-      setError(null);
+      setSaving(true);
+      setSubmitError(null);
       setSuccessMessage(null);
 
-      const response = await FinancialSetupApi.updateFinancialSetup(payload);
+      const response =
+        await FinancialSetupApi.updateFinancialSetup(payload);
 
       if (!response.success || !response.data) {
-        setError(response.message || t("financialSetup.save_error"));
+        setSubmitError(response.message || t("financialSetup.save_error"));
         return;
       }
+
+      const latestSetup = response.data;
+
+      setSetup(latestSetup);
+      setSubmittedSetup(latestSetup);
 
       await updateCachedUser({
         financialSetupCompleted: true,
       });
+
+      onSuccess?.(latestSetup);
+
+      {submittedSetup ? (
+        <View style={styles.successContainer}>
+          <View style={styles.successIcon}>
+            <Ionicons
+              name="checkmark-circle"
+              size={48}
+              color="#047857"
+            />
+          </View>
+
+          <Text style={styles.successTitle}>
+            {mode === "onboarding"
+              ? t("financialSetup.success_title_onboarding")
+              : t("financialSetup.success_title_edit")}
+          </Text>
+
+          <Text style={styles.successDescription}>
+            {mode === "onboarding"
+              ? t("financialSetup.success_description_onboarding")
+              : t("financialSetup.success_description_edit")}
+          </Text>
+
+          <Pressable
+            style={styles.continueButton}
+            onPress={onClose}
+          >
+            <Text style={styles.continueButtonText}>
+              {t("financialSetup.continue")}
+            </Text>
+          </Pressable>
+        </View>
+      ) : loadingSetup ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#4B3FD6" />
+          <Text style={styles.loadingText}>
+            {t("financialSetup.loading")}
+          </Text>
+        </View>
+      ) : loadError || (mode === "edit" && !setup) ? (
+        <View style={styles.centerContainer}>
+          {/* error UI */}
+        </View>
+      ) : (
+        <FinancialSetupForm
+          mode={mode}
+          initialValue={setup}
+          loading={saving}
+          error={submitError}
+          successMessage={successMessage}
+          onSubmit={handleSubmit}
+          onCancel={mode === "edit" ? onClose : undefined}
+        />
+      )}
 
       setSuccessMessage(t("financialSetup.save_success"));
       onSuccess?.(response.data as FinancialSetup);
@@ -61,11 +210,13 @@ export default function FinancialSetupModal({
         onClose?.();
       }
     } catch (err: any) {
-      setError(err?.message || t("financialSetup.save_error"));
+      setSubmitError(err?.message || t("financialSetup.save_error"));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  const canClose = mode === "edit";
 
   return (
     <Modal
@@ -73,11 +224,12 @@ export default function FinancialSetupModal({
       transparent
       animationType="slide"
       statusBarTranslucent
+      presentationStyle="overFullScreen"
       onRequestClose={mode === "edit" ? onClose : undefined}
     >
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View
           style={[
@@ -95,15 +247,65 @@ export default function FinancialSetupModal({
                 : styles.editContainer,
             ]}
           >
-            <FinancialSetupForm
-              mode={mode}
-              initialValue={initialValue}
-              loading={loading}
-              error={error}
-              successMessage={successMessage}
-              onSubmit={handleSubmit}
-              onCancel={mode === "edit" ? onClose : undefined}
-            />
+            {loadingSetup ? (
+              <View style={styles.centerContainer}>
+                <ActivityIndicator size="large" color="#4B3FD6" />
+
+                <Text style={styles.loadingText}>
+                  {t("financialSetup.loading")}
+                </Text>
+              </View>
+            ) : loadError || (mode === "edit" && !setup) ? (
+              <View style={styles.centerContainer}>
+                <View style={styles.errorIcon}>
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={28}
+                    color="#B91C1C"
+                  />
+                </View>
+
+                <Text style={styles.errorTitle}>
+                  {t("financialSetup.load_error_title")}
+                </Text>
+
+                <Text style={styles.errorMessage}>
+                  {loadError || t("financialSetup.load_error")}
+                </Text>
+
+                <View style={styles.errorActions}>
+                  <Pressable
+                    style={styles.retryButton}
+                    onPress={() => void loadFinancialSetup()}
+                  >
+                    <Text style={styles.retryButtonText}>
+                      {t("financialSetup.retry")}
+                    </Text>
+                  </Pressable>
+
+                  {onClose && (
+                    <Pressable
+                      style={styles.closeButton}
+                      onPress={onClose}
+                    >
+                      <Text style={styles.closeButtonText}>
+                        {t("financialSetup.close")}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+            ) : (
+              <FinancialSetupForm
+                mode={mode}
+                initialValue={setup}
+                loading={saving}
+                error={submitError}
+                successMessage={successMessage}
+                onSubmit={handleSubmit}
+                onCancel={mode === "edit" ? onClose : undefined}
+              />
+            )}
           </SafeAreaView>
         </View>
       </KeyboardAvoidingView>
@@ -142,9 +344,128 @@ const styles = StyleSheet.create({
   },
 
   editContainer: {
-    height: "88%",
+    height: "90%",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: "hidden",
+  },
+
+  centerContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+
+  loadingText: {
+    marginTop: 12,
+    color: "#4B3FD6",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  errorIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#FEE2E2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#111827",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+
+  errorMessage: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+
+  errorActions: {
+    width: "100%",
+    marginTop: 20,
+  },
+
+  retryButton: {
+    minHeight: 46,
+    borderRadius: 12,
+    backgroundColor: "#4B3FD6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  closeButton: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+
+  closeButtonText: {
+    color: "#4B3FD6",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  successContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: "#D1FAE5",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+
+  successTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111827",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+
+  successDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+
+  continueButton: {
+    width: "100%",
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: "#4B3FD6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  continueButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
   },
 });
