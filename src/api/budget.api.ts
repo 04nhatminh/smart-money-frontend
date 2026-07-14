@@ -128,7 +128,40 @@ class BudgetAPI {
     }
   }
 
-  
+  async updateBudget(
+    budgetId: string,
+    data: { amountLimit?: number; spent?: number }
+  ): Promise<ApiResponse<BudgetItem>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/budgets/${budgetId}`;
+      console.log("🟣 [BudgetAPI] PUT Request:");
+      console.log("   URL:", fullUrl);
+      console.log("   Payload:", JSON.stringify(data, null, 2));
+
+      const res = await http.put(`/api/v1/budgets/${budgetId}`, data);
+
+      console.log("🟢 [BudgetAPI] PUT Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [BudgetAPI] PUT Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+      console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  }
+
 
   async saveBulk(
     data: CreateBudgetBulkPayload

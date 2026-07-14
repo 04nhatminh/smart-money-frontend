@@ -44,4 +44,9 @@ yarn-error.*
 /android/app/debug.keystore
 /android/gradle
 
+#log files
+/logs/
+*.log
+*.log.
+
 package-lock.json

@@ -27,7 +27,11 @@ import { FinancialSetupApi } from "../../src/api/financialSetup.api";
 import { FinancialSetup } from "../../src/types/financialSetup";
 import FinancialSetupSettingsModal from "../../src/components/financialSetup/FinancialSetupSettingsModal";
 import { t } from "../../src/i18n";
+<<<<<<< HEAD
+import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/dataRefreshEmitter";
+=======
 import { useLanguage } from "../../src/i18n/LanguageProvider";
+>>>>>>> b8391024f4b441952f70b0b72bab7e75daf8b22c
 
 const getAlertLabel = (alertLevel: string) => {
     switch (alertLevel) {
@@ -76,6 +80,13 @@ export default function BudgetListPage() {
     useEffect(() => {
         loadBudgets();
         loadFinancialSetup();
+
+        // AI chat can execute a real budget mutation on the user's behalf (confirm-then-execute via
+        // plain "yes"/"no") — there's no shared context/query cache for this data, so re-fetch here
+        // when that happens instead of showing stale numbers until the next manual reload.
+        const refreshListener = () => loadBudgets();
+        dataRefreshEmitter.on(FINANCIAL_DATA_UPDATED, refreshListener);
+        return () => dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener);
     }, []);
 
     const loadFinancialSetup = async () => {

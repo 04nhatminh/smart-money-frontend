@@ -18,3 +18,10 @@ export function t(key: string, options?: Record<string, any>) {
 export function setLanguage(lang: Lang) {
   i18n.locale = lang;
 }
+
+/** Same as t(), but forces a specific locale instead of the app's current UI locale — for
+ *  labels that must match the actual conversation language (e.g. a chat reply's detected
+ *  language), which can differ from the device/app locale. */
+export function tLang(key: string, lang: Lang, options?: Record<string, any>) {
+  return i18n.t(key, { ...options, locale: lang });
+}

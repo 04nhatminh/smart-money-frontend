@@ -148,6 +148,44 @@ export const ProjectAPI = {
     }
   },
 
+  async updateTracking(
+    projectId: string,
+    data: {
+      moneySaved?: number;
+      currentMonth?: number;
+      monthLeft?: number;
+      moneyOwed?: number;
+    }
+  ): Promise<ApiResponse<ProjectTrackingResponse>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/tracking`;
+      console.log("🟣 [ProjectApi] PUT Tracking Request:");
+      console.log("   URL:", fullUrl);
+      console.log("   Payload:", JSON.stringify(data, null, 2));
+
+      const res = await http.put(`/api/v1/projects/${projectId}/tracking`, data);
+      console.log("🟢 [ProjectApi] PUT Tracking Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [ProjectApi] PUT Tracking Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+      console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  },
+
   async getHistory(
     projectId: string
   ): Promise<ApiResponse<ProjectHistory[]>> {

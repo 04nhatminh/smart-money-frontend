@@ -1,5 +1,0 @@
-﻿env: load .env
-env: export EXPO_PUBLIC_SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_FACEBOOK_APP_ID EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME
-ΓÇ║ Building app...
-Starting a Gradle Daemon, 1 busy and 1 incompatible and 4 stopped Daemons could not be reused, use --status for details
-Configuration on demand is an incubating feature.
