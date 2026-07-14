@@ -3,6 +3,7 @@ import React, {
   useImperativeHandle,
   useState,
   useEffect,
+  useRef,
 } from "react";
 import {
   View,
@@ -13,10 +14,12 @@ import {
   TextInput,
   Modal as RNModal,
   Alert,
+  PanResponder,
+  Animated,
+  ScrollView,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import Modal from "react-native-modal";
-import { ScrollView } from "react-native";
 import { t } from '../../i18n';
 import { useLanguage } from '../../i18n/LanguageProvider';
 import PendingStorage, {
@@ -27,18 +30,18 @@ import PendingStorage, {
 } from "../../storage/pendingTransactionStorage";
 import PendingService from "../../services/pendingTransaction.service";
 
-// Helper to format currency (VND)
+// Helper format
 const formatAmount = (amount?: number) => {
   if (amount === undefined || amount === null) return "0";
   return amount.toLocaleString("vi-VN") + " ₫";
 };
 
-// Source metadata for display
-const SOURCE_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
-  camera: { icon: "📷", label: "Camera", color: "#4CAF50" },
-  voice: { icon: "🎙️", label: "Voice", color: "#2196F3" },
-  notification: { icon: "🔔", label: "Notification", color: "#FF9800" },
-  default: { icon: "📄", label: "Other", color: "#3629B7" },
+// Source config
+const SOURCE_CONFIG: Record<string, { icon: string; labelKey: string; color: string }> = {
+  camera: { icon: "📷", labelKey: "transaction.source_camera", color: "#4CAF50" },
+  voice: { icon: "🎙️", labelKey: "transaction.source_voice", color: "#2196F3" },
+  notification: { icon: "🔔", labelKey: "transaction.source_notification", color: "#FF9800" },
+  default: { icon: "📄", labelKey: "transaction.source_other", color: "#3629B7" },
 };
 
 const getSourceConfig = (source?: string) => {
@@ -46,7 +49,28 @@ const getSourceConfig = (source?: string) => {
   return SOURCE_CONFIG.default;
 };
 
-// Category options (same as backend)
+const getCategoryLabel = (category?: string) => {
+  const normalized = (category || "OTHER").toUpperCase();
+  switch (normalized) {
+    case "FOOD":
+      return t("category.food");
+    case "TRANSPORTATION":
+      return t("category.transportation");
+    case "CLOTHING":
+      return t("category.clothing");
+    case "UTILITIES":
+      return t("category.utilities");
+    case "ENTERTAINMENT":
+      return t("category.entertainment");
+    case "HEALTH":
+      return t("category.health");
+    case "EDUCATION":
+      return t("category.education");
+    default:
+      return t("category.other");
+  }
+};
+
 const CATEGORIES = [
   "FOOD",
   "TRANSPORTATION",
@@ -58,6 +82,17 @@ const CATEGORIES = [
   "OTHER",
 ];
 
+const categoryIcons: Record<string, string> = {
+  FOOD: "🍔",
+  TRANSPORTATION: "🚗",
+  CLOTHING: "👕",
+  UTILITIES: "💡",
+  ENTERTAINMENT: "🎮",
+  HEALTH: "🏥",
+  EDUCATION: "📚",
+  OTHER: "💰",
+};
+
 const TRANSACTION_TYPES = ["EXPENSE", "INCOME"];
 
 export type PendingPanelRef = {
@@ -65,26 +100,240 @@ export type PendingPanelRef = {
   close: () => void;
 };
 
+// Component item có thể vuốt (dùng PanResponder)
+const SwipeableItem: React.FC<{
+  item: PendingTransaction;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  onEdit: (item: PendingTransaction) => void;
+  processingMap: Record<string, ProcessingStatus>;
+  processingMessage: Record<string, string | undefined>;
+  processingError: Record<string, string | undefined>;
+}> = ({ item, onApprove, onReject, onEdit, processingMap, processingMessage, processingError }) => {
+  const status = processingMap[item.id] ?? item.processingStatus;
+  const error = processingError[item.id] ?? item.processingError;
+  const isProcessing = status !== undefined && status !== 'completed' && status !== 'failed';
+
+  const translateX = useRef(new Animated.Value(0)).current;
+  const THRESHOLD = 80;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !isProcessing,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        return isHorizontal && Math.abs(gestureState.dx) > 5;
+      },
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: (_, gestureState) => {
+        const newX = Math.max(-THRESHOLD, Math.min(THRESHOLD, gestureState.dx));
+        translateX.setValue(newX);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const { dx } = gestureState;
+        if (dx > THRESHOLD) {
+          Animated.timing(translateX, {
+            toValue: THRESHOLD,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            onApprove(item.id);
+            Animated.timing(translateX, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }).start();
+          });
+        } else if (dx < -THRESHOLD) {
+          Animated.timing(translateX, {
+            toValue: -THRESHOLD,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            onReject(item.id);
+            Animated.timing(translateX, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }).start();
+          });
+        } else {
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  useEffect(() => {
+    translateX.setValue(0);
+  }, [item.id]);
+
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (status === "completed") {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 1.15,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [status]);
+
+
+  const getProcessingLabel = (status?: ProcessingStatus) => {
+    switch (status) {
+      case "uploading":
+        return t("transaction.uploading");
+
+      case "ai_submitting":
+        return t("transaction.ai_submitting");
+
+      case "ai_processing":
+        return t("transaction.ai_processing");
+
+      case "completed":
+        return t("transaction.completed");
+
+      case "failed":
+        return t("transaction.failed");
+
+      default:
+        return "";
+    }
+  };
+
+  return (
+    <View style={styles.swipeContainer}>
+      {/* Lớp nền chứa hai nút */}
+      <View style={styles.backgroundButtons}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.approveButton]}
+          onPress={() => onApprove(item.id)}
+          disabled={isProcessing}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.actionButtonText}>✅ {t("transaction.approve")}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.rejectButton]}
+          onPress={() => onReject(item.id)}
+          disabled={isProcessing}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.actionButtonText}>🗑️ {t("transaction.reject")}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Lớp nội dung di chuyển */}
+      <Animated.View
+        style={[
+          styles.contentContainer,
+          { transform: [{ translateX }] },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <View style={styles.itemContent}>
+          <View style={styles.topRow}>
+            {!isProcessing && (
+              <Text style={styles.descriptionText}>
+                {item.type === "EXPENSE"
+                  ? t("transaction.expense_prefix")
+                  : t("transaction.income_prefix")}{" "}
+                <Text style={styles.amount}>{formatAmount(item.amount)}</Text>{" "}
+                {item.type === "EXPENSE"
+                  ? t("transaction.for_label")
+                  : t("transaction.from_label")}{" "}
+                <Text style={styles.categoryName}>
+                  {getCategoryLabel(item.category)}
+                </Text>
+              </Text>
+            )}
+            {status && (
+              <View
+                style={[
+                  styles.processingBadge,
+                  status === "failed" && styles.failedBadge,
+                  status === "completed" && styles.completedBadge,
+                ]}
+              >
+                {status === "failed" ? (
+                  <>
+                    <Text style={styles.failedIcon}>❌</Text>
+                    <Text style={styles.failedText}>
+                      {error || "AI failed"}
+                    </Text>
+                  </>
+                ) : status === "completed" ? (
+                  <Animated.Text
+                    style={[
+                      styles.completedIcon,
+                      {
+                        transform: [{ scale: scaleAnim }],
+                      },
+                    ]}
+                  >
+                    {categoryIcons[item.category ?? "OTHER"] ?? "💰"}
+                  </Animated.Text>
+                ) : (
+                  <>
+                    <ActivityIndicator size="small" color="#3629B7" />
+                    <Text style={styles.processingText}>
+                      {getProcessingLabel(status)}
+                    </Text>
+                  </>
+                )}
+              </View>
+            )}
+          </View>
+          {item.groupText ? (
+            <Text style={styles.description} numberOfLines={2}>
+              {t("transaction.description")}: {item.groupText}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.rightActions}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => onEdit(item)}
+            disabled={isProcessing}
+          >
+            <Text style={styles.editButtonText}>✏️</Text>
+          </TouchableOpacity>
+          <Text style={styles.swipeHint}>↔</Text>
+        </View>
+      </Animated.View>
+    </View>
+  );
+};
+
 const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
   const [visible, setVisible] = useState(false);
   const [data, setData] = useState<PendingTransaction[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isApproving, setIsApproving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const { lang } = useLanguage();
 
-  // Processing state
   const [processingMap, setProcessingMap] = useState<Record<string, ProcessingStatus>>({});
   const [processingMessage, setProcessingMessage] = useState<Record<string, string | undefined>>({});
-
-  // Edit modal state
+  const [processingError, setProcessingError] = useState<Record<string, string | undefined>>({});
+  // Edit modal
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<PendingTransaction | null>(null);
   const [editForm, setEditForm] = useState({
     amount: "",
     category: CATEGORIES[0],
     type: TRANSACTION_TYPES[0],
-    description: "",
     date: "",
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -102,52 +351,28 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
     load();
   }, []);
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
-
-  const handleApproveSelected = async () => {
-    if (isApproving) return;
-    setIsApproving(true);
+  const handleApprove = async (id: string) => {
+    const status = processingMap[id];
+    if (status && (status === 'uploading' || status === 'ai_submitting' || status === 'ai_processing')) {
+      return;
+    }
     try {
-      await Promise.all(selectedIds.map(id => PendingService.approve(id)));
-      setSelectedIds([]);
-      console.log("✅ All transactions approved");
+      await PendingService.approve(id);
     } catch (error) {
-      console.error("❌ Error approving transactions:", error);
-    } finally {
-      setIsApproving(false);
+      Alert.alert('Lỗi', 'Không thể duyệt giao dịch');
     }
   };
 
-  const handleDeleteSelected = async () => {
-    if (isDeleting || selectedIds.length === 0) return;
-    Alert.alert(
-      t("transaction.confirm_delete_title"),
-      t("transaction.confirm_delete_message", { count: selectedIds.length }),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("common.delete"),
-          style: "destructive",
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              await Promise.all(selectedIds.map(id => PendingService.reject(id)));
-              setSelectedIds([]);
-              console.log("✅ All transactions deleted");
-            } catch (error) {
-              console.error("❌ Error deleting transactions:", error);
-              Alert.alert(t("common.error"), t("transaction.delete_error"));
-            } finally {
-              setIsDeleting(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleReject = async (id: string) => {
+    const status = processingMap[id];
+    if (status && (status === 'uploading' || status === 'ai_submitting' || status === 'ai_processing')) {
+      return;
+    }
+    try {
+      await PendingService.reject(id);
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể từ chối giao dịch');
+    }
   };
 
   const openEditModal = (item: PendingTransaction) => {
@@ -156,7 +381,6 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
       amount: item.amount?.toString() ?? "",
       category: item.category ?? CATEGORIES[0],
       type: item.type ?? TRANSACTION_TYPES[0],
-      description: item.description ?? "",
       date: item.date ?? "",
     });
     setEditModalVisible(true);
@@ -170,7 +394,6 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
         amount: parseFloat(editForm.amount) || 0,
         category: editForm.category,
         type: editForm.type as "INCOME" | "EXPENSE",
-        description: editForm.description,
         date: editForm.date,
       };
       await PendingService.update(editingItem.id, updates);
@@ -183,80 +406,78 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
     }
   };
 
-  const handleSelectAll = () => {
-    if (selectedIds.length === data.length && data.length > 0) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(data.map(item => item.id));
-    }
-  };
-
-  const isAllSelected = data.length > 0 && selectedIds.length === data.length;
-
   useEffect(() => {
     const update = () => {
       const newData = PendingStorage.getAll();
       setData([...newData]);
-      setSelectedIds((prev) =>
-        prev.filter((id) => newData.some((t) => t.id === id))
-      );
     };
-
     pendingEventBus.on("updated", update);
     return () => {
       pendingEventBus.off("updated", update);
     };
   }, []);
 
-  // Listen to processing updates
   useEffect(() => {
     const handleProcessingUpdate = (event: ProcessingEvent) => {
-      console.log("RECEIVED EVENT", event);
-      setProcessingMap(prev => ({ ...prev, [event.pendingId]: event.status }));
+      setProcessingMap(prev => ({
+        ...prev,
+        [event.pendingId]: event.status,
+      }));
 
       if (event.message) {
-        setProcessingMessage(prev => ({ ...prev, [event.pendingId]: event.message }));
+        setProcessingMessage(prev => ({
+          ...prev,
+          [event.pendingId]: event.message,
+        }));
       }
 
-      // Tự động xoá trạng thái sau 3 giây nếu hoàn thành hoặc thất bại
-      if (event.status === 'completed' || event.status === 'failed') {
+      if (event.error) {
+        setProcessingError(prev => ({
+          ...prev,
+          [event.pendingId]: event.error,
+        }));
+      }
+
+      if (event.status === "completed") {
         setTimeout(() => {
           setProcessingMap(prev => {
             const { [event.pendingId]: _, ...rest } = prev;
             return rest;
           });
+
           setProcessingMessage(prev => {
+            const { [event.pendingId]: _, ...rest } = prev;
+            return rest;
+          });
+
+          setProcessingError(prev => {
             const { [event.pendingId]: _, ...rest } = prev;
             return rest;
           });
         }, 3000);
       }
     };
-
     pendingEventBus.on('processing_update', handleProcessingUpdate);
     return () => {
       pendingEventBus.off('processing_update', handleProcessingUpdate);
     };
   }, []);
 
-  // Group transactions by source
-  const groupBySource = () => {
-    const groups: Record<string, PendingTransaction[]> = {};
-    data.forEach(item => {
+  const groupTransactions = () => {
+    const result: Record<string, Record<string, PendingTransaction[]>> = {};
+    data.forEach((item) => {
       const source = item.source || "default";
-      if (!groups[source]) groups[source] = [];
-      groups[source].push(item);
+      const groupId = item.groupId || "__ungrouped__";
+      if (!result[source]) result[source] = {};
+      if (!result[source][groupId]) result[source][groupId] = [];
+      result[source][groupId].push(item);
     });
-    return groups;
+    return result;
   };
 
-  const groupedData = groupBySource();
+  const groupedData = groupTransactions();
 
-  // Helper to determine if an item is still processing (not completed)
-  const isProcessing = (item: PendingTransaction): boolean => {
-    const status = processingMap[item.id];
-    return status !== undefined && status !== 'completed';
-  };
+  console.log("Grouped Data:", groupedData.camera);
 
   return (
     <>
@@ -270,13 +491,6 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
         <View style={styles.container}>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>{t("transaction.pending_transactions")}</Text>
-            {data.length > 0 && (
-              <TouchableOpacity onPress={handleSelectAll} style={styles.selectAllButton}>
-                <Text style={styles.selectAllText}>
-                  {isAllSelected ? "✅" : " ⬜"}
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -285,7 +499,7 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                 <Text style={styles.emptyText}>{t("transaction.no_pending")}</Text>
               </View>
             ) : (
-              Object.entries(groupedData).map(([source, items]) => {
+              Object.entries(groupedData).map(([source, groups]) => {
                 const config = getSourceConfig(source);
                 return (
                   <View
@@ -295,67 +509,37 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                       { borderColor: config.color, borderWidth: 2 }
                     ]}
                   >
-                    <View style={[styles.groupHeader, { backgroundColor: config.color + "20" }]}>
+                    <View
+                      style={[
+                        styles.groupHeader,
+                        { backgroundColor: config.color + "20" }
+                      ]}
+                    >
                       <Text style={styles.groupIcon}>{config.icon}</Text>
-                      <Text style={styles.groupTitle}>{config.label}</Text>
-                      <Text style={styles.groupCount}>({items.length})</Text>
+                      <Text style={styles.groupTitle}>{t(config.labelKey)}</Text>
                     </View>
 
-                    {items.map((item) => {
-                      const isSelected = selectedIds.includes(item.id);
-                      const processingActive = isProcessing(item);
-                      const status = processingMap[item.id];
-                      const message = processingMessage[item.id];
-
+                    {Object.entries(groups).map(([groupId, items]) => {
+                      const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
                       return (
-                        <View key={item.id} style={styles.itemRow}>
-                          <TouchableOpacity onPress={() => toggleSelect(item.id)} style={styles.checkbox}>
-                            <Text style={styles.checkboxText}>{isSelected ? "✅" : "⬜"}</Text>
-                          </TouchableOpacity>
+                        <View key={groupId} style={styles.aiGroup}>
+                          <View style={styles.aiGroupHeader}>
+                            <Text style={styles.aiGroupItemCount}>{t("transaction.items_count", { count: items.length })}</Text>
+                            <Text style={styles.aiGroupTotalAmount}>{formatAmount(totalAmount)}</Text>
+                          </View>
 
-                          {!processingActive ? (
-                            // ✅ Processing finished → show normal data
-                            <View style={styles.itemContent}>
-                              <View style={styles.itemMain}>
-                                <Text style={styles.amount}>
-                                  {formatAmount(item.amount)}
-                                </Text>
-                                <Text style={styles.category}>
-                                  {item.category || "OTHER"}
-                                </Text>
-                              </View>
-                              {item.type && (
-                                <View style={styles.typeBadge}>
-                                  <Text style={styles.typeText}>
-                                    {item.type === "EXPENSE" ? "⬇️" : "⬆️"} {item.type}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                          ) : (
-                            // 🔄 Still processing → show loading badge (no amount/category/type)
-                            <View style={styles.processingContainer}>
-                              {status === 'failed' ? (
-                                <View style={styles.failedBadge}>
-                                  <Text style={styles.failedText}>❌ Failed</Text>
-                                </View>
-                              ) : (
-                                <View style={styles.processingBadge}>
-                                  <ActivityIndicator size="small" color="#3629B7" />
-                                  <Text style={styles.processingText}>
-                                    {status === 'uploading' && '📤 Uploading...'}
-                                    {status === 'ai_submitting' && '🤖 Submitting...'}
-                                    {status === 'ai_processing' && '⏳ AI processing...'}
-                                    {message ? ` ${message}` : ''}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                          )}
-
-                          <TouchableOpacity onPress={() => openEditModal(item)} style={styles.editButton}>
-                            <Text style={styles.editButtonText}>✏️</Text>
-                          </TouchableOpacity>
+                          {items.map((item) => (
+                            <SwipeableItem
+                              key={item.id}
+                              item={item}
+                              onApprove={handleApprove}
+                              onReject={handleReject}
+                              onEdit={openEditModal}
+                              processingMap={processingMap}
+                              processingMessage={processingMessage}
+                              processingError={processingError}
+                            />
+                          ))}
                         </View>
                       );
                     })}
@@ -364,38 +548,10 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
               })
             )}
           </ScrollView>
-
-          {selectedIds.length > 0 && (
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={[styles.deleteBtn, isDeleting && styles.actionBtnDisabled]}
-                onPress={handleDeleteSelected}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <Text style={styles.actionBtnText}>{t("transaction.delete")} ({selectedIds.length})</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.approveBtn, isApproving && styles.actionBtnDisabled]}
-                onPress={handleApproveSelected}
-                disabled={isApproving}
-              >
-                {isApproving ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <Text style={styles.actionBtnText}>{t("transaction.approve")} ({selectedIds.length})</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
       </Modal>
 
-      {/* Edit Modal (unchanged) */}
+      {/* Edit Modal */}
       <RNModal
         visible={editModalVisible}
         transparent
@@ -414,7 +570,6 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                 keyboardType="numeric"
                 placeholder="0"
               />
-
               <Text style={styles.inputLabel}>{t("transaction.category")}</Text>
               <View style={styles.pickerContainer}>
                 <Picker
@@ -424,11 +579,10 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                   dropdownIconColor="#3629B7"
                 >
                   {CATEGORIES.map((cat) => (
-                    <Picker.Item key={cat} label={cat} value={cat} />
+                    <Picker.Item key={cat} label={getCategoryLabel(cat)} value={cat} />
                   ))}
                 </Picker>
               </View>
-
               <Text style={styles.inputLabel}>{t("transaction.type")}</Text>
               <View style={styles.pickerContainer}>
                 <Picker
@@ -438,29 +592,18 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                   dropdownIconColor="#3629B7"
                 >
                   {TRANSACTION_TYPES.map((type) => (
-                    <Picker.Item key={type} label={type} value={type} />
+                    <Picker.Item key={type} label={type === "EXPENSE" ? t("transaction.expense") : t("transaction.income")} value={type} />
                   ))}
                 </Picker>
               </View>
-
-              <Text style={styles.inputLabel}>{t("transaction.description")}</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={editForm.description}
-                onChangeText={(text) => setEditForm({ ...editForm, description: text })}
-                multiline
-                numberOfLines={3}
-              />
-
               <Text style={styles.inputLabel}>{t("transaction.date")}</Text>
               <TextInput
                 style={styles.input}
                 value={editForm.date}
                 onChangeText={(text) => setEditForm({ ...editForm, date: text })}
-                placeholder="YYYY-MM-DD HH:MM"
+                placeholder={t("transaction.date_format_placeholder")}
               />
             </ScrollView>
-
             <View style={styles.editButtonsRow}>
               <TouchableOpacity
                 style={styles.editCancelBtn}
@@ -505,21 +648,37 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   title: { fontWeight: "bold", color: "#3629B7", fontSize: 16 },
-  selectAllButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: "#3629B7",
-    borderRadius: 16,
-  },
-  selectAllText: {
-    fontSize: 12,
-    color: "#3629B7",
-    fontWeight: "500",
-  },
   scrollContent: { paddingBottom: 8 },
-  emptyContainer: { paddingVertical: 24, alignItems: "center", justifyContent: "center" },
+  emptyContainer: { paddingVertical: 24, alignItems: "center" },
   emptyText: { color: "#888", fontSize: 14 },
-
+  aiGroup: {
+    margin: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    overflow: "hidden",
+  },
+  aiGroupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8F8F8',
+  },
+  aiGroupItemCount: {
+    fontSize: 12,
+    color: '#888',
+  },
+  aiGroupTotalAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3629B7',
+    backgroundColor: '#EDE7F6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
   groupContainer: {
     borderRadius: 12,
     marginBottom: 16,
@@ -541,114 +700,62 @@ const styles = StyleSheet.create({
   },
   groupIcon: { fontSize: 18, marginRight: 6 },
   groupTitle: { fontSize: 14, fontWeight: "600", color: "#333", flex: 1 },
-  groupCount: { fontSize: 12, color: "#666" },
 
+  // Item styles
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#ccc",
+    backgroundColor: "#fff",
+    position: "relative",
+    zIndex: 1,
+    minHeight: 60,
   },
-  checkbox: { marginRight: 12 },
-  checkboxText: { fontSize: 18 },
-  itemContent: {
+  descriptionText: {
+    fontSize: 14,
+    color: '#1a1a1a',
+    flexShrink: 1,
+  },
+  completedIcon: {
+    fontSize: 22,
+  },
+  categoryName: {
+    fontWeight: '500',
+    color: '#3629B7', // làm nổi bật danh mục
+  },
+  // Label hành động (hiển thị khi kéo)
+  actionLabelContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    pointerEvents: 'none',
+  },
+  actionLabelText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  itemContentWrapper: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    flexWrap: "wrap",
-  },
-  itemMain: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 8,
-  },
-  amount: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1a1a1a",
-  },
-  category: {
-    fontSize: 12,
-    color: "#666",
-    backgroundColor: "#f0f0f0",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  typeBadge: {
-    backgroundColor: "#f5f5f5",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  typeText: { fontSize: 10, color: "#555" },
-  editButton: { paddingHorizontal: 8, paddingVertical: 4 },
-  editButtonText: { fontSize: 16, color: "#3629B7" },
-
-  // Processing styles
-  processingContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  processingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EDE7F6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 16,
-    gap: 6,
-  },
-  processingText: {
-    fontSize: 11,
-    color: '#3629B7',
-    fontWeight: '500',
-  },
-  failedBadge: {
-    backgroundColor: '#FFEBEE',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 16,
-  },
-  failedText: {
-    fontSize: 11,
-    color: '#D32F2F',
-    fontWeight: '500',
+    backgroundColor: "white",
+    paddingHorizontal: 4,
+    zIndex: 2,
   },
 
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-    marginTop: 10,
-  },
-  approveBtn: {
-    flex: 1,
-    backgroundColor: "#3629B7",
-    padding: 12,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  approveBtnDisabled: { backgroundColor: "#A0A0A0", opacity: 0.7 },
-  deleteBtn: {
-    flex: 1,
-    backgroundColor: "#dc3545",
-    padding: 12,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  actionBtnDisabled: { backgroundColor: "#A0A0A0", opacity: 0.7 },
-  actionBtnText: { color: "white", textAlign: "center", fontSize: 14, fontWeight: "600" },
-
-  // Edit modal styles (unchanged)
+  // Edit modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -665,7 +772,6 @@ const styles = StyleSheet.create({
   editTitle: { fontSize: 18, fontWeight: "bold", color: "#3629B7", marginBottom: 16, textAlign: "center" },
   inputLabel: { fontSize: 13, fontWeight: "500", color: "#333", marginBottom: 4, marginTop: 8 },
   input: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: "#fff" },
-  textArea: { minHeight: 70, textAlignVertical: "top" },
   pickerContainer: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, backgroundColor: "#fff", marginBottom: 4 },
   picker: { height: 50, width: "100%", color: "#333" },
   editButtonsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 16, gap: 12 },
@@ -673,4 +779,164 @@ const styles = StyleSheet.create({
   editCancelText: { color: "#333", fontWeight: "500" },
   editSaveBtn: { flex: 1, backgroundColor: "#3629B7", padding: 12, borderRadius: 8, alignItems: "center" },
   editSaveText: { color: "white", fontWeight: "500" },
+  approveBtnDisabled: { backgroundColor: "#A0A0A0", opacity: 0.7 },
+  swipeContainer: {
+    position: 'relative',
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#ccc',
+    minHeight: 60,
+  },
+
+  // Lớp nền chứa hai nút, chiếm toàn bộ container
+  backgroundButtons: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
+  },
+
+  // Nút hành động chung
+  actionButton: {
+    width: 80, // bằng với ngưỡng THRESHOLD
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  approveButton: {
+    backgroundColor: '#4CAF50', // màu xanh
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+  },
+  rejectButton: {
+    backgroundColor: '#F44336', // màu đỏ
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+
+  // Lớp nội dung (foreground) – di chuyển theo translateX
+  contentContainer: {
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    minHeight: 60,
+    zIndex: 2, // đảm bảo nằm trên nền
+  },
+
+  // Phần itemContent bên trong (giữ nguyên cấu trúc cũ)
+  itemContent: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    width: '100%',
+  },
+  itemMain: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginRight: 8,
+  },
+  amount: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  category: {
+    fontSize: 12,
+    color: '#666',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginLeft: 6,
+  },
+  typeBadge: {
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 6,
+  },
+  typeText: { fontSize: 10, color: '#555' },
+  processingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EDE7F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
+    gap: 6,
+    marginLeft: 6,
+  },
+  processingText: {
+    fontSize: 11,
+    color: '#3629B7',
+    fontWeight: '500',
+  },
+
+  failedBadge: {
+    backgroundColor: "#FDECEC",
+  },
+
+  failedText: {
+    color: "#D32F2F",
+    fontSize: 11,
+    fontWeight: "600",
+    flexShrink: 1,
+  },
+
+  failedIcon: {
+    fontSize: 12,
+  },
+
+  completedBadge: {
+    backgroundColor: "#E8F5E9",
+  },
+
+  completedText: {
+    color: "#2E7D32",
+    fontWeight: "600",
+  },
+  description: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 4,
+    flexShrink: 1,
+    width: '100%',
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  editButton: {
+    padding: 4,
+    marginRight: 4,
+  },
+  editButtonText: {
+    fontSize: 16,
+    color: '#3629B7',
+  },
+  swipeHint: {
+    fontSize: 12,
+    color: '#aaa',
+  },
 });

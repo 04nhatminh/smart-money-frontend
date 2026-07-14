@@ -14,6 +14,7 @@ import {
 } from "../../types/financialSetup";
 import { FinancialSetupApi } from "../../api/financialSetup.api";
 import { useAuth } from "../../context/AuthContext";
+import { t } from "../../i18n";
 
 type Props = {
   visible: boolean;
@@ -45,10 +46,7 @@ export default function FinancialSetupModal({
       const response = await FinancialSetupApi.updateFinancialSetup(payload);
 
       if (!response.success || !response.data) {
-        setError(
-          response.message ||
-            "Can not save financial setup at this time. Please try again."
-        );
+        setError(response.message || t("financialSetup.save_error"));
         return;
       }
 
@@ -56,17 +54,14 @@ export default function FinancialSetupModal({
         financialSetupCompleted: true,
       });
 
-      setSuccessMessage("Your financial setup has been updated.");
+      setSuccessMessage(t("financialSetup.save_success"));
       onSuccess?.(response.data as FinancialSetup);
 
       if (mode === "onboarding") {
         onClose?.();
       }
     } catch (err: any) {
-      setError(
-        err?.message ||
-          "Can not save financial setup at this time. Please try again."
-      );
+      setError(err?.message || t("financialSetup.save_error"));
     } finally {
       setLoading(false);
     }

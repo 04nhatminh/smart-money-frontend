@@ -33,24 +33,12 @@ export type AnalyticsResponse = {
 };
 
 class AnalyticsAPI {
-  private async getAuthHeader() {
-    const token = await tokenStorage.getAccessToken();
-
-    if (!token) {
-      throw new Error("No token found");
-    }
-
-    return {
-      Authorization: `Bearer ${token}`,
-    };
-  }
 
   async getTransactionAnalytics(
     month: number,
     year: number
   ): Promise<AnalyticsResponse> {
     try {
-      const headers = await this.getAuthHeader();
 
       const body: AnalyticsRequest = {
         month,
@@ -59,7 +47,6 @@ class AnalyticsAPI {
 
       const res = await http.post("/api/v1/transactions/analytics", body, {
         headers: {
-          ...headers,
           Accept: "application/json",
           "Content-Type": "application/json",
         },

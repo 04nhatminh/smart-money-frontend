@@ -1,5 +1,6 @@
 import http from "./http";
 import {
+  AddProjectContributionPayload,
   CreateProjectPayload,
   InviteProjectMemberPayload,
   ProjectDetailResponse,
@@ -297,6 +298,53 @@ export const ProjectAPI = {
       console.error("   Status:", status);
       console.error("   Response Data:", responseData);
       console.error("   Full Error:", error);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  },
+
+  /**
+   * Manual "press-to-contribute" — the everyday, unprompted way to fund a
+   * saving goal. Writes the same ProjectContribution that accepting a
+   * CONTRIBUTE_TO_PROJECT / INCREASE_CONTRIBUTION suggestion does, so progress
+   * (totalContributed / netSaved / progressPercent) adds up into one number.
+   *
+   * Returns the updated ProjectDetailResponse. Reaching the target
+   * auto-completes the project (status -> COMPLETED) and crossing a
+   * 25/50/75/100% milestone fires a one-time celebration notification
+   * server-side. A non-contributable project (FROZEN / EXPIRED / ABANDONED /
+   * COMPLETED) returns 400.
+   */
+  async addContribution(
+    projectId: string,
+    data: AddProjectContributionPayload
+  ): Promise<ApiResponse<ProjectDetailResponse>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/projects/${projectId}/contributions`;
+      console.log("🔵 [ProjectApi] POST Contribution:");
+      console.log("   URL:", fullUrl);
+      console.log("   Payload:", JSON.stringify(data, null, 2));
+
+      const res = await http.post(
+        `/api/v1/projects/${projectId}/contributions`,
+        data
+      );
+      console.log("🟢 [ProjectApi] Response Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [ProjectApi] Contribution Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
 
       return (
         error?.response?.data || {

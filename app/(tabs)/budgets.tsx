@@ -24,10 +24,14 @@ import { AddTransactionModal } from "../../src/components/transactions/AddTransa
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { Receipt } from "../../src/types/transaction.types";
 import { FinancialSetupApi } from "../../src/api/financialSetup.api";
-import { FinancialSetup, getFinancialSetupLabel } from "../../src/types/financialSetup";
+import { FinancialSetup } from "../../src/types/financialSetup";
 import FinancialSetupSettingsModal from "../../src/components/financialSetup/FinancialSetupSettingsModal";
 import { t } from "../../src/i18n";
+<<<<<<< HEAD
 import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/dataRefreshEmitter";
+=======
+import { useLanguage } from "../../src/i18n/LanguageProvider";
+>>>>>>> b8391024f4b441952f70b0b72bab7e75daf8b22c
 
 const getAlertLabel = (alertLevel: string) => {
     switch (alertLevel) {
@@ -56,6 +60,7 @@ const categoryIconMap: { [key: string]: { icon: string; color: string; displayNa
 };
 
 export default function BudgetListPage() {
+    useLanguage(); // re-render on EN/VI switch
     const router = useRouter();
     const [budgets, setBudgets] = useState<BudgetItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -222,18 +227,22 @@ export default function BudgetListPage() {
                     <View style={styles.profileCardHeader}>
                         <View style={styles.profileCardTitleRow}>
                             <Ionicons name="wallet-outline" size={22} color="#4B3FD6" />
-                            <Text style={styles.profileCardTitle}>Financial Setup</Text>
+                            <Text style={styles.profileCardTitle}>
+                                {t("financialSetup.card_title")}
+                            </Text>
                         </View>
                     </View>
                     <Text style={styles.profileEmptyText}>
-                        Income, rhythm and how SmartMoney supports you
+                        {t("financialSetup.empty_desc")}
                     </Text>
                     <TouchableOpacity
                         style={styles.profileSetupBtn}
                         onPress={() => setShowEditSetup(true)}
                     >
                         <Ionicons name="wallet-outline" size={15} color="#FFFFFF" />
-                        <Text style={styles.profileSetupBtnText}>Thiết lập ngay</Text>
+                        <Text style={styles.profileSetupBtnText}>
+                            {t("financialSetup.setup_now")}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             );
@@ -241,22 +250,22 @@ export default function BudgetListPage() {
 
         const setupRows = [
             {
-                label: "Income",
+                label: t("financialSetup.row_income"),
                 value: formatVND(financialSetup.income),
             },
             {
-                label: "Pace",
-                value: getFinancialSetupLabel(financialSetup.savingPace),
+                label: t("financialSetup.row_pace"),
+                value: t(`financialSetup.savingPace.${financialSetup.savingPace}`),
             },
             {
-                label: "Support",
-                value: getFinancialSetupLabel(
-                financialSetup.interventionLevel
+                label: t("financialSetup.row_support"),
+                value: t(
+                    `financialSetup.interventionLevel.${financialSetup.interventionLevel}`
                 ),
             },
             {
-                label: "Focus",
-                value: getFinancialSetupLabel(financialSetup.focusMode),
+                label: t("financialSetup.row_focus"),
+                value: t(`financialSetup.focusMode.${financialSetup.focusMode}`),
             },
         ];
 
@@ -265,7 +274,9 @@ export default function BudgetListPage() {
                 <View style={styles.profileCardHeader}>
                         <View style={styles.profileCardTitleRow}>
                         <Ionicons name="wallet-outline" size={22} color="#4B3FD6" />
-                        <Text style={styles.profileCardTitle}>Financial Setup</Text>
+                        <Text style={styles.profileCardTitle}>
+                            {t("financialSetup.card_title")}
+                        </Text>
                     </View>
                     <TouchableOpacity
                         style={styles.editBtn}

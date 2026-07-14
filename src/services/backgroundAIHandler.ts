@@ -4,6 +4,7 @@ import PendingStorage from "../storage/pendingTransactionStorage";
 import { CloudinaryService } from "./cloudinary.service";
 import AIJobStorage, { AIJobRecord } from "../storage/aiJobStorage";
 import { formatDateTime, parseDDMMYYYYHHMM } from "../utils/dateFormatter";
+import { normalizeAIResult } from "../utils/normalizeAIResult";
 import { pendingEventBus, ProcessingEvent, ProcessingStatus } from "../storage/pendingTransactionStorage";
 
 /**
@@ -53,9 +54,12 @@ function formatAIDate(dateInput: any): string {
 }
 
 // Helper phát sự kiện
-function emitStatus(pendingId: string, status: ProcessingStatus, message?: string, error?: string) {
-console.log("EMIT", status);
-  const event: ProcessingEvent = { pendingId, status, message, error };
+async function emitStatus(pendingId: string, status: ProcessingStatus, error?: string) {
+    await PendingStorage.update(pendingId,{
+        processingStatus: status,
+        processingError: error,
+    });
+    const event: ProcessingEvent = { pendingId, status, error };
   pendingEventBus.emit('processing_update', event);
 }
 
@@ -206,27 +210,56 @@ async function updatePendingTransaction(
             return;
         }
 
+
+        if (resultData?.error) {
+            emitStatus(
+                pendingTxId,
+                "failed",
+                resultData.error
+            );
+
+            // nếu muốn giữ pending để user thấy lỗi
+            await PendingStorage.update(pendingTxId, {
+                processingStatus: "failed",
+                processingError: resultData.error,
+            });
+
+            return;
+        }
+
         // ✅ Remove old one
         await PendingStorage.remove(pendingTxId);
 
-        // ✅ Add new one with AI data
-        const updatedTx = await PendingStorage.add({
-            amount: Number(resultData.expense) || 0,
-            category: resultData.category || "OTHER",
-            type: resultData.type === "EXPENSE" ? "EXPENSE" : "INCOME",
-            description: resultData.description || resultData.text || "",
-            date: formatAIDate(resultData.date),
-            source: source
-        });
 
-        emitStatus(updatedTx.id, 'completed');
+        const created = [];
 
-        console.log("✅ Pending transaction updated:", updatedTx.id);
+        const normalized = normalizeAIResult(resultData);
+
+        console.log("debug1:", normalized)
+
+        for (const tx of normalized.transactions) {
+            const pending = await PendingStorage.add({
+                amount: tx.expense,
+                category: tx.category,
+                type: tx.type,
+                date: formatAIDate(normalized.date),
+
+                source,
+
+                groupId: normalized.jobId,
+                groupText: tx.description,
+            });
+
+            created.push(pending);
+        }
+
+        created.forEach(tx => emitStatus(tx.id, "completed"));
+
         console.log("📊 AI data:", resultData);
 
     } catch (error: any) {
         console.error("❌ Update pending error:", error?.message);
-        emitStatus(pendingTxId, 'failed', undefined, error?.message || "Failed to update transaction with AI data");
+        emitStatus(pendingTxId, 'failed', error?.message || "Failed to update transaction with AI data");
     }
 }
 
@@ -340,7 +373,7 @@ export async function handleFullAIFlowInBackground(
 
         } catch (err) {
             console.error("❌ Full voice flow error:", err);
-            emitStatus(pendingTxId, 'failed', undefined, "Failed to update transaction with AI data");
+            emitStatus(pendingTxId, 'failed', undefined);
 
         } finally {
             // 🧹 Clean up audio if it was uploaded

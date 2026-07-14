@@ -6,13 +6,6 @@ export async function waitForAIResult(
   timeoutMs: number = 10000
 ): Promise<any> {
 
-  const userRes = await authApi.getCurrentUser();
-
-  if (!userRes.success || !userRes.data) {
-    throw new Error("Cannot get current user");
-  }
-
-
   return new Promise((resolve) => {
     let done = false;
     let unsubscribe: (() => void) | null = null;
@@ -50,6 +43,8 @@ export async function waitForAIResult(
 
     const timeout = setTimeout(() => {
       if (done) return;
+
+      done = true;
 
       console.log("⚠️ WS timeout → fallback polling");
 

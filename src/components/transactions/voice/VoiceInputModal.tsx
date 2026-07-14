@@ -56,7 +56,6 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
         amount: 0,
         category: "OTHER",
         type: "EXPENSE",
-        description: "Processing voice...",
         date: new Date().toISOString(),
         source: "voice",
       });

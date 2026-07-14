@@ -16,12 +16,13 @@ import { AISuggestionProvider } from "../src/context/AISuggestionContext";
 import { useAISuggestions } from "../src/context/AISuggestionContext";
 import { InteractionManager } from "react-native";
 import { resolveDeepLink } from "../src/utils/notificationDeepLink";
-
+import { useNotificationPermission } from "../src/hooks/useNotificationHandler";
 export const panelRef = React.createRef<PendingPanelRef>();
 
 SplashScreen.preventAutoHideAsync().catch(() => { });
 
 function RootLayoutNav() {
+  
   const { isSignedIn, isLoading: authLoading } = useAuth();
   const { isFirstLaunch, isLoading: onboardingLoading } = useOnboarding();
   const { preload } = useAISuggestions();
@@ -33,6 +34,8 @@ function RootLayoutNav() {
 
   const isLoading =
     isFirstLaunch === null || authLoading || onboardingLoading;
+
+  useNotificationPermission(isSignedIn);
 
   useEffect(() => {
     isSignedInRef.current = isSignedIn;
@@ -50,6 +53,7 @@ function RootLayoutNav() {
       handleNotification: async () => ({
         shouldShowBanner: true,
         shouldShowList: true,
+        shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
       }),
@@ -133,7 +137,7 @@ function RootLayoutNav() {
 
     // 👉 ĐÃ LOGIN
     // 👉 ĐẠT TRẠNG THÁI KHÁC
-    if (!isFirstLaunch && isSignedIn && !inTabs && segment !== "(transactions)" && segment !== "(wait)" && segment !== "accept-invite" && segment !== "group-invite" && segment !== "group" && segment !== "group-project") {
+    if (!isFirstLaunch && isSignedIn && !inTabs && segment !== "(transactions)" && segment !== "(wait)" && segment !== "accept-invite" && segment !== "group-invite" && segment !== "group" && segment !== "group-project" && segment !== "insights" && segment !== "suggestions") {
       router.replace("/(tabs)");
       return;
     }
@@ -170,8 +174,15 @@ function RootLayoutNav() {
         <Stack.Screen name="(transactions)" />
         <Stack.Screen name="accept-invite" />
         <Stack.Screen name="group-invite" />
+<<<<<<< HEAD
         <Stack.Screen name="group/[id]" />
         <Stack.Screen name="group-project/[id]" />
+=======
+        <Stack.Screen name="group" />
+        <Stack.Screen name="group-project" />
+        <Stack.Screen name="insights" />
+        <Stack.Screen name="suggestions" />
+>>>>>>> b8391024f4b441952f70b0b72bab7e75daf8b22c
       </Stack>
 
       <NotificationToast />

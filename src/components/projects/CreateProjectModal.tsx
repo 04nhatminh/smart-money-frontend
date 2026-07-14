@@ -6,6 +6,7 @@ import ConfirmExitModal from "../ConfirmExitModal";
 
 import { projectStyles as styles } from "../../styles/projectStyles";
 import { useCreateProject } from "../../hooks/useCreateProject";
+import { getMonthsFromDeadline } from "../../utils/project";
 import {
     CreateProjectModalStep,
     ProjectAdvisorResponse,
@@ -96,12 +97,22 @@ type Props = {
     visible: boolean;
     onClose: () => void;
     onCreated?: () => void;
+    /**
+     * Seeds pre-filled when the modal opens, from an accepted CREATE_PROJECT
+     * suggestion (proposedAction). `initialAmount` is the target/total goal;
+     * `initialDeadline` is an ISO date converted to the form's month count. The
+     * user edits these (and everything else, incl. the untouched name) freely.
+     */
+    initialAmount?: number;
+    initialDeadline?: string;
 };
 
 export default function CreateProjectModal({
     visible,
     onClose,
-    onCreated
+    onCreated,
+    initialAmount,
+    initialDeadline,
 }: Props) {
     const { user, refreshUser } = useAuth();
     const [step, setStep] = useState<CreateProjectModalStep>(1);
@@ -187,6 +198,23 @@ export default function CreateProjectModal({
             fetchUsedPriorities();
         }
     }, [visible]);
+
+    // Pre-fill the target amount and deadline from an accepted CREATE_PROJECT
+    // suggestion when the modal opens. onChangeTargetAmount handles formatting;
+    // the ISO deadline is converted to the form's month count. Both stay
+    // editable — target + deadline encode the suggested (capped) monthly saving.
+    useEffect(() => {
+        if (!visible) return;
+        if (initialAmount && initialAmount > 0) {
+            onChangeTargetAmount(String(initialAmount));
+        }
+        if (initialDeadline) {
+            const months = getMonthsFromDeadline(initialDeadline);
+            if (months) {
+                onChangeDeadlineMonths(months);
+            }
+        }
+    }, [visible, initialAmount, initialDeadline]);
 
     useEffect(() => {
         console.log(

@@ -13,7 +13,6 @@ import {
   Animated,
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { notificationStorage } from "../../src/storage/notificationStorage";
 import { UserResponse } from "../../src/types/auth.types";
 import notificationService from "../../src/notification/notificationService";
 import { Notification } from "../../src/types/notification.type";
@@ -33,6 +32,8 @@ import { useAIInsight } from "../../src/hooks/useAIInsight";
 import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
 import LatestProjectsSection, { LatestProjectItem } from "../../src/components/home/LatestProjectsSection";
+import InsightsPreviewSection from "../../src/components/home/InsightsPreviewSection";
+import PendingSuggestionsSection from "../../src/components/home/PendingSuggestionsSection";
 import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
 import { ProjectAPI } from "../../src/api/project.api";
 import { notificationEmitter } from "../../src/utils/notificationEmitter";
@@ -199,8 +200,6 @@ export default function HomePage() {
       await fetchLatestProjects();
       await loadAnalyticsSummary();
 
-      const saved = await notificationStorage.getUnreadCount();
-      setUnreadCount(saved);
     };
 
     init();
@@ -224,6 +223,15 @@ export default function HomePage() {
       notificationEmitter.off("NEW_NOTIFICATION", listener);
       dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener);
     };
+  }, []);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+    };
+
+    fetchUnread();
   }, []);
 
   useEffect(() => {
@@ -273,24 +281,32 @@ export default function HomePage() {
     init().catch((err) => console.error("WebSocket init failed:", err));
   }, [user?.id]);
 
-  const loadNotifications = async () => {
-    try {
-      setLoadingNotification(true);
-      const data = await notificationService.getNotifications();
-      setNotifications(data);
-    } catch (err) {
-      console.log("Load notification error:", err);
-    } finally {
-      setLoadingNotification(false);
-    }
-  };
-
   const handleToggleNotification = async () => {
     setShowNotification(true);
     setNotificationScreenActive(true);
-    setUnreadCount(0);
-    await notificationStorage.setUnreadCount(0);
-    await loadNotifications();
+
+    try {
+      const data = await notificationService.getNotifications();
+
+      console.log("API data:", data);
+
+      setNotifications(data)
+
+      const unreadIds = data
+        .filter(n => !n.read)
+        .map(n => n.id);
+
+      console.log("Unread Ids:", unreadIds);
+
+      if (unreadIds.length > 0) {
+        await notificationService.markAllAsRead(unreadIds);
+      }
+
+      setUnreadCount(0);
+
+    } catch (err) {
+      console.log("error:", err);
+    }
   };
 
   const fetchLatestProjects = async () => {
@@ -364,6 +380,16 @@ export default function HomePage() {
     await loadBudgets();
     await loadTransactions();
     await loadAnalyticsSummary();
+
+    // Reconcile notification badge from server
+    try {
+      const serverNotifs = await notificationService.getNotifications();
+      const serverUnread = serverNotifs.filter((n) => n.read === false).length;
+      setUnreadCount(serverUnread);
+    } catch {
+      // Non-critical; keep the existing badge count
+    }
+
     setRefreshing(false);
   };
 
@@ -591,6 +617,12 @@ export default function HomePage() {
             onOpenClassify={() => { panelRef.current?.open(); }}
           />
 
+          {/* Adaptive-engine pending suggestions (actionable — sits above insights) */}
+          <PendingSuggestionsSection />
+
+          {/* Adaptive-engine insights teaser */}
+          <InsightsPreviewSection />
+
           {/* Latest Projects */}
           <LatestProjectsSection
             projects={latestProjects}
@@ -663,7 +695,6 @@ export default function HomePage() {
         loading={loadingNotification}
         onResetUnread={() => {
           setUnreadCount(0);
-          notificationStorage.setUnreadCount(0);
         }}
       />
 
@@ -817,10 +848,10 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   moodContainer: {
-  width: 44,
-  height: 44,
-  justifyContent: 'center',
-  alignItems: 'center',
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   moodImage: {
     width: 32,

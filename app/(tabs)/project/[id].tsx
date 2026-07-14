@@ -17,7 +17,9 @@ import { ProjectAPI } from "../../../src/api/project.api";
 import { GroupAPI } from "../../../src/api/group.api";
 import EditProjectModal from "../../../src/components/projects/EditProjectModal";
 import InviteMemberModal from "../../../src/components/projects/InviteMemberModal";
+import ContributeModal from "../../../src/components/projects/ContributeModal";
 import {
+  CONTRIBUTABLE_STATUSES,
   ProjectDetailResponse,
   ProjectHistory,
   ProjectTrackingResponse,
@@ -45,6 +47,7 @@ export default function ProjectDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [contributeModalVisible, setContributeModalVisible] = useState(false);
 
   const handleDeleteProject = () => {
     Alert.alert(
@@ -274,6 +277,12 @@ export default function ProjectDetailScreen() {
   const isTerminalFailed = TERMINAL_FAILED_STATUSES.includes(project.status);
   const netSaved = project.netSaved ?? project.totalContributed;
   const moneyOwed = project.moneyOwed ?? 0;
+  // Manual contribute (Screen 5): personal, standalone (group sub-projects are
+  // auto-funded via settlement) goals in a contributable state.
+  const canContribute =
+    isPersonal &&
+    !isSubPersonal &&
+    CONTRIBUTABLE_STATUSES.includes(project.status);
 
   // Debt overlay (B1): red segment to the right of the green net fill, sized as
   // debt's share of the target and clamped to the empty space on the bar.
@@ -480,6 +489,16 @@ export default function ProjectDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {canContribute && (
+            <Pressable
+              style={styles.contributeButton}
+              onPress={() => setContributeModalVisible(true)}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.contributeButtonText}>{t("project.contribute_action")}</Text>
+            </Pressable>
+          )}
 
           {/* New Project Info Grid */}
           <View style={styles.metaInfoGrid}>
@@ -721,6 +740,24 @@ export default function ProjectDetailScreen() {
           visible={inviteModalVisible}
           projectId={id}
           onClose={() => setInviteModalVisible(false)}
+        />
+      )}
+
+      {/* Manual Contribute Modal (Screen 5) */}
+      {contributeModalVisible && (
+        <ContributeModal
+          visible={contributeModalVisible}
+          project={project}
+          onClose={() => setContributeModalVisible(false)}
+          onContributed={(updated) => {
+            setContributeModalVisible(false);
+            setProject(updated);
+            if (updated.status === "COMPLETED") {
+              Alert.alert(t("common.name_app"), t("project.contribute_completed"));
+            }
+            // Reconcile server-derived fields (pace, history, milestone pings).
+            fetchProjectDetail(true).catch(() => {});
+          }}
         />
       )}
     </SafeAreaView>
@@ -1163,6 +1200,20 @@ const styles = StyleSheet.create({
   deleteProjectText: {
     color: "#FFFFFF",
     fontSize: 16,
+    fontWeight: "700",
+  },
+  contributeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#3F2CCB",
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 16,
+  },
+  contributeButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
     fontWeight: "700",
   },
   memberRow: {
