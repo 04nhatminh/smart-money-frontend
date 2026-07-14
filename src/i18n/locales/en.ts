@@ -836,7 +836,7 @@ export default {
     savingPace: {
       RELAXED: "Relaxed",
       BALANCED: "Balanced",
-      AGGRESIVE: "Focused",
+      AGGRESSIVE: "Focused",
     },
     interventionLevel: {
       NOTIFY: "Notify",
@@ -847,6 +847,58 @@ export default {
       SAVE_MORE: "Save",
       REDUCE_SPENDING: "Reduce",
       TRACK_ONLY: "Track",
+    },
+    saving_pace_description: "Choose how fast you want SmartMoney to adjust your plan.",
+    support_level_description: "Choose how strongly SmartMoney should guide your spending.",
+    focus_mode_description: "Choose the main goal for your monthly financial plan.",
+    title_onboarding: "Make SmartMoney work for you",
+    subtitle_onboarding:
+      "Tell SmartMoney how you'd like it to support your financial goals.",
+
+    title_edit: "Update your financial setup",
+    subtitle_edit:
+      "You can change these preferences anytime.",
+
+    pace_description:
+      "Choose how quickly you want SmartMoney to adjust your financial plan.",
+
+    support_description:
+      "Choose how actively SmartMoney should guide and remind you about your spending.",
+
+    focus_description:
+      "Choose the main goal for your monthly financial plan.",
+
+    continue: "Continue",
+    retry: "Try again",
+    close: "Close",
+
+    success_title_onboarding: "Financial setup completed",
+    success_title_edit: "Changes saved",
+
+    success_description_onboarding:
+      "SmartMoney will use these preferences to personalize your monthly financial plan.",
+
+    success_description_edit:
+      "Your updated preferences have been saved and will be applied to your financial plan.",
+
+    load_error_title: "Unable to load your setup",
+
+    savingPaceDescription: {
+      RELAXED: "Small changes",
+      BALANCED: "Steady plan",
+      AGGRESSIVE: "Save faster",
+    },
+
+    interventionLevelDescription: {
+      NOTIFY: "Only alerts",
+      GENTLE: "Light reminders",
+      HARD: "Strict control",
+    },
+
+    focusModeDescription: {
+      SAVE_MORE: "Keep more money",
+      REDUCE_SPENDING: "Spend less",
+      TRACK_ONLY: "Just monitor",
     },
   },
 

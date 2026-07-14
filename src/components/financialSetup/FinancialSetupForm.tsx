@@ -15,12 +15,15 @@ import { t } from "../../i18n";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import {
   FinancialSetup,
-  FINANCIAL_SETUP_OPTIONS,
   type FocusMode,
   type InterventionLevel,
   type SavingPace,
   UpdateFinancialSetupPayload,
+  getFinancialSetupLabel,
+  type FinancialSetupChoice,
+
 } from "../../types/financialSetup";
+import { FINANCIAL_SETUP_OPTIONS } from "../../constants/financialSetup";
 import {
   formatNumberWithDots,
   parseCurrencyToNumber,
@@ -28,7 +31,8 @@ import {
 
 type Option<T extends string> = {
   value: T;
-  label: string;
+  labelKey: string;
+  descriptionKey: string;
   icon: keyof typeof Ionicons.glyphMap;
 };
 
@@ -42,24 +46,26 @@ type Props = {
   onCancel?: () => void;
 };
 
-
 function OptionGroup<T extends string>({
   title,
+  description,
   value,
   options,
   onChange,
-  getLabel,
 }: {
   title: string;
+  description?: string;
   value: T | null;
   options: readonly Option<T>[];
   onChange: (value: T) => void;
-  /** Resolves a localized label; falls back to the option's static label. */
-  getLabel?: (value: T) => string;
 }) {
   return (
     <View style={styles.group}>
       <Text style={styles.groupTitle}>{title}</Text>
+
+      {!!description && (
+        <Text style={styles.groupDescription}>{description}</Text>
+      )}
 
       <View style={styles.optionGrid}>
         {options.map((option) => {
@@ -90,15 +96,28 @@ function OptionGroup<T extends string>({
               </View>
 
               <Text
-                numberOfLines={2}
+                numberOfLines={1}
                 ellipsizeMode="tail"
                 style={[
                   styles.optionLabel,
                   selected && styles.optionLabelSelected,
                 ]}
               >
-                {getLabel ? getLabel(option.value) : option.label}
+                {t(option.labelKey)}
               </Text>
+
+              {!!option.descriptionKey && (
+                <Text
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                  style={[
+                    styles.optionDescription,
+                    selected && styles.optionDescriptionSelected,
+                  ]}
+                >
+                  {t(option.descriptionKey)}
+                </Text>
+              )}
             </Pressable>
           );
         })}
@@ -199,14 +218,12 @@ export default function FinancialSetupForm({
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboard}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
       >
         <View style={styles.header}>
           <View style={styles.headerIcon}>
@@ -242,35 +259,31 @@ export default function FinancialSetupForm({
 
         <OptionGroup<SavingPace>
           title={t("financialSetup.pace_title")}
+          description={t("financialSetup.pace_description")}
           value={savingPace}
           options={FINANCIAL_SETUP_OPTIONS.savingPace}
           onChange={setSavingPace}
-          getLabel={(v) => t(`financialSetup.savingPace.${v}`)}
         />
 
         <OptionGroup<InterventionLevel>
           title={t("financialSetup.support_title")}
+          description={t("financialSetup.support_description")}
           value={interventionLevel}
           options={FINANCIAL_SETUP_OPTIONS.interventionLevel}
           onChange={setInterventionLevel}
-          getLabel={(v) => t(`financialSetup.interventionLevel.${v}`)}
         />
 
         <OptionGroup<FocusMode>
           title={t("financialSetup.focus_title")}
+          description={t("financialSetup.focus_description")}
           value={focusMode}
           options={FINANCIAL_SETUP_OPTIONS.focusMode}
           onChange={setFocusMode}
-          getLabel={(v) => t(`financialSetup.focusMode.${v}`)}
         />
 
         {!!error && (
           <View style={styles.messageError}>
-            <Ionicons
-              name="alert-circle-outline"
-              size={16}
-              color="#B91C1C"
-            />
+            <Ionicons name="alert-circle-outline" size={16} color="#B91C1C" />
             <Text style={styles.messageErrorText}>{error}</Text>
           </View>
         )}
@@ -282,9 +295,7 @@ export default function FinancialSetupForm({
               size={16}
               color="#047857"
             />
-            <Text style={styles.messageSuccessText}>
-              {successMessage}
-            </Text>
+            <Text style={styles.messageSuccessText}>{successMessage}</Text>
           </View>
         )}
 
@@ -292,7 +303,7 @@ export default function FinancialSetupForm({
           {mode === "edit" && onCancel && (
             <View style={styles.halfButton}>
               <ButtonSave
-                label={t("financialSetup.cancel")}
+                label="Cancel"
                 variant="secondary"
                 onPress={onCancel}
                 disabled={loading}
@@ -300,20 +311,17 @@ export default function FinancialSetupForm({
             </View>
           )}
 
-          <View
-            style={mode === "edit" ? styles.halfButton : styles.fullButton}
-          >
+          <View style={mode === "edit" ? styles.halfButton : styles.fullButton}>
             <ButtonSave
               label={ctaLabel}
               onPress={handleSubmit}
               loading={loading}
-              loadingText={t("financialSetup.saving")}
+              loadingText="Saving..."
               disabled={!canSubmit}
             />
           </View>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
   );
 }
 
@@ -346,7 +354,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     color: "#111827",
-    lineHeight: 22,
+    lineHeight: 24,
     marginBottom: 3,
   },
 
@@ -356,15 +364,22 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  group: { 
-    marginBottom: 16, 
-  }, 
-  
-  groupTitle: { 
-    fontSize: 16, 
-    fontWeight: "800", 
-    color: "#111827", 
-    marginBottom: 9, 
+  group: {
+    marginBottom: 16,
+  },
+
+  groupTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 5,
+  },
+
+  groupDescription: {
+    fontSize: 12,
+    color: "#6B7280",
+    lineHeight: 16,
+    marginBottom: 9,
   },
 
   supportText: {
@@ -373,57 +388,71 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 
-  optionGrid: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    width: "88%", 
-    alignSelf: "center", 
-  }, 
-  
-  optionTile: { 
-    width: "30.5%", 
-    minWidth: 0, 
-    minHeight: 76, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    borderWidth: 1.2, 
-    borderColor: "#E5E7EB", 
-    borderRadius: 13, 
-    backgroundColor: "#FFFFFF", 
-    paddingHorizontal: 4, 
-    paddingVertical: 9, 
-  }, 
-  
-  optionTileSelected: { 
-    borderColor: "#4B3FD6", 
-    backgroundColor: "#F5F3FF", 
-  }, 
-  
-  optionIcon: { 
-    width: 30, 
-    height: 30, 
-    borderRadius: 10, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    backgroundColor: "#EEF2FF", 
-    marginBottom: 6, 
-  }, 
-  
-  optionIconSelected: { 
-    backgroundColor: "#4B3FD6", 
-  }, 
-  
-  optionLabel: { 
-    width: "100%", 
-    fontSize: 13, 
-    fontWeight: "800", 
-    color: "#374151", 
-    textAlign: "center", 
-    lineHeight: 14, 
-  }, 
-  
-  optionLabelSelected: { 
-    color: "#3324C9", 
+  optionGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "88%",
+    alignSelf: "center",
+  },
+
+  optionTile: {
+    width: "30.5%",
+    minWidth: 0,
+    minHeight: 94,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.2,
+    borderColor: "#E5E7EB",
+    borderRadius: 13,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 4,
+    paddingVertical: 9,
+  },
+
+  optionTileSelected: {
+    borderColor: "#4B3FD6",
+    backgroundColor: "#F5F3FF",
+  },
+
+  optionIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EEF2FF",
+    marginBottom: 6,
+  },
+
+  optionIconSelected: {
+    backgroundColor: "#4B3FD6",
+  },
+
+  optionLabel: {
+    width: "100%",
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#374151",
+    textAlign: "center",
+    lineHeight: 15,
+  },
+
+  optionLabelSelected: {
+    color: "#3324C9",
+  },
+
+  optionDescription: {
+    width: "100%",
+    fontSize: 10.5,
+    fontWeight: "500",
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 13,
+    marginTop: 3,
+  },
+
+  optionDescriptionSelected: {
+    color: "#4B3FD6",
   },
 
   messageError: {
