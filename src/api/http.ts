@@ -16,6 +16,7 @@ const http: AxiosInstance = axios.create({
   timeout: API_CONFIG.TIMEOUT,
 });
 
+
 const refreshHttp = axios.create({
   baseURL: API_CONFIG.BASE_URL,
   timeout: API_CONFIG.TIMEOUT,

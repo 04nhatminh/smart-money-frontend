@@ -53,21 +53,21 @@ const getCategoryLabel = (category?: string) => {
   const normalized = (category || "OTHER").toUpperCase();
   switch (normalized) {
     case "FOOD":
-      return t("category.food");
+      return t("category.FOOD");
     case "TRANSPORTATION":
-      return t("category.transportation");
+      return t("category.TRANSPORTATION");
     case "CLOTHING":
-      return t("category.clothing");
+      return t("category.CLOTHING");
     case "UTILITIES":
-      return t("category.utilities");
+      return t("category UTILITIES");
     case "ENTERTAINMENT":
-      return t("category.entertainment");
+      return t("category.ENTERTAINMENT");
     case "HEALTH":
-      return t("category.health");
+      return t("category.HEALTH");
     case "EDUCATION":
-      return t("category.education");
+      return t("category.EDUCATION");
     default:
-      return t("category.other");
+      return t("category.OTHER");
   }
 };
 

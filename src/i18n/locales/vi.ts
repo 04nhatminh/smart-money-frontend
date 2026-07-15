@@ -255,16 +255,6 @@ export default {
   wait: {
       waiting: "Chờ Một Xí",
   },
-  category: {
-    food: "Thức ăn",
-    transportation: "Di chuyển",
-    clothing: "Quần áo",
-    utilities: "Tiện ích",
-    entertainment: "Giải trí",
-    health: "Sức khỏe",
-    education: "Giáo dục",
-    other: "Khác"
-  },
   transaction: {
     addTitle: "Thêm giao dịch",
     editTitle: "Chỉnh sửa giao dịch",
