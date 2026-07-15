@@ -11,6 +11,7 @@ import { formatDateTime } from "../utils/dateFormatter";
 import PendingStorage, { pendingEventBus, ProcessingEvent, ProcessingStatus } from "../storage/pendingTransactionStorage";
 import TransactionParser from "../utils/transactionParser";
 import { normalizeAIResult } from "../utils/normalizeAIResult";
+import DeduplicationService from "../utils/DeduplicationService";
 
 const { NotificationModule } = NativeModules;
 const emitter = new NativeEventEmitter(NotificationModule);
@@ -23,10 +24,10 @@ type Fingerprint = string;
 
 // Helper phát sự kiện
 async function emitStatus(pendingId: string, status: ProcessingStatus, error?: string) {
-    await PendingStorage.update(pendingId,{
-        processingStatus: status,
-        processingError: error,
-    });
+  await PendingStorage.update(pendingId, {
+    processingStatus: status,
+    processingError: error,
+  });
   const event: ProcessingEvent = { pendingId, status, error };
   pendingEventBus.emit('processing_update', event);
 }
@@ -180,25 +181,35 @@ export class NotificationListenerService {
     }
   }
 
-  private static isFinanceApp(packageName?: string): boolean {
-    if (!packageName) return false;
+  private static isFinanceApp(packageName?: string, title?: string): boolean {
 
-    const normalized = packageName.toLowerCase().trim();
+    const normalized = packageName?.toLowerCase().trim();
+    const titleNormalized = title?.toLowerCase() || "";
+
 
     return (
-      normalized.includes("bank") ||
-      normalized.includes("mb") ||
-      normalized.includes("momo") ||
-      normalized.includes("zalopay") ||
-      normalized.includes("pay") ||
-      normalized.includes("agribank") ||
-      normalized.includes("vietcom") ||
-      normalized.includes("vietin") ||
-      normalized.includes("bidv") ||
-      normalized.includes("techcom") ||
-      normalized.includes("vpbank") ||
-      normalized.includes("sacombank") ||
-      normalized.includes("gm")
+      normalized?.includes("bank") ||
+      normalized?.includes("mb") ||
+      normalized?.includes("momo") ||
+      normalized?.includes("zalopay") ||
+      normalized?.includes("pay") ||
+      normalized?.includes("agribank") ||
+      normalized?.includes("vietcom") ||
+      normalized?.includes("vietin") ||
+      normalized?.includes("bidv") ||
+      normalized?.includes("techcom") ||
+      normalized?.includes("vpbank") ||
+      normalized?.includes("sacombank") ||
+      normalized?.includes("gm") ||
+      titleNormalized.includes("bank") ||
+      titleNormalized.includes("momo") ||
+      titleNormalized.includes("zalopay") ||
+      titleNormalized.includes("pay") ||
+      titleNormalized.includes("agribank") ||
+      titleNormalized.includes("vietcom") ||
+      titleNormalized.includes("vietin") ||
+      titleNormalized.includes("bidv") ||
+      titleNormalized.includes("techcom")
     );
   }
 
@@ -235,7 +246,7 @@ export class NotificationListenerService {
     }
 
     // 4. CHECK TỪ KHÓA GIAO DỊCH (Transaction Keywords)
-    const txKeywords = ["chuyển", "nhận", "ghi có", "ghi nợ", "thanh toán", "nạp", "rút"];
+    const txKeywords = ["chuyển", "nhận", "ghi có", "ghi nợ", "thanh toán", "nạp", "rút", "số tiền"];
     let txMatch = 0;
     for (const kw of txKeywords) {
       if (normalized.includes(this.normalizeVietnamese(kw))) {
@@ -279,8 +290,8 @@ export class NotificationListenerService {
     return score >= this.SCORE_THRESHOLD; // Chỉ true khi đạt ngưỡng
   }
 
-  private static MONEY_REGEX =
-    /\b\d+([.,]\d+)?\s?(k|nghin|ngan|tr|trieu|vnd|vnđ|d)\b/i;
+private static MONEY_REGEX =
+/\b\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\s?(₫|đ|d|vnđ|vnd|k|nghin|ngan|tr|trieu)\b/i;
 
   private static ACCOUNT_REGEX = /(tk|tài khoản|account)/i;
 
@@ -292,12 +303,13 @@ export class NotificationListenerService {
       const text = payload?.text || payload?.body || payload?.message || "";
       const timestamp = this.getTimestamp(payload);
       const pkg = payload?.package || "native";
+      const title = payload?.title || "";
 
       if (!text) return;
 
       // 🔥 FILTER QUAN TRỌNG
       const isTransaction = this.isTransactionNotification(text);
-      const isFinance = this.isFinanceApp(pkg);
+      const isFinance = this.isFinanceApp(pkg,title);
 
       if (!isTransaction) {
         console.log("⏭️ Not transaction");
@@ -311,6 +323,13 @@ export class NotificationListenerService {
 
       // 🔥 DUPLICATE FILTER
       if (!this.shouldProcess(text, timestamp, "native", pkg)) return;
+
+      const nativeDedupKey = `${pkg || "native"}_${this.normalizeText(text)}_${Math.floor(timestamp / this.BUCKET_MS)}`;
+      if (DeduplicationService.isDuplicateByKey(nativeDedupKey)) {
+        console.log("⏭️ Duplicate notification skipped by dedup key:", nativeDedupKey);
+        return;
+      }
+      DeduplicationService.registerKey(nativeDedupKey);
 
       console.log("🚀 Processing lockscreen notification");
 
@@ -341,6 +360,13 @@ export class NotificationListenerService {
       }
 
       if (!this.shouldProcess(text, timestamp, "foreground")) return;
+
+      const foregroundDedupKey = `foreground_${this.normalizeText(text)}_${Math.floor(timestamp / this.BUCKET_MS)}`;
+      if (DeduplicationService.isDuplicateByKey(foregroundDedupKey)) {
+        console.log("⏭️ Duplicate foreground notification skipped by dedup key:", foregroundDedupKey);
+        return;
+      }
+      DeduplicationService.registerKey(foregroundDedupKey);
 
       console.log("🚀 Processing foreground notification");
 
@@ -436,14 +462,28 @@ export class NotificationListenerService {
           continue;
         }
 
-        await PendingStorage.add({
+        const candidateDate = normalized.date || formatDateTime(new Date());
+        const candidate = {
           amount,
           category: tx.category,
           type: tx.type as TransactionType,
           groupText: tx.description,
-          date: normalized.date || formatDateTime(new Date()),
-          source: "notification",
-        });
+          date: candidateDate,
+          source: "notification" as const,
+        };
+
+        if (DeduplicationService.findDuplicate(candidate)) {
+          console.log("⏭️ Duplicate transaction skipped", {
+            amount,
+            description: tx.description,
+            category: tx.category,
+          });
+          continue;
+        }
+
+        DeduplicationService.markProcessed(candidate);
+
+        await PendingStorage.add(candidate);
       }
 
     } catch (error: any) {

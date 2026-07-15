@@ -243,16 +243,6 @@ export default {
   wait: {
     waiting: "Waiting a moment",
   },
-  category: {
-    food: "Food",
-    transportation: "Transportation",
-    clothing: "Clothing",
-    utilities: "Utilities",
-    entertainment: "Entertainment",
-    health: "Health",
-    education: "Education",
-    other: "Other"
-  },
   transaction: {
     addTitle: "Add Transaction",
     editTitle: "Edit Transaction",
