@@ -18,6 +18,7 @@ import {
     validateCreateProjectForm,
 } from "../utils/project";
 import { formatDateToYYYYMMDD } from "../utils/dateFormatter";
+import { t } from "../i18n";
 
 const initialFormValues: CreateProjectFormValues = {
     name: "",
@@ -151,6 +152,52 @@ export function useCreateProject({
         setErrors(initialErrors);
     };
 
+    const validateRequiredFields = () => {
+        const nextErrors: CreateProjectFormErrors = {
+            name: "",
+            targetAmount: "",
+            deadlineMonths: "",
+            description: "",
+        };
+
+        const name = values.name?.trim() ?? "";
+
+        const targetAmount = Number(
+            String(values.targetAmount ?? "").replace(/[^\d]/g, "")
+        );
+
+        const deadlineMonths = Number(
+            String(values.deadlineMonths ?? "").replace(/[^\d]/g, "")
+        );
+
+        if (!name) {
+            nextErrors.name = t("project.name_required");
+        }
+
+        if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
+            nextErrors.targetAmount = t(
+            "project.target_amount_required"
+            );
+        }
+
+        if (!Number.isFinite(deadlineMonths) || deadlineMonths <= 0) {
+            nextErrors.deadlineMonths = t(
+            "project.deadline_required"
+            );
+        }
+
+        // Description không bắt buộc
+        nextErrors.description = "";
+
+        setErrors(nextErrors);
+
+        return (
+            !nextErrors.name &&
+            !nextErrors.targetAmount &&
+            !nextErrors.deadlineMonths
+        );
+        };
+
     return {
         values,
         errors,
@@ -166,6 +213,7 @@ export function useCreateProject({
         buildPayloadWithAdvisor,
         canCreateProject,
         availablePriorities,
+        validateRequiredFields,
         resetForm,
         onChangePriority,
     };

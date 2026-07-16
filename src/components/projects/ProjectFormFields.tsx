@@ -20,6 +20,8 @@ type Props = {
   onChangeTargetAmount: (value: string) => void;
   onChangeDeadlineMonths: (value: string) => void;
   onChangePriority: (value: ProjectPriority) => void;
+  onDescriptionFocus?: () => void;
+  onDescriptionBlur?: () => void;
 };
 
 const getPriorityLabel = (priority: ProjectPriority) => {
@@ -48,6 +50,8 @@ export default function ProjectFormFields({
   onChangeDeadlineMonths,
   onChangeDescription,
   onChangePriority,
+  onDescriptionFocus,
+  onDescriptionBlur,
   availablePriorities,
 }: Props) {
   return (
@@ -147,6 +151,8 @@ export default function ProjectFormFields({
         placeholder={t("project.description")}
         value={description}
         onChangeText={onChangeDescription}
+        onFocus={onDescriptionFocus}
+        onBlur={onDescriptionBlur}
         multiline
         numberOfLines={4}
         autoCapitalize="sentences"

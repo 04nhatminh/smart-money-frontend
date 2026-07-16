@@ -422,4 +422,80 @@ export const projectListStyles = StyleSheet.create({
   lowPriorityText: {
     color: "#059669",
   },
+
+  headerActions: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 8,
+},
+
+moreButton: {
+  width: 34,
+  height: 34,
+  borderRadius: 17,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#F3F4F6",
+},
+
+menuOverlay: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.2)",
+  justifyContent: "center",
+  alignItems: "center",
+  paddingHorizontal: 24,
+},
+
+menuContainer: {
+  width: "78%",
+  maxWidth: 320,
+  backgroundColor: "#FFFFFF",
+  borderRadius: 18,
+  paddingVertical: 8,
+  shadowColor: "#000000",
+  shadowOffset: {
+    width: 0,
+    height: 6,
+  },
+  shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+
+  menuItem: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111827",
+  },
+
+  deleteMenuText: {
+    color: "#DC2626",
+  },
+
+  menuDivider: {
+    height: 1,
+    backgroundColor: "#F0F0F0",
+    marginHorizontal: 14,
+  },
+
+  debtRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 6,
+  },
+
+  debtText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#DC2626",
+  },
 });
