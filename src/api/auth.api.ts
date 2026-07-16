@@ -32,15 +32,6 @@ class AuthApi {
     
     if (data.avatar) {
       formData.append('avatar', data.avatar);
-    } else {
-      const asset = Asset.fromModule(require('../../assets/avatar-default.png'));
-      await asset.downloadAsync();
-
-      formData.append('avatar', {
-        uri: asset.localUri || asset.uri,
-        name: 'default-avatar.png',
-        type: 'image/png'
-      } as any);
     }
     
     return formData;

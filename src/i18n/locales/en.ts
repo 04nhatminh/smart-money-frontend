@@ -690,21 +690,6 @@ export default {
     }
   },
 
-  // Transaction category enums as sent by the backend (raw enum → display name).
-  category: {
-    FOOD: "Food",
-    TRANSPORTATION: "Transportation",
-    CLOTHING: "Clothing",
-    UTILITIES: "Utilities",
-    ENTERTAINMENT: "Entertainment",
-    HEALTH: "Health",
-    EDUCATION: "Education",
-    SHOPPING: "Shopping",
-    OTHER: "Other",
-    PROJECT_CONTRIBUTION: "Project contribution",
-    PROJECT_REFUND: "Project refund",
-  },
-
   severity: {
     INFO: "Info",
     WARN: "Heads up",
