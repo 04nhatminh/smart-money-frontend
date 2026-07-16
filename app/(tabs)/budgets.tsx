@@ -53,7 +53,7 @@ const categoryIconMap: { [key: string]: { icon: string; color: string; displayNa
     HEALTH: { icon: "heart", color: "#F44336", displayName: "budget.category_health" },
     EDUCATION: { icon: "book", color: "#3629B7", displayName: "budget.category_education" },
     SHOPPING: { icon: "bag", color: "#4CAF50", displayName: "budget.category_shopping" },
-    OTHER: { icon: "more", color: "#757575", displayName: "budget.category_other" },
+    OTHER: { icon: "ellipsis-horizontal", color: "#757575", displayName: "budget.category_other" },
 };
 
 export default function BudgetListPage() {
@@ -408,6 +408,7 @@ export default function BudgetListPage() {
 
                 <FinancialSetupModal
                     visible={showEditSetup}
+                    mode="edit"
                     onClose={() => {
                         setShowEditSetup(false);
                         loadFinancialSetup();

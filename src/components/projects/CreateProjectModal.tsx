@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Alert, Modal, View, ScrollView } from "react-native";
+import React, { useRef, useState, useEffect } from "react";
+import { Alert, Modal, View, ScrollView, KeyboardAvoidingView, Keyboard, Platform } from "react-native";
 
 import SuccessModal from "../SuccessModal";
 import ConfirmExitModal from "../ConfirmExitModal";
@@ -10,6 +10,7 @@ import { getMonthsFromDeadline } from "../../utils/project";
 import {
     CreateProjectModalStep,
     ProjectAdvisorResponse,
+
     SavingPlanMode,
     ProjectPriority,
     BudgetAllocationResult,
@@ -26,11 +27,14 @@ import { initWebSocket, subscribeBudgetJob } from "../../services/websocket";
 import { useAuth } from "../../context/AuthContext";
 import type { UserResponse } from "../../types/auth.types";
 import BudgetAllocationReview from "./BudgetAllocationReview";
+import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../utils/dataRefreshEmitter";
 
 type PendingCreateProjectAction =
     | "NEXT_STEP"
     | "CALL_ADVISOR"
     | "LOAD_BUDGET";
+
+type SuccessKind = "PROJECT" | "BUDGET";
 
 const normalizeBudgetAllocationResult = (raw: any): BudgetAllocationResult | null => {
     const source = raw?.result ?? raw?.data ?? raw?.budgets ?? raw;
@@ -115,8 +119,13 @@ export default function CreateProjectModal({
     initialDeadline,
 }: Props) {
     const { user, refreshUser } = useAuth();
+    const scrollViewRef = useRef<ScrollView>(null);
+    const scrollOffsetRef = useRef(0);
+    const focusedScrollOffsetRef = useRef(0);
+    const descriptionFocusedRef = useRef(false);
     const [step, setStep] = useState<CreateProjectModalStep>(1);
     const [mode, setMode] = useState<SavingPlanMode | null>(null);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     const [showFinancialSetup, setShowFinancialSetup] = useState(false);
     const [loadingAction, setLoadingAction] = useState<SavingPlanAction>(null);
@@ -126,6 +135,7 @@ export default function CreateProjectModal({
     const [usedPriorities, setUsedPriorities] = useState<ProjectPriority[]>([]);
     const [checkingPriorities, setCheckingPriorities] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [successKind, setSuccessKind] = useState<SuccessKind>("PROJECT");
     const [showExitModal, setShowExitModal] = useState(false);
 
     const [budgetLoading, setBudgetLoading] = useState(false);
@@ -145,6 +155,7 @@ export default function CreateProjectModal({
         isDirty,
         canCreateProject,
         availablePriorities,
+        validateRequiredFields,
         onChangeName,
         onChangeDescription,
         onChangeTargetAmount,
@@ -155,6 +166,47 @@ export default function CreateProjectModal({
         buildPayloadWithAdvisor,
         resetForm,
     } = useCreateProject({usedPriorities,});
+
+    const handleDescriptionFocus = () => {
+        descriptionFocusedRef.current = true;
+        focusedScrollOffsetRef.current = scrollOffsetRef.current;
+    };
+
+    const handleDescriptionBlur = () => {
+        descriptionFocusedRef.current = false;
+    };
+
+    useEffect(() => {
+        if (!visible) return;
+
+        const keyboardShowSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+            setKeyboardHeight(event.endCoordinates.height);
+
+            if (!descriptionFocusedRef.current) {
+                return;
+            }
+
+            requestAnimationFrame(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+            });
+        });
+
+        const keyboardHideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+            setKeyboardHeight(0);
+
+            requestAnimationFrame(() => {
+                scrollViewRef.current?.scrollTo({
+                    y: focusedScrollOffsetRef.current,
+                    animated: true,
+                });
+            });
+        });
+
+        return () => {
+            keyboardShowSubscription.remove();
+            keyboardHideSubscription.remove();
+        };
+    }, [visible]);
 
     const fetchUsedPriorities =
         async () => {
@@ -223,13 +275,6 @@ export default function CreateProjectModal({
         );
     }, [budgetResult]);
     useEffect(() => {
-        if (visible) {
-            fetchUsedPriorities();
-        }
-    }, [visible]);
-
-    useEffect(() => {
-
         if (!visible) return;
 
         if (!canCreateProject) return;
@@ -296,14 +341,33 @@ export default function CreateProjectModal({
     };
 
     const handleNextFromCreate = () => {
+        // console.log("===== NEXT PRESSED =====");
+        // console.log("values:", values);
+        // console.log("errors before validate:", errors);
+        // console.log(
+        //     "financialSetupCompleted:",
+        //     user?.financialSetupCompleted
+        // );
+
+        const isValid = validateRequiredFields();
+
+        // console.log("validate result:", isValid);
+
+        if (!isValid) {
+            // console.log("Blocked by validation");
+            return;
+        }
+
         if (!user?.financialSetupCompleted) {
+            // console.log("Opening financial setup");
             setPendingCreateProjectAction("NEXT_STEP");
             setShowFinancialSetup(true);
             return;
         }
 
+        // console.log("Moving to step 2");
         setStep(2);
-    };
+        };
 
     const isMissingFinancialSetupError = (errorCode?: string) =>
         [
@@ -425,6 +489,9 @@ export default function CreateProjectModal({
             );
             }
 
+            // Thông báo Project đã thay đổi
+            dataRefreshEmitter.emit(FINANCIAL_DATA_UPDATED);
+
             return true;
         } catch (error: any) {
             Alert.alert(
@@ -473,6 +540,9 @@ export default function CreateProjectModal({
 
     const handleBudgetGenerationClose = () => {
         setShowBudgetGeneration(false);
+
+        setSuccessKind("PROJECT");
+        
         setShowSuccessModal(true);
     };
 
@@ -506,6 +576,10 @@ export default function CreateProjectModal({
             if (!response?.success) {
             throw new Error(response?.message || t("project.failed_save_budget_allocation"));
             }
+
+            dataRefreshEmitter.emit(FINANCIAL_DATA_UPDATED);
+
+            setSuccessKind("BUDGET");
 
             setShowSuccessModal(true);
         } catch (error: any) {
@@ -650,16 +724,36 @@ export default function CreateProjectModal({
     return (
         <>
             <Modal
-                visible={visible}
-                animationType="slide"
-                transparent
-                onRequestClose={handleClose}
+            visible={visible}
+            animationType="slide"
+            transparent
+            statusBarTranslucent
+            onRequestClose={handleClose}
             >
                 <View style={styles.modalOverlay}>
+                <KeyboardAvoidingView
+                    style={styles.keyboardContainer}
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                    keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
+                >
+                
                     <View style={styles.modalContainer}>
                         <ScrollView
-                            contentContainerStyle={styles.scrollContainer}
+                            ref={scrollViewRef}
+                            onScroll={(event) => {
+                                scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+                            }}
+                            scrollEventThrottle={16}
+                            style={styles.modalScrollView}
+                            contentContainerStyle={[
+                                styles.scrollContainer,
+                                { paddingBottom: 40 + keyboardHeight },
+                            ]}
                             showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            keyboardDismissMode="on-drag"
+                            nestedScrollEnabled
+                            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
                         >
                             {step === 1 && (
                                 <CreateProjectStep
@@ -676,6 +770,8 @@ export default function CreateProjectModal({
                                     onChangeTargetAmount={onChangeTargetAmount}
                                     onChangeDeadlineMonths={onChangeDeadlineMonths}
                                     onChangePriority={onChangePriority}
+                                    onDescriptionFocus={handleDescriptionFocus}
+                                    onDescriptionBlur={handleDescriptionBlur}
                                     onCancel={handleClose}
                                     onNext={handleNextFromCreate}
                                 />
@@ -708,7 +804,6 @@ export default function CreateProjectModal({
                                 <BudgetAllocationReview
                                     budgetResult={budgetResult}
                                     loading={budgetSaveLoading}
-                                    onBack={handleBackStep}
                                     onConfirm={handleSaveBudgetAllocation}
                                     onCancel={handleClose}
                                 />
@@ -717,14 +812,24 @@ export default function CreateProjectModal({
                     
                         </ScrollView>
                     </View>
+                
+                </KeyboardAvoidingView>
                 </View>
             </Modal>
 
             <SuccessModal
                 visible={showSuccessModal}
                 onDone={handleSuccessClose}
-                title={t("project.created_success_title")}
-                description={t("project.created_success_desc")}
+                title={
+                    successKind === "BUDGET"
+                        ? t("project.budget_saved_success_title")
+                        : t("project.created_success_title")
+                }
+                description={
+                    successKind === "BUDGET"
+                        ? t("project.budget_saved_success_desc")
+                        : t("project.created_success_desc")
+                }
                 buttonText={t("common.done")}
             />
                 

@@ -553,6 +553,13 @@ export default {
     edit_button: "Edit",
     cancel_button: "Cancel",
     profile_details: "Your profile details",
+
+    budget_saved_success_title: "Budget saved successfully",
+    budget_saved_success_desc: "Your suggested budget has been saved and is ready to track.",
+
+    name_required: "Please enter a project name.",
+    target_amount_required: "Please enter a target amount.",
+    deadline_required: "Please enter a deadline.",
   },
   budget: {
     checking_profile: "Checking...",

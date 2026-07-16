@@ -33,7 +33,7 @@ export const transactionStyles = StyleSheet.create({
   },
 
   incomeActive: {
-    backgroundColor: "#8E8CD8"
+    backgroundColor: "#4adcbf"
   },
 
   typeText: {

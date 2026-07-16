@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -26,7 +26,7 @@ import AIInsightList from "../../src/components/assistant/AIInsightList";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
 import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceInputModal";
 import { TransactionRequest, Receipt, TransactionResponse } from "../../src/types/transaction.types";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { useAIInsight } from "../../src/hooks/useAIInsight";
 import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
@@ -57,7 +57,7 @@ const categoryIconMap: { [key: string]: { icon: string; color: string; displayNa
   HEALTH: { icon: 'heart', color: '#F44336', displayName: 'Health' },
   EDUCATION: { icon: 'book', color: '#3629B7', displayName: 'Education' },
   SHOPPING: { icon: 'bag', color: '#4CAF50', displayName: 'Shopping' },
-  OTHER: { icon: 'more', color: '#757575', displayName: 'Other' },
+  OTHER: { icon: 'ellipsis-horizontal', color: '#757575', displayName: 'Other' },
 };
 
 const getTransactionCategoryInfo = (category: string) => {
@@ -90,6 +90,8 @@ export default function HomePage() {
   const { user: authUser, refreshUser } = useAuth();
   const [user, setUser] = useState<UserResponse | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const HOME_REFRESH_TTL_MS = 60 * 1000;
 
   // Modals state
   const [cameraVisible, setCameraVisible] = useState(false);
@@ -125,6 +127,21 @@ export default function HomePage() {
   const [started, setStarted] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
+  const lastLoadedAtRef = useRef({
+    user: 0,
+    projects: 0,
+    budgets: 0,
+    transactions: 0,
+    analytics: 0,
+  });
+
+  const shouldHideBottomBar =
+    isCreateProjectVisible ||
+    cameraVisible ||
+    voiceVisible ||
+    manualVisible ||
+    showFinancialSetup ||
+    showNotification;
 
   // Tạo mảng allInsights bao gồm greeting + các insight thực tế
   const allInsights = useMemo(() => {
@@ -137,6 +154,10 @@ export default function HomePage() {
       ? [...insight, greeting]
       : [greeting];
   }, [insight, t]);
+
+  const shouldRefresh = (lastLoadedAt: number) => {
+    return Date.now() - lastLoadedAt > HOME_REFRESH_TTL_MS;
+  };
 
   // Effect khởi tạo khi allInsights thay đổi
   useEffect(() => {
@@ -216,6 +237,7 @@ export default function HomePage() {
     const refreshListener = () => {
       loadBudgets();
       fetchLatestProjects();
+      loadAnalyticsSummary();
     };
     dataRefreshEmitter.on(FINANCIAL_DATA_UPDATED, refreshListener);
 
@@ -238,16 +260,17 @@ export default function HomePage() {
     setUser(authUser);
   }, [authUser]);
 
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     try {
       const userData = await refreshUser();
       setUser(userData);
     } catch (error) {
       console.error("Failed to load user data:", error);
     } finally {
+      lastLoadedAtRef.current.user = Date.now();
       setLoading(false);
     }
-  };
+  }, [refreshUser]);
 
   const openRequiredSetupModal = (currentUser: UserResponse | null | undefined) => {
     if (!currentUser) return;
@@ -309,22 +332,30 @@ export default function HomePage() {
     }
   };
 
-  const fetchLatestProjects = async () => {
+  const fetchLatestProjects = useCallback(async () => {
     try {
       setLatestProjectsLoading(true);
-      const response = await ProjectAPI.getAll();
-      const list = response && response.success && Array.isArray(response.data) ? response.data : [];
-      const latest = list.slice(0, 3);
-      setLatestProjects(latest);
+
+      const response = await ProjectAPI.getAll({
+        status: "ACTIVE",
+      });
+
+      const list =
+        response?.success && Array.isArray(response.data)
+          ? response.data
+          : [];
+
+      setLatestProjects(list.slice(0, 3));
     } catch (error) {
-      console.log('Fetch latest projects error:', error);
+      console.log("Fetch latest projects error:", error);
       setLatestProjects([]);
     } finally {
+      lastLoadedAtRef.current.projects = Date.now();
       setLatestProjectsLoading(false);
     }
-  };
+  }, []);
 
-  const loadTransactions = async () => {
+  const loadTransactions = useCallback(async () => {
     try {
       setTransactionsLoading(true);
       const result = await transactionApi.getTransactions({ page: 0, size: 5 });
@@ -334,11 +365,12 @@ export default function HomePage() {
     } catch (error) {
       console.error("Failed to load transactions:", error);
     } finally {
+      lastLoadedAtRef.current.transactions = Date.now();
       setTransactionsLoading(false);
     }
-  };
+  }, []);
 
-  const loadBudgets = async () => {
+  const loadBudgets = useCallback(async () => {
     try {
       setBudgetsLoading(true);
       const now = new Date();
@@ -351,11 +383,12 @@ export default function HomePage() {
     } catch (error) {
       console.error("Failed to load budgets:", error);
     } finally {
+      lastLoadedAtRef.current.budgets = Date.now();
       setBudgetsLoading(false);
     }
-  };
+  }, []);
 
-  const loadAnalyticsSummary = async () => {
+  const loadAnalyticsSummary = useCallback(async () => {
     try {
       setAnalyticsLoading(true);
       const now = new Date();
@@ -369,9 +402,56 @@ export default function HomePage() {
     } catch (error) {
       console.error("Failed to load analytics summary:", error);
     } finally {
+      lastLoadedAtRef.current.analytics = Date.now();
       setAnalyticsLoading(false);
     }
-  };
+  }, []);
+
+   // Expo Router giữ các tab đã mount. Vì vậy, mỗi lần Home được focus lại
+  // cần lấy lại dữ liệu để phản ánh thay đổi từ Project, Budget, Transaction...
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const refreshHomeWhenFocused = async () => {
+        const tasks: Promise<void>[] = [];
+
+        if (shouldRefresh(lastLoadedAtRef.current.user)) {
+          tasks.push(loadUserData());
+        }
+
+        if (shouldRefresh(lastLoadedAtRef.current.projects)) {
+          tasks.push(fetchLatestProjects());
+        }
+
+        if (shouldRefresh(lastLoadedAtRef.current.budgets)) {
+          tasks.push(loadBudgets());
+        }
+
+        if (shouldRefresh(lastLoadedAtRef.current.transactions)) {
+          tasks.push(loadTransactions());
+        }
+
+        if (shouldRefresh(lastLoadedAtRef.current.analytics)) {
+          tasks.push(loadAnalyticsSummary());
+        }
+
+        if (tasks.length === 0) {
+          return;
+        }
+
+        await Promise.all(tasks);
+
+        if (!active) return;
+      };
+
+      void refreshHomeWhenFocused();
+
+      return () => {
+        active = false;
+      };
+    }, [fetchLatestProjects, loadAnalyticsSummary, loadBudgets, loadTransactions, loadUserData])
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -698,11 +778,13 @@ export default function HomePage() {
         }}
       />
 
-      <AppBottomBar
-        onCameraOpen={() => setCameraVisible(true)}
-        onVoiceOpen={() => setVoiceVisible(true)}
-        onFormOpen={() => setManualVisible(true)}
-      />
+      {!shouldHideBottomBar && (
+        <AppBottomBar
+          onCameraOpen={() => setCameraVisible(true)}
+          onVoiceOpen={() => setVoiceVisible(true)}
+          onFormOpen={() => setManualVisible(true)}
+        />
+      )}
 
       <CameraModal
         visible={cameraVisible}
@@ -729,6 +811,11 @@ export default function HomePage() {
       <CreateProjectModal
         visible={isCreateProjectVisible}
         onClose={() => setCreateProjectVisible(false)}
+        onCreated={() => {
+          fetchLatestProjects();
+          loadBudgets();
+          loadAnalyticsSummary();
+        }}
       />
 
       <FinancialSetupModal

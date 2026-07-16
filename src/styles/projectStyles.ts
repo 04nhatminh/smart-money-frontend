@@ -1,31 +1,40 @@
-import { Dimensions, StyleSheet } from "react-native";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+import { StyleSheet } from "react-native";
 
 export const projectStyles = StyleSheet.create({
+  keyboardContainer: {
+    width: "100%",
+    flex: 1,
+  },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.18)",
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
   },
 
   modalContainer: {
+    flex: 1,
+    marginTop: 28,
+    width: "100%",
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    height: SCREEN_HEIGHT,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 24,
+    overflow: "hidden",
+  },
+
+  modalScrollView: {
+    flex: 1,
   },
 
   scrollContainer: {
-    paddingBottom: 30,
-    margin: 5,
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
 
   title: {
-    marginTop: 25,
+    marginTop: 10,
     fontSize: 32,
     fontWeight: "700",
     color: "#111111",
@@ -125,15 +134,16 @@ export const projectStyles = StyleSheet.create({
 
   warningBox: {
     backgroundColor: "#FFF4E5",
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 18,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
   },
 
   warningText: {
     color: "#C26D00",
     fontSize: 13,
-    lineHeight: 20,
+    lineHeight: 18,
     fontWeight: "500",
   },
 
@@ -330,5 +340,7 @@ export const projectStyles = StyleSheet.create({
 
     gap: 12,
   },
+
+
 
 });

@@ -35,6 +35,8 @@ export const InputField: React.FC<InputFieldProps> = ({
     const inputRef = useRef<TextInput>(null);
     const [isFocused, setIsFocused] = useState(false);
     const [hidePassword, setHidePassword] = useState(secureTextEntry);
+    const externalOnFocus = rest.onFocus;
+    const externalOnBlur = rest.onBlur;
 
     const isPassword = secureTextEntry;
     const showRightText = rightText && !isPassword;
@@ -77,8 +79,16 @@ export const InputField: React.FC<InputFieldProps> = ({
                     ]}
                     value={value}
                     onChangeText={onChangeText}
-                    onFocus={() => editable && setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
+                    onFocus={(event) => {
+                        if (editable) {
+                            setIsFocused(true);
+                        }
+                        externalOnFocus?.(event);
+                    }}
+                    onBlur={(event) => {
+                        setIsFocused(false);
+                        externalOnBlur?.(event);
+                    }}
                     keyboardType={keyboardType}
                     secureTextEntry={isPassword ? hidePassword : false}
                     autoCapitalize={autoCapitalize}

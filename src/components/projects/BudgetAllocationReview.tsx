@@ -10,7 +10,6 @@ type Props = {
   budgetLoading?: boolean;
   showHeader?: boolean;
   showActions?: boolean;
-  onBack?: () => void;
   onConfirm?: () => void;
   onCancel?: () => void;
 };
@@ -32,7 +31,6 @@ export default function BudgetAllocationReview({
   loading = false,
   showHeader = true,
   showActions = true,
-  onBack,
   onConfirm,
   onCancel,
 }: Props) {
@@ -117,12 +115,6 @@ export default function BudgetAllocationReview({
               <Text style={styles.primaryButtonText}>
                 {loading ? t("budget.confirming") : t("budget.confirm_button")}
               </Text>
-            </Pressable>
-          )}
-
-          {onBack && (
-            <Pressable style={styles.secondaryButton} onPress={onBack}>
-              <Text style={styles.secondaryButtonText}>{t("budget.edit_button")}</Text>
             </Pressable>
           )}
 
