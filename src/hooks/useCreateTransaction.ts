@@ -49,7 +49,7 @@ export const useCreateTransaction = () => {
   ) => {
     try {
       await createTransaction(payload);
-      Alert.alert("Success", "Transaction created successfully");
+      // Alert.alert("Success", "Transaction created successfully");
       return true;
     } catch (error: any) {
       Alert.alert("Error", error?.message || "Failed to create transaction");
