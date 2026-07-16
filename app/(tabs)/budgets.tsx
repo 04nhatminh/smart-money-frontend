@@ -24,7 +24,7 @@ import { AddTransactionModal } from "../../src/components/transactions/AddTransa
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { Receipt } from "../../src/types/transaction.types";
 import { FinancialSetupApi } from "../../src/api/financialSetup.api";
-import { FinancialSetup, getFinancialSetupLabel } from "../../src/types/financialSetup";
+import { FinancialSetup } from "../../src/types/financialSetup";
 import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
 import { t } from "../../src/i18n";
 import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/dataRefreshEmitter";
@@ -57,7 +57,7 @@ const categoryIconMap: { [key: string]: { icon: string; color: string; displayNa
 };
 
 export default function BudgetListPage() {
-    useLanguage(); // re-render on EN/VI switch
+    const { lang, setLang } = useLanguage();
     const router = useRouter();
     const [budgets, setBudgets] = useState<BudgetItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -83,8 +83,9 @@ export default function BudgetListPage() {
         // when that happens instead of showing stale numbers until the next manual reload.
         const refreshListener = () => loadBudgets();
         dataRefreshEmitter.on(FINANCIAL_DATA_UPDATED, refreshListener);
-        return () => {dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener);
-        }
+        return () => {
+            dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener);
+        };
     }, []);
 
     const loadFinancialSetup = async () => {
@@ -270,7 +271,7 @@ export default function BudgetListPage() {
         return (
             <View style={styles.profileCard}>
                 <View style={styles.profileCardHeader}>
-                        <View style={styles.profileCardTitleRow}>
+                    <View style={styles.profileCardTitleRow}>
                         <Ionicons name="wallet-outline" size={22} color="#4B3FD6" />
                         <Text style={styles.profileCardTitle}>
                             {t("financialSetup.card_title")}
