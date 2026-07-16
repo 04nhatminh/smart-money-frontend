@@ -21,7 +21,7 @@ const normalizeNotification = (content: string) => {
       return t(key, {
         type: t(type), // expense -> Spent
         amount: Number(amount).toLocaleString(),
-        category: t(`category.${category.toLowerCase()}`),
+        category: t(`category.${category.toUpperCase()}`),
       });
 
     default:
