@@ -1,61 +1,25 @@
 import http from "./http";
 import { ApiResponse } from "../types/auth.types";
+import { ComputeBudgetAllocationResponse } from "../types/budget_allocation.types";
 
-export type BudgetCategory =
-  | "FOOD"
-  | "TRANSPORTATION"
-  | "CLOTHING"
-  | "UTILITIES"
-  | "ENTERTAINMENT"
-  | "HEALTH"
-  | "EDUCATION"
-  | "SHOPPING"
-  | "OTHER";
+// Re-exported so existing `import { BudgetCategory } from ".../budget.api"`
+// call sites keep working; the definitions live in the leaf types module.
+export type {
+  BudgetCategory,
+  BudgetItem,
+  BudgetListResponse,
+  BudgetBulkItem,
+  CreateBudgetBulkPayload,
+  BudgetCreationError,
+  BulkBudgetsResponse,
+} from "../types/budget.types";
 
-export interface BudgetItem {
-  budgetId: string;
-  userId: string;
-  category: BudgetCategory;
-  amountLimit: number;
-  month: number;
-  year: number;
-  spent: number;
-  remaining: number;
-  progressPercent: number;
-  alertLevel: "SAFE" | "CAUTION" | "WARNING" | "EXCEEDED";
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface BudgetListResponse {
-  month: number;
-  year: number;
-  items: BudgetItem[];
-}
-
-export type BudgetBulkItem = {
-  category: BudgetCategory;
-  amountLimit: number;
-};
-
-export type CreateBudgetBulkPayload = {
-  budgets: BudgetBulkItem[];
-  month: number;
-  year: number;
-};
-
-export type BudgetCreationError = {
-  category: BudgetCategory;
-  error: string;
-};
-
-export type BulkBudgetsResponse = {
-  totalCreated: number;
-  month: number;
-  year: number;
-  budgets: BudgetItem[];
-  failedItems?: BudgetCreationError[] | null;
-}
+import type {
+  BudgetItem,
+  BudgetListResponse,
+  BulkBudgetsResponse,
+  CreateBudgetBulkPayload,
+} from "../types/budget.types";
 
 class BudgetAPI {
   async getBudgets(
@@ -192,6 +156,30 @@ class BudgetAPI {
         error?.response?.data || {
           success: false,
           message: errorMsg,
+        }
+      );
+    }
+  }
+
+  /**
+   * POST /api/v1/budgets/allocation/compute
+   *
+   * Deterministic (LLM-free) allocation for the current month (server clock).
+   * Returns a full plan synchronously — no jobId, no WebSocket. Read-only:
+   * creates nothing. Apply the accepted plan via {@link saveBulk}.
+   *
+   * On failure the raw backend body is returned so callers can inspect
+   * `errorCode` (e.g. FINANCIAL_SETUP_REQUIRED).
+   */
+  async computeAllocation(): Promise<ComputeBudgetAllocationResponse> {
+    try {
+      const res = await http.post("/api/v1/budgets/allocation/compute");
+      return res.data;
+    } catch (error: any) {
+      return (
+        error?.response?.data || {
+          success: false,
+          message: error?.message ?? "Failed to compute budget allocation",
         }
       );
     }

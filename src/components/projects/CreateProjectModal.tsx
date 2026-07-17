@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Alert, Modal, View, ScrollView, KeyboardAvoidingView, Keyboard, Platform } from "react-native";
+import { Alert, Modal, View, ScrollView, KeyboardAvoidingView, Keyboard, Platform, Pressable, Text } from "react-native";
 
 import SuccessModal from "../SuccessModal";
 import ConfirmExitModal from "../ConfirmExitModal";
@@ -13,7 +13,6 @@ import {
 
     SavingPlanMode,
     ProjectPriority,
-    BudgetAllocationResult,
 } from "../../types/project.types";
 import CreateProjectStep from "./CreateProjectStep";
 import SavingPlanModeStep, { SavingPlanAction }from "./SavingPlanModeStep";
@@ -21,12 +20,11 @@ import FinancialSetupModal from "../financialSetup/FinancialSetupModal";
 import BudgetAllocationSuggestionStep from "./BudgetAllocationSuggestionStep";
 import { t } from "../../i18n";
 import { ProjectAPI } from "../../api/project.api";
-import { BudgetAIAPI } from "../../api/budgetAI.api";
-import { budgetAPI, BudgetCategory } from "../../api/budget.api";
-import { initWebSocket, subscribeBudgetJob } from "../../services/websocket";
+import { budgetAPI } from "../../api/budget.api";
+import { BudgetAllocationPlanResponse } from "../../types/budget_allocation.types";
 import { useAuth } from "../../context/AuthContext";
 import type { UserResponse } from "../../types/auth.types";
-import BudgetAllocationReview from "./BudgetAllocationReview";
+import BudgetPlanReview, { ApplyItem } from "./BudgetPlanReview";
 import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../utils/dataRefreshEmitter";
 
 type PendingCreateProjectAction =
@@ -35,67 +33,6 @@ type PendingCreateProjectAction =
     | "LOAD_BUDGET";
 
 type SuccessKind = "PROJECT" | "BUDGET";
-
-const normalizeBudgetAllocationResult = (raw: any): BudgetAllocationResult | null => {
-    const source = raw?.result ?? raw?.data ?? raw?.budgets ?? raw;
-    const rawCategories =
-        Array.isArray(source)
-            ? source
-            : source?.categories ?? source?.budgets ?? source?.data;
-
-    console.log(
-        "First budget category:",
-        JSON.stringify(Array.isArray(rawCategories) ? rawCategories[0] : undefined, null, 2)
-    );
-
-    if (!Array.isArray(rawCategories)) {
-        return null;
-    }
-
-    const categories = rawCategories.map((item: any) => ({
-        category: String(
-            item?.category ??
-                item?.categoryName ??
-                item?.name ??
-                "OTHER"
-        ),
-        amount: Number(
-            item?.amount ??
-                item?.allocatedAmount ??
-                item?.allocated_amount ??
-                item?.amountLimit ??
-                item?.budget ??
-                item?.limit ??
-                0
-        ),
-        percentage:
-            item?.percentage != null
-                ? Number(item.percentage)
-                : item?.ratioPercent != null
-                    ? Number(item.ratioPercent)
-                    : item?.ratio != null
-                        ? Number(item.ratio) * 100
-                        : undefined,
-        reason: item?.reason ?? item?.description ?? item?.explanation,
-    }));
-
-    if (categories.length === 0) {
-        return null;
-    }
-
-    const totalBudget = Number(
-        source?.totalBudget ??
-        source?.total_budget ??
-        source?.totalAmount ??
-        categories.reduce((sum, item) => sum + item.amount, 0)
-    );
-
-    return {
-        totalBudget,
-        currency: source?.currency ?? raw?.currency ?? "VND",
-        categories,
-    };
-};
 
 type Props = {
     visible: boolean;
@@ -139,7 +76,7 @@ export default function CreateProjectModal({
     const [showExitModal, setShowExitModal] = useState(false);
 
     const [budgetLoading, setBudgetLoading] = useState(false);
-    const [budgetResult, setBudgetResult] = useState<BudgetAllocationResult | null>(null);
+    const [budgetPlan, setBudgetPlan] = useState<BudgetAllocationPlanResponse | null>(null);
     const [budgetSaveLoading, setBudgetSaveLoading] = useState(false);
 
     // Budget allocation state
@@ -270,10 +207,10 @@ export default function CreateProjectModal({
 
     useEffect(() => {
         console.log(
-            "6. Budget state updated:",
-            JSON.stringify(budgetResult, null, 2)
+            "6. Budget plan updated:",
+            JSON.stringify(budgetPlan, null, 2)
         );
-    }, [budgetResult]);
+    }, [budgetPlan]);
     useEffect(() => {
         if (!visible) return;
 
@@ -318,7 +255,7 @@ export default function CreateProjectModal({
         setLoadingAction(null);
         setShowFinancialSetup(false);
         setBudgetLoading(false);
-        setBudgetResult(null);
+        setBudgetPlan(null);
         setBudgetSaveLoading(false);
         setShowBudgetGeneration(false);
         setPendingCreateProjectAction(null);
@@ -546,8 +483,8 @@ export default function CreateProjectModal({
         setShowSuccessModal(true);
     };
 
-    const handleSaveBudgetAllocation = async () => {
-        if (!budgetResult) {
+    const handleApplyBudgetAllocation = async (items: ApplyItem[]) => {
+        if (!budgetPlan) {
             Alert.alert(t("project.budget_title"), t("project.no_budget_result"));
             return;
         }
@@ -555,26 +492,21 @@ export default function CreateProjectModal({
         try {
             setBudgetSaveLoading(true);
 
-            const now = new Date();
-
             const payload = {
-            month: now.getMonth() + 1,
-            year: now.getFullYear(),
-            budgets: budgetResult.categories.map((item) => ({
-                category: item.category as BudgetCategory,
-                amountLimit: item.amount,
-            })),
+                month: budgetPlan.month,
+                year: budgetPlan.year,
+                budgets: items,
             };
 
             console.log(
                 "🟣 [Budget] Bulk payload:",
                 JSON.stringify(payload, null, 2)
-                );
+            );
 
             const response = await budgetAPI.saveBulk(payload);
 
             if (!response?.success) {
-            throw new Error(response?.message || t("project.failed_save_budget_allocation"));
+                throw new Error(response?.message || t("project.failed_save_budget_allocation"));
             }
 
             dataRefreshEmitter.emit(FINANCIAL_DATA_UPDATED);
@@ -592,6 +524,8 @@ export default function CreateProjectModal({
         }
         };
 
+    // Deterministic, synchronous allocation — computes the plan in a single
+    // HTTP call (no jobId / WebSocket) and moves to the editable review step.
     const runBudgetGeneration = async (currentUser: UserResponse | null = user) => {
         if (!currentUser?.id) {
             Alert.alert(t("project.budget_title"), t("project.user_not_found"));
@@ -606,68 +540,31 @@ export default function CreateProjectModal({
 
         try {
             setBudgetLoading(true);
-            setBudgetResult(null);
+            setBudgetPlan(null);
 
-            await initWebSocket(currentUser.id);
+            const response = await budgetAPI.computeAllocation();
 
-            const generateResponse = await BudgetAIAPI.generate();
-
-            if (!generateResponse?.success || !generateResponse.data?.jobId) {
-                if (isMissingFinancialSetupError(generateResponse?.errorCode)) {
+            if (!response?.success || !response.data) {
+                if (isMissingFinancialSetupError(response?.errorCode)) {
                     setPendingCreateProjectAction("LOAD_BUDGET");
                     setShowFinancialSetup(true);
-                    setBudgetLoading(false);
                     return;
                 }
 
                 throw new Error(
-                    generateResponse?.message || t("project.failed_generate_budget_allocation")
+                    response?.message || t("project.failed_generate_budget_allocation")
                 );
             }
 
-            const jobId = generateResponse.data.jobId;
-            console.log("1. Budget API jobId:", jobId);
-
-            console.log("🟣 Budget generate jobId:", jobId);
-
-            await subscribeBudgetJob(
-            jobId,
-            (message) => {
-                console.log("✅ Budget allocation completed:", message);
-
-                const normalizedResult = normalizeBudgetAllocationResult(message);
-
-                if (!normalizedResult) {
-                    setBudgetLoading(false);
-                    Alert.alert(
-                        t("project.budget_title"),
-                        t("project.budget_result_missing_or_invalid")
-                    );
-                    return;
-                }
-
-                setBudgetResult(normalizedResult);
-                setBudgetLoading(false);
-                setStep(4);
-            },
-            (error) => {
-                console.error("❌ Budget allocation socket error:", error);
-
-                setBudgetLoading(false);
-
-                Alert.alert(
-                  t("project.budget_title"),
-                  t("project.failed_receive_budget_result")
-                );
-            }
-            );
+            setBudgetPlan(response.data);
+            setStep(4);
         } catch (error: any) {
-            setBudgetLoading(false);
-
             Alert.alert(
               t("project.budget_title"),
               error?.message || t("project.failed_generate_budget_allocation")
             );
+        } finally {
+            setBudgetLoading(false);
         }
         };
 
@@ -800,13 +697,23 @@ export default function CreateProjectModal({
                                 />
                             )}
 
-                            {step === 4 && (
-                                <BudgetAllocationReview
-                                    budgetResult={budgetResult}
-                                    loading={budgetSaveLoading}
-                                    onConfirm={handleSaveBudgetAllocation}
-                                    onCancel={handleClose}
-                                />
+                            {step === 4 && budgetPlan && (
+                                <>
+                                    <BudgetPlanReview
+                                        plan={budgetPlan}
+                                        applying={budgetSaveLoading}
+                                        onApply={handleApplyBudgetAllocation}
+                                    />
+                                    <Pressable
+                                        style={{ height: 48, alignItems: "center", justifyContent: "center", marginTop: 8 }}
+                                        onPress={handleBudgetGenerationClose}
+                                        disabled={budgetSaveLoading}
+                                    >
+                                        <Text style={{ fontSize: 15, fontWeight: "600", color: "#6B7280" }}>
+                                            {t("project.skip")}
+                                        </Text>
+                                    </Pressable>
+                                </>
                             )}
 
                     

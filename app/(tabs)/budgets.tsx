@@ -266,6 +266,17 @@ export default function BudgetListPage() {
                 label: t("financialSetup.row_focus"),
                 value: t(`financialSetup.focusMode.${financialSetup.focusMode}`),
             },
+            {
+                label: t("financialSetup.row_auto_invest"),
+                value:
+                    financialSetup.autoInvestSurplus == null
+                        ? "-"
+                        : t(
+                              `financialSetup.autoInvest.${
+                                  financialSetup.autoInvestSurplus ? "ON" : "OFF"
+                              }`
+                          ),
+            },
         ];
 
         return (

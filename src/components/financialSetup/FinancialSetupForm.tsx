@@ -126,6 +126,96 @@ function OptionGroup<T extends string>({
   );
 }
 
+type BooleanOption = {
+  value: boolean;
+  labelKey: string;
+  descriptionKey: string;
+  icon: keyof typeof Ionicons.glyphMap;
+};
+
+// Two-option radio for a required boolean preference. Renders as stacked rows
+// (rather than the 3-across tiles) so the longer helper text stays readable.
+function BooleanChoiceGroup({
+  title,
+  description,
+  value,
+  options,
+  onChange,
+  error,
+}: {
+  title: string;
+  description?: string;
+  value: boolean | null;
+  options: readonly BooleanOption[];
+  onChange: (value: boolean) => void;
+  error?: string;
+}) {
+  return (
+    <View style={styles.group}>
+      <Text style={styles.groupTitle}>{title}</Text>
+
+      {!!description && (
+        <Text style={styles.groupDescription}>{description}</Text>
+      )}
+
+      <View style={styles.choiceList}>
+        {options.map((option) => {
+          const selected = value === option.value;
+
+          return (
+            <Pressable
+              key={String(option.value)}
+              onPress={() => onChange(option.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              style={[
+                styles.choiceRow,
+                selected && styles.choiceRowSelected,
+              ]}
+            >
+              <View
+                style={[
+                  styles.optionIcon,
+                  selected && styles.optionIconSelected,
+                ]}
+              >
+                <Ionicons
+                  name={option.icon}
+                  size={18}
+                  color={selected ? "#FFFFFF" : "#4B3FD6"}
+                />
+              </View>
+
+              <View style={styles.choiceTextWrap}>
+                <Text
+                  style={[
+                    styles.choiceLabel,
+                    selected && styles.optionLabelSelected,
+                  ]}
+                >
+                  {t(option.labelKey)}
+                </Text>
+
+                <Text style={styles.choiceDescription}>
+                  {t(option.descriptionKey)}
+                </Text>
+              </View>
+
+              <View
+                style={[styles.radio, selected && styles.radioSelected]}
+              >
+                {selected && <View style={styles.radioDot} />}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {!!error && <Text style={styles.choiceError}>{error}</Text>}
+    </View>
+  );
+}
+
 export default function FinancialSetupForm({
   mode,
   initialValue,
@@ -143,7 +233,11 @@ export default function FinancialSetupForm({
     useState<InterventionLevel | null>(FINANCIAL_SETUP_OPTIONS.interventionLevel[1].value);
   const [focusMode, setFocusMode] =
     useState<FocusMode | null>(FINANCIAL_SETUP_OPTIONS.focusMode[2].value);
+  // Required, no default — the user must actively choose (mirrors the backend gate).
+  const [autoInvestSurplus, setAutoInvestSurplus] =
+    useState<boolean | null>(null);
   const [incomeError, setIncomeError] = useState("");
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   useEffect(() => {
     const initialIncome = Number(initialValue?.income ?? 0);
@@ -155,12 +249,18 @@ export default function FinancialSetupForm({
     setSavingPace(initialValue?.savingPace ?? "BALANCED");
     setInterventionLevel(initialValue?.interventionLevel ?? "GENTLE");
     setFocusMode(initialValue?.focusMode ?? "TRACK_ONLY");
+    // No default: only a value the user (or backend) has explicitly set counts.
+    setAutoInvestSurplus(
+      initialValue?.autoInvestSurplus ?? null
+    );
     setIncomeError("");
+    setAttemptedSubmit(false);
   }, [
     initialValue?.income,
     initialValue?.savingPace,
     initialValue?.interventionLevel,
     initialValue?.focusMode,
+    initialValue?.autoInvestSurplus,
   ]);
 
   const ctaLabel =
@@ -175,9 +275,10 @@ export default function FinancialSetupForm({
       parsedIncome > 0 &&
       !!savingPace &&
       !!interventionLevel &&
-      !!focusMode
+      !!focusMode &&
+      autoInvestSurplus !== null
     );
-  }, [income, savingPace, interventionLevel, focusMode]);
+  }, [income, savingPace, interventionLevel, focusMode, autoInvestSurplus]);
 
   const handleIncomeChange = (value: string) => {
     const digitsOnly = value.replace(/\D/g, "");
@@ -198,6 +299,8 @@ export default function FinancialSetupForm({
   };
 
   const handleSubmit = () => {
+    setAttemptedSubmit(true);
+
     const parsedIncome = parseCurrencyToNumber(income);
 
     if (parsedIncome <= 0) {
@@ -209,11 +312,17 @@ export default function FinancialSetupForm({
       return;
     }
 
+    // Required, no default — never submit without an explicit choice.
+    if (autoInvestSurplus === null) {
+      return;
+    }
+
     void onSubmit({
       income: parsedIncome,
       savingPace,
       interventionLevel,
       focusMode,
+      autoInvestSurplus,
     });
   };
 
@@ -279,6 +388,32 @@ export default function FinancialSetupForm({
           value={focusMode}
           options={FINANCIAL_SETUP_OPTIONS.focusMode}
           onChange={setFocusMode}
+        />
+
+        <BooleanChoiceGroup
+          title={t("financialSetup.auto_invest_title")}
+          description={t("financialSetup.auto_invest_description")}
+          value={autoInvestSurplus}
+          options={[
+            {
+              value: true,
+              labelKey: "financialSetup.auto_invest_yes_label",
+              descriptionKey: "financialSetup.auto_invest_yes_desc",
+              icon: "trending-up-outline",
+            },
+            {
+              value: false,
+              labelKey: "financialSetup.auto_invest_no_label",
+              descriptionKey: "financialSetup.auto_invest_no_desc",
+              icon: "wallet-outline",
+            },
+          ]}
+          onChange={setAutoInvestSurplus}
+          error={
+            attemptedSubmit && autoInvestSurplus === null
+              ? t("financialSetup.auto_invest_required")
+              : undefined
+          }
         />
 
         {!!error && (
@@ -453,6 +588,74 @@ const styles = StyleSheet.create({
 
   optionDescriptionSelected: {
     color: "#4B3FD6",
+  },
+
+  choiceList: {
+    gap: 10,
+  },
+
+  choiceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.2,
+    borderColor: "#E5E7EB",
+    borderRadius: 13,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+
+  choiceRowSelected: {
+    borderColor: "#4B3FD6",
+    backgroundColor: "#F5F3FF",
+  },
+
+  choiceTextWrap: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 10,
+  },
+
+  choiceLabel: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#374151",
+    lineHeight: 18,
+  },
+
+  choiceDescription: {
+    fontSize: 11.5,
+    fontWeight: "500",
+    color: "#6B7280",
+    lineHeight: 15,
+    marginTop: 3,
+  },
+
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: "#CBD5E1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  radioSelected: {
+    borderColor: "#4B3FD6",
+  },
+
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#4B3FD6",
+  },
+
+  choiceError: {
+    fontSize: 12,
+    color: "#B91C1C",
+    marginTop: 8,
   },
 
   messageError: {

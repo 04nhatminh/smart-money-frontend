@@ -127,7 +127,9 @@ export function useCreateProject({
             name: values.name.trim(),
             description: values.description.trim(),
             targetAmount: parseCurrencyToNumber(values.targetAmount),
-            deadline: formatDateToYYYYMMDD(addMonthsFromDate(Number(values.deadlineMonths))),
+            // Backend counts plan length inclusively (gap + 1). For an N-month
+            // plan send deadline = today + (N - 1) months. See getMonthsFromDeadline.
+            deadline: formatDateToYYYYMMDD(addMonthsFromDate(Number(values.deadlineMonths) - 1)),
             type: values.type,
             priority: values.priority,
             currency: "VND",
@@ -140,8 +142,9 @@ export function useCreateProject({
         ): CreateProjectPayload => {
         return {
             ...buildPayload(),
+            // Inclusive month convention: an N-month advisor plan → today + (N - 1).
             deadline: formatDateToYYYYMMDD(
-                addMonthsFromDate(advisor.numberOfMonths)
+                addMonthsFromDate(advisor.numberOfMonths - 1)
             ),
         };
     };

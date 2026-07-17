@@ -1,513 +1,394 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-import { BudgetAllocationApi } from "../../src/api/budgetAllocation.api";
-import { budgetAPI, BudgetCategory } from "../../src/api/budget.api";
-import { BudgetAllocationResult } from "../../src/types/budget_allocation.types";
+import { budgetAPI, BulkBudgetsResponse } from "../../src/api/budget.api";
+import { BudgetAllocationPlanResponse } from "../../src/types/budget_allocation.types";
 import { useAuth } from "../../src/context/AuthContext";
-import { initWebSocket, subscribeBudgetJob } from "../../src/services/websocket";
-import { userStorage } from "../../src/storage/userStorage";
 import { t } from "../../src/i18n";
-import BudgetAllocationReview from "../../src/components/projects/BudgetAllocationReview";
-// ==============================
-// CACHE HELPERS
-// ==============================
-const getFinancialSetupReadyFromCache = async (): Promise<boolean> => {
-  const cachedUser = await userStorage.getUser();
+import BudgetPlanReview, {
+  ApplyItem,
+} from "../../src/components/projects/BudgetPlanReview";
+import BudgetPlanResult from "../../src/components/projects/BudgetPlanResult";
+import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
 
-  if (!cachedUser) {
-    return false;
-  }
-
-  const userData = cachedUser as any;
-
-  return !!userData.financialSetupCompleted
-
-};
-
+const FINANCIAL_SETUP_REQUIRED = "FINANCIAL_SETUP_REQUIRED";
 
 export default function BudgetAllocationPage() {
-    const router = useRouter();
-    const { user } = useAuth();
+  const router = useRouter();
+  const { refreshUser } = useAuth();
 
-    console.log("1. User data on Budget Allocation Page:", JSON.stringify(user, null, 2));
+  const [computing, setComputing] = useState(false);
+  const [computeError, setComputeError] = useState<string | null>(null);
+  const [plan, setPlan] = useState<BudgetAllocationPlanResponse | null>(null);
 
-    const unsubscribeBudgetJobRef = useRef<(() => void) | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [applied, setApplied] = useState<BulkBudgetsResponse | null>(null);
 
-    const [financialSetupReady, setFinancialSetupReady] = useState(true);
+  const [setupRequired, setSetupRequired] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
 
-    const [budgetLoading, setBudgetLoading] = useState(false);
-    const [budgetJobCreated, setBudgetJobCreated] = useState(false);
-    const [budgetError, setBudgetError] = useState<string | null>(null);
-    const [budgetResult, setBudgetResult] = useState<BudgetAllocationResult | null>(null);
-    const [budgetSaveLoading, setBudgetSaveLoading] = useState(false);
+  const handleCompute = async () => {
+    setComputeError(null);
+    setApplyError(null);
+    setApplied(null);
+    setSetupRequired(false);
+    setComputing(true);
 
-    useEffect(() => {
-        checkFinancialSetupCache();
+    try {
+      const res = await budgetAPI.computeAllocation();
 
-        return () => {
-            unsubscribeBudgetJobRef.current?.();
-            unsubscribeBudgetJobRef.current = null;
-        };
-    }, [user?.id]);
+      if (res.success && res.data) {
+        setPlan(res.data);
+        return;
+      }
 
-    useEffect(() => {
-        console.log(
-            "6. Budget state updated:",
-            JSON.stringify(budgetResult, null, 2)
+      // Financial setup incomplete → route the user to finish onboarding.
+      if (res.errorCode === FINANCIAL_SETUP_REQUIRED) {
+        setPlan(null);
+        setSetupRequired(true);
+        setComputeError(
+          t(
+            "budget.financial_profile_required_to_generate_personalized_budget_allocation_suggestions"
+          )
         );
-    }, [budgetResult]);
+        return;
+      }
 
-    const checkFinancialSetupCache = async () => {
-        try {
-            const ready = user?.financialSetupCompleted ?? await getFinancialSetupReadyFromCache();
+      setComputeError(res.message ?? t("budget.failed_generate_budget_allocation"));
+    } catch (error: any) {
+      setComputeError(
+        error?.message ?? t("budget.failed_generate_budget_allocation")
+      );
+    } finally {
+      setComputing(false);
+    }
+  };
 
-            /**
-             * Nếu cache không có flag thì không block màn hình này.
-             * Backend generateBudget vẫn có thể validate profile ở phía server.
-             */
-            if (ready === false) {
-                setFinancialSetupReady(false);
-            } else {
-                setFinancialSetupReady(true);
-            }
-        } catch (error) {
-            console.warn("Failed to read financial setup cache:", error);
+  const handleApply = async (items: ApplyItem[]) => {
+    if (!plan) return;
 
-            /**
-             * Không đọc được cache thì vẫn cho generate.
-             * Không nên gọi API profile ở page này nữa.
-             */
-            setFinancialSetupReady(true);
-        }
-    };
+    setApplyError(null);
+    setApplying(true);
 
-    const normalizeBudgetResult = (rawResult: any): BudgetAllocationResult => {
-        const categoriesFromResult =
-            rawResult?.categories ??
-            rawResult?.budgets?.map((item: any) => ({
-                category: item.category,
-                amount: Number(item.amount ?? item.amountLimit ?? 0),
-                percentage: item.percentage,
-                reason: item.reason,
-            })) ??
-            [];
+    try {
+      const response = await budgetAPI.saveBulk({
+        month: plan.month,
+        year: plan.year,
+        budgets: items,
+      });
 
-        return {
-            totalBudget: Number(rawResult?.totalBudget ?? rawResult?.total ?? 0),
-            currency: rawResult?.currency ?? "VND",
-            categories: categoriesFromResult,
-        };
-    };
+      if (response.success && response.data) {
+        setApplied(response.data);
+      } else {
+        setApplyError(
+          response.message ?? t("budget.failed_save_budget_allocation")
+        );
+      }
+    } catch (error: any) {
+      setApplyError(
+        error?.message ?? t("budget.failed_save_budget_allocation")
+      );
+    } finally {
+      setApplying(false);
+    }
+  };
 
-    const handleGenerateBudget = async () => {
-        setBudgetError(null);
-        setBudgetResult(null);
+  const handleSetupSuccess = async () => {
+    setShowSetup(false);
+    setSetupRequired(false);
+    setComputeError(null);
+    await refreshUser();
+    // Re-run the computation now that the profile is complete.
+    handleCompute();
+  };
 
-        try {
-            if (!user?.id) {
-                setBudgetError(t("budget.user_not_found"));
-                return;
-            }
+  const showComputeButton = !applied;
 
-            const ready = user?.financialSetupCompleted ?? await getFinancialSetupReadyFromCache();
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-            if (ready === false) {
-                setFinancialSetupReady(false);
-                setBudgetError(t("budget.financial_profile_required_to_generate_personalized_budget_allocation_suggestions"));
-                return;
-            }
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
 
-            setFinancialSetupReady(true);
-            setBudgetLoading(true);
+        <Text style={styles.headerTitle}>{t("budget.title")}</Text>
 
-            await initWebSocket(user.id);
+        <View style={{ width: 40 }} />
+      </View>
 
-            const res = await BudgetAllocationApi.generateBudget();
-            const jobId = res.data?.jobId;
-
-            if (res.success && jobId) {
-                console.log("1. Budget API jobId:", jobId);
-
-                unsubscribeBudgetJobRef.current?.();
-
-                unsubscribeBudgetJobRef.current = await subscribeBudgetJob(
-                    jobId,
-                    (message) => {
-                        if (
-                            message.type === "BUDGET_ALLOCATION_RESULT" &&
-                            message.status === "COMPLETED" &&
-                            message.result
-                        ) {
-                            const normalizedResult = normalizeBudgetResult(message.result);
-
-                            setBudgetResult(normalizedResult);
-                            setBudgetLoading(false);
-                            setBudgetJobCreated(false);
-                        }
-                    },
-                    (error) => {
-                        console.error("Budget allocation socket error:", error);
-
-                        setBudgetLoading(false);
-                        setBudgetJobCreated(false);
-                        setBudgetError(t("budget.failed_receive_budget_result"));
-                    }
-                );
-
-                setBudgetJobCreated(true);
-            } else {
-                setBudgetError(res.message ?? t("budget.failed_generate_budget_allocation"));
-                setBudgetLoading(false);
-            }
-        } catch (error: any) {
-            setBudgetError(error?.message ?? t("budget.failed_generate_budget_allocation"));
-            setBudgetLoading(false);
-            setBudgetJobCreated(false);
-        }
-    };
-
-    const handleSaveBudgetAllocation = async () => {
-        if (!budgetResult) {
-            Alert.alert(t("budget.title"), t("budget.no_suggestion_available"));
-            return;
-        }
-
-        try {
-            setBudgetSaveLoading(true);
-
-            const now = new Date();
-            const payload = {
-                month: now.getMonth() + 1,
-                year: now.getFullYear(),
-                budgets: budgetResult.categories.map((item) => ({
-                    category: item.category as BudgetCategory,
-                    amountLimit: Number(item.amount ?? 0),
-                })),
-            };
-
-            const response = await budgetAPI.saveBulk(payload);
-
-            if (!response?.success) {
-                throw new Error(response?.message || t("project.failed_save_budget_allocation"));
-            }
-
-            Alert.alert(t("budget.title"), t("common.done"), [
-                {
-                    text: t("common.done"),
-                    onPress: () => router.back(),
-                },
-            ]);
-        } catch (error: any) {
-            Alert.alert(
-                t("common.error"),
-                error?.message || t("project.failed_save_budget_allocation")
-            );
-        } finally {
-            setBudgetSaveLoading(false);
-        }
-    };
-
-    return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#333" />
-                </TouchableOpacity>
-
-                <Text style={styles.headerTitle}>{t("budget.title")}</Text>
-
-                <View style={{ width: 40 }} />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="sparkles" size={20} color="#4B3FD6" />
+              <Text style={styles.sectionTitle}>{t("budget.title")}</Text>
             </View>
 
-            <ScrollView
-                style={styles.scroll}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.sectionCard}>
-                    <View style={styles.sectionHeader}>
-                        <Ionicons name="sparkles" size={20} color="#4B3FD6" />
-                        <Text style={styles.sectionTitle}>{t("budget.title")}</Text>
-                    </View>
+            <Text style={styles.budgetDesc}>
+              {t("budget.auto_budget_intro")}
+            </Text>
 
-                    <Text style={styles.budgetDesc}>
-                        {t("budget.financial_profile_help")}
+            {/* Financial-setup gate */}
+            {setupRequired && (
+              <View style={styles.warningCard}>
+                <Ionicons name="alert-circle" size={16} color="#D97706" />
+                <View style={{ flex: 1, gap: 8 }}>
+                  <Text style={styles.warningText}>
+                    {t("budget.setup_required_desc")}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.setupBtn}
+                    onPress={() => setShowSetup(true)}
+                  >
+                    <Text style={styles.setupBtnText}>
+                      {t("budget.complete_setup")}
                     </Text>
-
-                    {!financialSetupReady && (
-                        <View style={styles.warningCard}>
-                            <Ionicons name="alert-circle" size={16} color="#D97706" />
-                            <Text style={styles.warningText}>
-                                {t("budget.financial_profile_required_to_generate_personalized_budget_allocation_suggestions")}
-                            </Text>
-                        </View>
-                    )}
-
-                    {budgetError && (
-                        <View style={styles.errorCard}>
-                            <Ionicons name="alert-circle" size={16} color="#DC2626" />
-                            <Text style={styles.errorText}>{budgetError}</Text>
-                        </View>
-                    )}
-
-                    <TouchableOpacity
-                        style={[
-                            styles.aiBtn,
-                            (budgetLoading || !financialSetupReady) && styles.aiBtnDisabled,
-                        ]}
-                        onPress={handleGenerateBudget}
-                        disabled={budgetLoading || !financialSetupReady}
-                    >
-                        {budgetLoading ? (
-                            <ActivityIndicator size="small" color="#FFFFFF" />
-                        ) : (
-                            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
-                        )}
-
-                        <Text style={styles.aiBtnText}>
-                            {budgetLoading ? t("budget.generating") : t("budget.create_budget_allocation")}
-                        </Text>
-                    </TouchableOpacity>
-                    {budgetResult && (
-                        <BudgetAllocationReview
-                            budgetResult={budgetResult}
-                            loading={budgetSaveLoading}
-                            showHeader={false}
-                            onConfirm={handleSaveBudgetAllocation}
-                        />
-                    )}
-                    
+                  </TouchableOpacity>
                 </View>
-            </ScrollView>
+              </View>
+            )}
 
-            <Modal visible={budgetJobCreated} transparent animationType="fade">
-                <View style={styles.popupOverlay}>
-                    <View style={styles.popupCard}>
-                        <View style={styles.popupIconWrap}>
-                            <View style={styles.popupIconCircle}>
-                                <Ionicons name="checkmark-circle" size={52} color="#059669" />
-                            </View>
-                        </View>
+            {computeError && !setupRequired && (
+              <View style={styles.errorCard}>
+                <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                <Text style={styles.errorText}>{computeError}</Text>
+              </View>
+            )}
 
-                        <Text style={styles.popupTitle}>
-                            {t("budget.budget_job_created_title")}
-                        </Text>
+            {showComputeButton && (
+              <TouchableOpacity
+                style={[
+                  styles.aiBtn,
+                  (computing || applying) && styles.aiBtnDisabled,
+                ]}
+                onPress={handleCompute}
+                disabled={computing || applying}
+              >
+                {computing ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                )}
+                <Text style={styles.aiBtnText}>
+                  {computing
+                    ? t("budget.generating")
+                    : plan
+                    ? t("budget.recompute")
+                    : t("budget.create_budget_allocation")}
+                </Text>
+              </TouchableOpacity>
+            )}
 
-                        <Text style={styles.popupSubtitle}>
-                            {t("budget.budget_job_created_desc")}
-                        </Text>
+            {/* Editable preview */}
+            {plan && !applied && (
+              <BudgetPlanReview
+                plan={plan}
+                applying={applying}
+                onApply={handleApply}
+              />
+            )}
 
-                        <Pressable
-                            style={styles.popupBtn}
-                            onPress={() => setBudgetJobCreated(false)}
-                        >
-                            <Text style={styles.popupBtnText}>{t("common.continue")}</Text>
-                        </Pressable>
-                    </View>
-                </View>
-            </Modal>
-        </SafeAreaView>
-    );
+            {applyError && (
+              <View style={styles.errorCard}>
+                <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                <Text style={styles.errorText}>{applyError}</Text>
+              </View>
+            )}
+
+            {/* Applied result */}
+            {applied && (
+              <>
+                <BudgetPlanResult result={applied} />
+                <TouchableOpacity
+                  style={styles.doneBtn}
+                  onPress={() => router.push("/(tabs)/budgets")}
+                >
+                  <Text style={styles.doneBtnText}>
+                    {t("budget.view_budgets")}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <FinancialSetupModal
+        visible={showSetup}
+        mode="onboarding"
+        onClose={() => setShowSetup(false)}
+        onSuccess={handleSetupSuccess}
+      />
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F8F9FA",
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 16,
-        backgroundColor: "#FFFFFF",
-        borderBottomWidth: 1,
-        borderBottomColor: "#F0F0F0",
-        marginTop: 10,
-    },
-    backButton: {
-        padding: 8,
-        borderRadius: 20,
-        backgroundColor: "#F5F5F5",
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#333",
-    },
-    scroll: {
-        flex: 1,
-    },
-    scrollContent: {
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 32,
-        gap: 16,
-    },
-    sectionCard: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 16,
-        padding: 16,
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
-    },
-    sectionHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 14,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: "#111827",
-    },
-    budgetDesc: {
-        fontSize: 14,
-        color: "#6B7280",
-        lineHeight: 20,
-        marginBottom: 16,
-    },
-    warningCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        backgroundColor: "#FEF3C7",
-        borderRadius: 10,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: "#FCD34D",
-    },
-    warningText: {
-        fontSize: 13,
-        color: "#92400E",
-        flex: 1,
-    },
-    errorCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        backgroundColor: "#FEE2E2",
-        borderRadius: 10,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: "#FCA5A5",
-    },
-    errorText: {
-        fontSize: 13,
-        color: "#991B1B",
-        flex: 1,
-    },
-    aiBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        backgroundColor: "#4B3FD6",
-        borderRadius: 12,
-        paddingVertical: 13,
-        paddingHorizontal: 20,
-        alignSelf: "flex-start",
-    },
-    aiBtnDisabled: {
-        opacity: 0.6,
-    },
-    aiBtnText: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#FFFFFF",
-    },
-    
-    popupOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.45)",
-        alignItems: "center",
-        justifyContent: "center",
-        paddingHorizontal: 32,
-    },
-    popupCard: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 24,
-        paddingTop: 52,
-        paddingBottom: 28,
-        paddingHorizontal: 24,
-        alignItems: "center",
-        width: "100%",
-        shadowColor: "#000",
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
-        shadowOffset: { width: 0, height: 8 },
-        elevation: 10,
-    },
-    popupIconWrap: {
-        position: "absolute",
-        top: -40,
-        alignItems: "center",
-    },
-    popupIconCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: "#D1FAE5",
-        alignItems: "center",
-        justifyContent: "center",
-        borderWidth: 4,
-        borderColor: "#FFFFFF",
-        shadowColor: "#059669",
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 6,
-    },
-    popupTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#111111",
-        textAlign: "center",
-        marginBottom: 10,
-    },
-    popupSubtitle: {
-        fontSize: 13,
-        color: "#6B7280",
-        lineHeight: 19,
-        textAlign: "center",
-        marginBottom: 24,
-    },
-    popupBtn: {
-        backgroundColor: "#4B3FD6",
-        borderRadius: 25,
-        paddingVertical: 13,
-        paddingHorizontal: 48,
-    },
-    popupBtnText: {
-        color: "#FFFFFF",
-        fontSize: 15,
-        fontWeight: "700",
-        letterSpacing: 0.4,
-    },
+  container: {
+    flex: 1,
+    backgroundColor: "#F8F9FA",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+    marginTop: 10,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#F5F5F5",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#333",
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
+    gap: 16,
+  },
+  sectionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  budgetDesc: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  warningCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+  },
+  warningText: {
+    fontSize: 13,
+    color: "#92400E",
+    lineHeight: 18,
+  },
+  setupBtn: {
+    alignSelf: "flex-start",
+    backgroundColor: "#D97706",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  setupBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  errorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FEE2E2",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#991B1B",
+    flex: 1,
+  },
+  aiBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#4B3FD6",
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    alignSelf: "flex-start",
+  },
+  aiBtnDisabled: {
+    opacity: 0.6,
+  },
+  aiBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  doneBtn: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#4B3FD6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+  },
+  doneBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
 });
