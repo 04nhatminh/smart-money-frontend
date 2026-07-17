@@ -598,6 +598,35 @@ export default {
     budget_result_missing_or_invalid: "Budget allocation result is missing or invalid.",
     failed_receive_budget_result: "Failed to receive budget allocation result.",
     failed_save_budget_allocation: "Failed to save budget allocation",
+    // --- Deterministic auto-budget (synchronous compute + apply) ---
+    auto_budget_intro:
+      "Generate a spending plan for this month from your income, savings pace and recent spending. You can tweak each limit before saving.",
+    recompute: "Recompute",
+    monthly_income: "Monthly income",
+    reserved_savings: "Reserved for savings",
+    spendable_envelope: "Spendable this month",
+    to_savings: "To savings",
+    to_savings_hint:
+      "What's left after funding your categories goes toward your savings.",
+    cold_start_note:
+      "Based on typical budgets — this will personalize as you spend.",
+    over_committed_title: "Nothing left to budget",
+    over_committed_desc:
+      "Your projects and savings target use up your whole income this month.",
+    basis_history: "From your spending",
+    basis_template: "Typical default",
+    basis_floored: "Matches spent so far",
+    fixed_portion: "{{fixed}} of {{total}} is fixed",
+    plan_edit_hint: "Adjust a limit or drop a category before saving.",
+    apply_plan: "Apply budget",
+    applying: "Applying...",
+    restore_category: "Add back",
+    plan_applied_desc: "{{count}} budgets saved for this month.",
+    some_items_failed: "Some categories couldn't be saved:",
+    setup_required_desc:
+      "Complete your income and saving preferences to build a budget.",
+    complete_setup: "Complete setup",
+    view_budgets: "View budgets",
     financial_profile_empty: "No financial profile set up yet.",
     set_up_profile: "Set Up Profile",
     no_budgets_yet: "No budgets yet",
@@ -815,6 +844,21 @@ export default {
     row_pace: "Pace",
     row_support: "Support",
     row_focus: "Focus",
+    row_auto_invest: "Auto-invest",
+    auto_invest_title: "Leftover money each month",
+    auto_invest_description:
+      "At each monthly settlement, what should happen to the money you didn't spend from your budget?",
+    auto_invest_yes_label: "Auto-invest surplus",
+    auto_invest_yes_desc:
+      "Automatically move my leftover money into my savings projects each month.",
+    auto_invest_no_label: "Keep as free cash",
+    auto_invest_no_desc:
+      "Leave my leftover money as free cash; don't auto-invest it.",
+    auto_invest_required: "Please choose what happens to your leftover money.",
+    autoInvest: {
+      ON: "On",
+      OFF: "Off",
+    },
     savingPace: {
       RELAXED: "Relaxed",
       BALANCED: "Balanced",

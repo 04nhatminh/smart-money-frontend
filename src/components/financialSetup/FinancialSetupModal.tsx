@@ -143,8 +143,11 @@ export default function FinancialSetupModal({
       setSetup(latestSetup);
       setSubmittedSetup(latestSetup);
 
+      // Trust the backend's gate: it's only true once autoInvestSurplus (and
+      // the rest) are set. Reading it back keeps onboarding routing correct for
+      // previously-onboarded users who must re-confirm the new preference.
       await updateCachedUser({
-        financialSetupCompleted: true,
+        financialSetupCompleted: latestSetup.financialSetupCompleted,
       });
 
       onSuccess?.(latestSetup);

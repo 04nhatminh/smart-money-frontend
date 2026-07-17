@@ -132,8 +132,10 @@ export function useEditProject({
       targetAmount: parseCurrencyToNumber(values.targetAmount),
       currency: "VND",
       priority: values.priority,
+      // Inclusive month convention (backend counts gap + 1): an N-month plan
+      // sends deadline = today + (N - 1) months. Mirrors getMonthsFromDeadline.
       deadline: formatDateToYYYYMMDD(
-        addMonthsFromDate(Number(values.deadlineMonths))
+        addMonthsFromDate(Number(values.deadlineMonths) - 1)
       ),
     };
   };
