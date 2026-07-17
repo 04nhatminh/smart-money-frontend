@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -9,10 +10,10 @@ import {
   Text,
   TextInput,
   View,
+  KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { KeyboardScreen } from "../KeyboardScreen";
 import ProjectSummaryCards from "../../src/components/projects/ProjectSummaryCards";
 import ProjectCard from "../../src/components/projects/ProjectCard";
 import ProjectStatusFilterModal from "../../src/components/projects/ProjectStatusFilterModal";
@@ -117,6 +118,7 @@ export default function ProjectScreen() {
   const [groupsLoading, setGroupsLoading] = useState(false);
   const [groupsRefreshing, setGroupsRefreshing] = useState(false);
   const [groupSearch, setGroupSearch] = useState("");
+    useState<string | null>(null);
 
   const fetchGroups = useCallback(async () => {
     setGroupsLoading(true);
@@ -138,7 +140,7 @@ export default function ProjectScreen() {
     // when that happens instead of showing stale numbers until the next manual reload.
     const refreshListener = () => fetchProjects();
     dataRefreshEmitter.on(FINANCIAL_DATA_UPDATED, refreshListener);
-    return () => dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener);
+    return () => {dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener); }
   }, [fetchProjects]);
 
   const onGroupsRefresh = async () => {
@@ -155,8 +157,12 @@ export default function ProjectScreen() {
     router.push(`/(tabs)/project/${project.projectId}` as any);
   };
 
+
   return (
-    <KeyboardScreen keyboardVerticalOffset={80}>
+    <KeyboardAvoidingView
+    style={{ flex: 1 }}
+    behavior={Platform.OS === "ios" ? "padding" : undefined}
+>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerTopRow}>
@@ -232,7 +238,10 @@ export default function ProjectScreen() {
               contentContainerStyle={styles.listContent}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
               renderItem={({ item }) => (
-                <ProjectCard project={item} onPress={handlePressProject} onMorePress={() => {}} />
+                <ProjectCard
+                  project={item}
+                  onPress={handlePressProject}
+                />
               )}
               ListEmptyComponent={
                 <View style={styles.emptyWrap}>
@@ -306,7 +315,7 @@ export default function ProjectScreen() {
           }}
         />
       </SafeAreaView>
-    </KeyboardScreen>
+    </KeyboardAvoidingView>
   );
 }
 

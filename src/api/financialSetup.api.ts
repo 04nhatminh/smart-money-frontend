@@ -15,6 +15,9 @@ const normalizeFinancialSetup = (
   savingPace: data.savingPace ?? "BALANCED",
   interventionLevel: data.interventionLevel ?? "GENTLE",
   focusMode: data.focusMode ?? "TRACK_ONLY",
+  // Preserve an explicit `false`; only fall back to null when the field is
+  // absent (pre-change users), so the form shows no pre-selected default.
+  autoInvestSurplus: data.autoInvestSurplus ?? null,
   financialSetupCompleted: Boolean(data.financialSetupCompleted),
 });
 

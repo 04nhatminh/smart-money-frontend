@@ -254,6 +254,15 @@ export default function ProjectDetailScreen() {
     );
   }
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(tabs)/project");
+  };
+
   if (!project) {
     return (
       <SafeAreaView style={styles.errorContainer}>
@@ -261,7 +270,7 @@ export default function ProjectDetailScreen() {
         <Text style={styles.errorText}>{t("project.not_found")}</Text>
         <Pressable
           style={styles.backLinkButton}
-          onPress={() => router.replace("/(tabs)/project")}
+          onPress={handleBack}
         >
           <Text style={styles.backLinkText}>{t("project.go_back")}</Text>
         </Pressable>
@@ -342,6 +351,8 @@ export default function ProjectDetailScreen() {
 
   const currentPriority = priorityColors[project.priority] || priorityColors.LOW;
 
+
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -349,7 +360,7 @@ export default function ProjectDetailScreen() {
         <View style={styles.headerRow}>
           <Pressable
             style={styles.backButton}
-            onPress={() => router.replace("/(tabs)/project")}
+            onPress={handleBack}
           >
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </Pressable>

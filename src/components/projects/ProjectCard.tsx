@@ -9,7 +9,6 @@ import { t } from "../../i18n";
 type Props = {
   project: ProjectListItemResponse;
   onPress?: (project: ProjectListItemResponse) => void;
-  onMorePress?: (project: ProjectListItemResponse) => void;
 };
 
 const getPriorityLabel = (priority: ProjectListItemResponse["priority"]) => {
@@ -44,7 +43,6 @@ const getStatusLabel = (status: ProjectListItemResponse["status"]) => {
 export default function ProjectCard({
   project,
   onPress,
-  onMorePress,
 }: Props) {
   const priorityStyleMap = {
     HIGH: {
@@ -90,10 +88,6 @@ export default function ProjectCard({
             {getPriorityLabel(project.priority)}
           </Text>
         </View>
-
-        <Pressable hitSlop={10} onPress={() => onMorePress?.(project)}>
-          <Ionicons name="ellipsis-vertical" size={18} color="#B4B4B8" />
-        </Pressable>
       </View>
 
       <View style={styles.projectTagRow}>

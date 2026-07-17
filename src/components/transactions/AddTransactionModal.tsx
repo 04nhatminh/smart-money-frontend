@@ -7,6 +7,8 @@ import {
   Modal,
   SafeAreaView,
   ActivityIndicator,
+  Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { t } from "../../i18n";
@@ -21,6 +23,7 @@ import {
   formatTime,
   formatDateToDDMMYYYY,
 } from "../../utils/dateFormatter";
+import { formatNumber } from "../../utils/formatCurrency";
 import SuccessModal from "../SuccessModal";
 import ConfirmExitModal from "../ConfirmExitModal";
 import { useCreateTransaction } from "../../hooks/useCreateTransaction";
@@ -81,12 +84,13 @@ export function AddTransactionModal({
 
   const validateForm = () => {
     const nextErrors: FormErrors = {};
+    const numericAmount = parseAmount(amount);
 
     if (!amount.trim()) {
       nextErrors.amount = t("transaction.amountRequired");
-    } else if (isNaN(Number(amount))) {
+    } else if (isNaN(numericAmount)) {
       nextErrors.amount = t("transaction.amountNumber");
-    } else if (Number(amount) <= 0) {
+    } else if (numericAmount <= 0) {
       nextErrors.amount = t("transaction.amountNumberPositive");
     }
 
@@ -118,7 +122,7 @@ export function AddTransactionModal({
       setIsSaving(true);
 
       await createManualTransaction({
-        amount: Number(amount),
+        amount: parseAmount(amount),
         category: CATEGORY_ENUM_MAP[category] || category,
         type,
         description: description.trim(),
@@ -170,6 +174,10 @@ export function AddTransactionModal({
     setShowTimePicker(false);
   };
 
+  const parseAmount = (value: string): number => {
+    return Number(value.replace(/[,.]/g, ""));
+  };
+
   return (
     <>
       <Modal
@@ -179,6 +187,11 @@ export function AddTransactionModal({
         onRequestClose={handleRequestClose}
       >
         <SafeAreaView style={{ flex: 1 }}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
+          >
           <ScrollView
             style={styles.container}
             contentContainerStyle={{ paddingBottom: 24 }}
@@ -236,9 +249,17 @@ export function AddTransactionModal({
                 placeholder={t("transaction.amount")}
                 value={amount}
                 onChangeText={(text) => {
-                  setAmount(text);
+                  const numericValue = text.replace(/\D/g, "");
+
+                  setAmount(
+                    numericValue ? formatNumber(Number(numericValue)) : ""
+                  );
+
                   setHasChanges(true);
-                  setErrors((prev) => ({ ...prev, amount: undefined }));
+                  setErrors((prev) => ({
+                    ...prev,
+                    amount: undefined,
+                  }));
                 }}
                 keyboardType="numeric"
               />
@@ -330,6 +351,7 @@ export function AddTransactionModal({
               ) : null}
             </View>
           </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
 

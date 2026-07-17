@@ -34,8 +34,8 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
     { icon: 'create-outline', label: t('profile.edit_profile'), onPress: onEditProfile },
     {
       icon: 'wallet-outline',
-      label: 'Financial Setup',
-      description: 'Income, rhythm and how SmartMoney supports you',
+      label: t("financialSetup.card_title"),
+      description:  t("financialSetup.empty_desc"),
       onPress: onFinancialSetup,
     },
     { icon: 'key-outline', label: t('profile.change_password'), onPress: onResetPassword },

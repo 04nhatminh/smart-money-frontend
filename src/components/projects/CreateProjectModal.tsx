@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Alert, Modal, View, ScrollView } from "react-native";
+import React, { useRef, useState, useEffect } from "react";
+import { Alert, Modal, View, ScrollView, KeyboardAvoidingView, Keyboard, Platform, Pressable, Text } from "react-native";
 
 import SuccessModal from "../SuccessModal";
 import ConfirmExitModal from "../ConfirmExitModal";
@@ -10,9 +10,9 @@ import { getMonthsFromDeadline } from "../../utils/project";
 import {
     CreateProjectModalStep,
     ProjectAdvisorResponse,
+
     SavingPlanMode,
     ProjectPriority,
-    BudgetAllocationResult,
 } from "../../types/project.types";
 import CreateProjectStep from "./CreateProjectStep";
 import SavingPlanModeStep, { SavingPlanAction }from "./SavingPlanModeStep";
@@ -20,78 +20,19 @@ import FinancialSetupModal from "../financialSetup/FinancialSetupModal";
 import BudgetAllocationSuggestionStep from "./BudgetAllocationSuggestionStep";
 import { t } from "../../i18n";
 import { ProjectAPI } from "../../api/project.api";
-import { BudgetAIAPI } from "../../api/budgetAI.api";
-import { budgetAPI, BudgetCategory } from "../../api/budget.api";
-import { initWebSocket, subscribeBudgetJob } from "../../services/websocket";
+import { budgetAPI } from "../../api/budget.api";
+import { BudgetAllocationPlanResponse } from "../../types/budget_allocation.types";
 import { useAuth } from "../../context/AuthContext";
 import type { UserResponse } from "../../types/auth.types";
-import BudgetAllocationReview from "./BudgetAllocationReview";
+import BudgetPlanReview, { ApplyItem } from "./BudgetPlanReview";
+import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../utils/dataRefreshEmitter";
 
 type PendingCreateProjectAction =
     | "NEXT_STEP"
     | "CALL_ADVISOR"
     | "LOAD_BUDGET";
 
-const normalizeBudgetAllocationResult = (raw: any): BudgetAllocationResult | null => {
-    const source = raw?.result ?? raw?.data ?? raw?.budgets ?? raw;
-    const rawCategories =
-        Array.isArray(source)
-            ? source
-            : source?.categories ?? source?.budgets ?? source?.data;
-
-    console.log(
-        "First budget category:",
-        JSON.stringify(Array.isArray(rawCategories) ? rawCategories[0] : undefined, null, 2)
-    );
-
-    if (!Array.isArray(rawCategories)) {
-        return null;
-    }
-
-    const categories = rawCategories.map((item: any) => ({
-        category: String(
-            item?.category ??
-                item?.categoryName ??
-                item?.name ??
-                "OTHER"
-        ),
-        amount: Number(
-            item?.amount ??
-                item?.allocatedAmount ??
-                item?.allocated_amount ??
-                item?.amountLimit ??
-                item?.budget ??
-                item?.limit ??
-                0
-        ),
-        percentage:
-            item?.percentage != null
-                ? Number(item.percentage)
-                : item?.ratioPercent != null
-                    ? Number(item.ratioPercent)
-                    : item?.ratio != null
-                        ? Number(item.ratio) * 100
-                        : undefined,
-        reason: item?.reason ?? item?.description ?? item?.explanation,
-    }));
-
-    if (categories.length === 0) {
-        return null;
-    }
-
-    const totalBudget = Number(
-        source?.totalBudget ??
-        source?.total_budget ??
-        source?.totalAmount ??
-        categories.reduce((sum, item) => sum + item.amount, 0)
-    );
-
-    return {
-        totalBudget,
-        currency: source?.currency ?? raw?.currency ?? "VND",
-        categories,
-    };
-};
+type SuccessKind = "PROJECT" | "BUDGET";
 
 type Props = {
     visible: boolean;
@@ -115,8 +56,13 @@ export default function CreateProjectModal({
     initialDeadline,
 }: Props) {
     const { user, refreshUser } = useAuth();
+    const scrollViewRef = useRef<ScrollView>(null);
+    const scrollOffsetRef = useRef(0);
+    const focusedScrollOffsetRef = useRef(0);
+    const descriptionFocusedRef = useRef(false);
     const [step, setStep] = useState<CreateProjectModalStep>(1);
     const [mode, setMode] = useState<SavingPlanMode | null>(null);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     const [showFinancialSetup, setShowFinancialSetup] = useState(false);
     const [loadingAction, setLoadingAction] = useState<SavingPlanAction>(null);
@@ -126,10 +72,11 @@ export default function CreateProjectModal({
     const [usedPriorities, setUsedPriorities] = useState<ProjectPriority[]>([]);
     const [checkingPriorities, setCheckingPriorities] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [successKind, setSuccessKind] = useState<SuccessKind>("PROJECT");
     const [showExitModal, setShowExitModal] = useState(false);
 
     const [budgetLoading, setBudgetLoading] = useState(false);
-    const [budgetResult, setBudgetResult] = useState<BudgetAllocationResult | null>(null);
+    const [budgetPlan, setBudgetPlan] = useState<BudgetAllocationPlanResponse | null>(null);
     const [budgetSaveLoading, setBudgetSaveLoading] = useState(false);
 
     // Budget allocation state
@@ -145,6 +92,7 @@ export default function CreateProjectModal({
         isDirty,
         canCreateProject,
         availablePriorities,
+        validateRequiredFields,
         onChangeName,
         onChangeDescription,
         onChangeTargetAmount,
@@ -155,6 +103,47 @@ export default function CreateProjectModal({
         buildPayloadWithAdvisor,
         resetForm,
     } = useCreateProject({usedPriorities,});
+
+    const handleDescriptionFocus = () => {
+        descriptionFocusedRef.current = true;
+        focusedScrollOffsetRef.current = scrollOffsetRef.current;
+    };
+
+    const handleDescriptionBlur = () => {
+        descriptionFocusedRef.current = false;
+    };
+
+    useEffect(() => {
+        if (!visible) return;
+
+        const keyboardShowSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+            setKeyboardHeight(event.endCoordinates.height);
+
+            if (!descriptionFocusedRef.current) {
+                return;
+            }
+
+            requestAnimationFrame(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+            });
+        });
+
+        const keyboardHideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+            setKeyboardHeight(0);
+
+            requestAnimationFrame(() => {
+                scrollViewRef.current?.scrollTo({
+                    y: focusedScrollOffsetRef.current,
+                    animated: true,
+                });
+            });
+        });
+
+        return () => {
+            keyboardShowSubscription.remove();
+            keyboardHideSubscription.remove();
+        };
+    }, [visible]);
 
     const fetchUsedPriorities =
         async () => {
@@ -218,18 +207,11 @@ export default function CreateProjectModal({
 
     useEffect(() => {
         console.log(
-            "6. Budget state updated:",
-            JSON.stringify(budgetResult, null, 2)
+            "6. Budget plan updated:",
+            JSON.stringify(budgetPlan, null, 2)
         );
-    }, [budgetResult]);
+    }, [budgetPlan]);
     useEffect(() => {
-        if (visible) {
-            fetchUsedPriorities();
-        }
-    }, [visible]);
-
-    useEffect(() => {
-
         if (!visible) return;
 
         if (!canCreateProject) return;
@@ -273,7 +255,7 @@ export default function CreateProjectModal({
         setLoadingAction(null);
         setShowFinancialSetup(false);
         setBudgetLoading(false);
-        setBudgetResult(null);
+        setBudgetPlan(null);
         setBudgetSaveLoading(false);
         setShowBudgetGeneration(false);
         setPendingCreateProjectAction(null);
@@ -296,14 +278,33 @@ export default function CreateProjectModal({
     };
 
     const handleNextFromCreate = () => {
+        // console.log("===== NEXT PRESSED =====");
+        // console.log("values:", values);
+        // console.log("errors before validate:", errors);
+        // console.log(
+        //     "financialSetupCompleted:",
+        //     user?.financialSetupCompleted
+        // );
+
+        const isValid = validateRequiredFields();
+
+        // console.log("validate result:", isValid);
+
+        if (!isValid) {
+            // console.log("Blocked by validation");
+            return;
+        }
+
         if (!user?.financialSetupCompleted) {
+            // console.log("Opening financial setup");
             setPendingCreateProjectAction("NEXT_STEP");
             setShowFinancialSetup(true);
             return;
         }
 
+        // console.log("Moving to step 2");
         setStep(2);
-    };
+        };
 
     const isMissingFinancialSetupError = (errorCode?: string) =>
         [
@@ -425,6 +426,9 @@ export default function CreateProjectModal({
             );
             }
 
+            // Thông báo Project đã thay đổi
+            dataRefreshEmitter.emit(FINANCIAL_DATA_UPDATED);
+
             return true;
         } catch (error: any) {
             Alert.alert(
@@ -473,11 +477,14 @@ export default function CreateProjectModal({
 
     const handleBudgetGenerationClose = () => {
         setShowBudgetGeneration(false);
+
+        setSuccessKind("PROJECT");
+        
         setShowSuccessModal(true);
     };
 
-    const handleSaveBudgetAllocation = async () => {
-        if (!budgetResult) {
+    const handleApplyBudgetAllocation = async (items: ApplyItem[]) => {
+        if (!budgetPlan) {
             Alert.alert(t("project.budget_title"), t("project.no_budget_result"));
             return;
         }
@@ -485,27 +492,26 @@ export default function CreateProjectModal({
         try {
             setBudgetSaveLoading(true);
 
-            const now = new Date();
-
             const payload = {
-            month: now.getMonth() + 1,
-            year: now.getFullYear(),
-            budgets: budgetResult.categories.map((item) => ({
-                category: item.category as BudgetCategory,
-                amountLimit: item.amount,
-            })),
+                month: budgetPlan.month,
+                year: budgetPlan.year,
+                budgets: items,
             };
 
             console.log(
                 "🟣 [Budget] Bulk payload:",
                 JSON.stringify(payload, null, 2)
-                );
+            );
 
             const response = await budgetAPI.saveBulk(payload);
 
             if (!response?.success) {
-            throw new Error(response?.message || t("project.failed_save_budget_allocation"));
+                throw new Error(response?.message || t("project.failed_save_budget_allocation"));
             }
+
+            dataRefreshEmitter.emit(FINANCIAL_DATA_UPDATED);
+
+            setSuccessKind("BUDGET");
 
             setShowSuccessModal(true);
         } catch (error: any) {
@@ -518,6 +524,8 @@ export default function CreateProjectModal({
         }
         };
 
+    // Deterministic, synchronous allocation — computes the plan in a single
+    // HTTP call (no jobId / WebSocket) and moves to the editable review step.
     const runBudgetGeneration = async (currentUser: UserResponse | null = user) => {
         if (!currentUser?.id) {
             Alert.alert(t("project.budget_title"), t("project.user_not_found"));
@@ -532,68 +540,31 @@ export default function CreateProjectModal({
 
         try {
             setBudgetLoading(true);
-            setBudgetResult(null);
+            setBudgetPlan(null);
 
-            await initWebSocket(currentUser.id);
+            const response = await budgetAPI.computeAllocation();
 
-            const generateResponse = await BudgetAIAPI.generate();
-
-            if (!generateResponse?.success || !generateResponse.data?.jobId) {
-                if (isMissingFinancialSetupError(generateResponse?.errorCode)) {
+            if (!response?.success || !response.data) {
+                if (isMissingFinancialSetupError(response?.errorCode)) {
                     setPendingCreateProjectAction("LOAD_BUDGET");
                     setShowFinancialSetup(true);
-                    setBudgetLoading(false);
                     return;
                 }
 
                 throw new Error(
-                    generateResponse?.message || t("project.failed_generate_budget_allocation")
+                    response?.message || t("project.failed_generate_budget_allocation")
                 );
             }
 
-            const jobId = generateResponse.data.jobId;
-            console.log("1. Budget API jobId:", jobId);
-
-            console.log("🟣 Budget generate jobId:", jobId);
-
-            await subscribeBudgetJob(
-            jobId,
-            (message) => {
-                console.log("✅ Budget allocation completed:", message);
-
-                const normalizedResult = normalizeBudgetAllocationResult(message);
-
-                if (!normalizedResult) {
-                    setBudgetLoading(false);
-                    Alert.alert(
-                        t("project.budget_title"),
-                        t("project.budget_result_missing_or_invalid")
-                    );
-                    return;
-                }
-
-                setBudgetResult(normalizedResult);
-                setBudgetLoading(false);
-                setStep(4);
-            },
-            (error) => {
-                console.error("❌ Budget allocation socket error:", error);
-
-                setBudgetLoading(false);
-
-                Alert.alert(
-                  t("project.budget_title"),
-                  t("project.failed_receive_budget_result")
-                );
-            }
-            );
+            setBudgetPlan(response.data);
+            setStep(4);
         } catch (error: any) {
-            setBudgetLoading(false);
-
             Alert.alert(
               t("project.budget_title"),
               error?.message || t("project.failed_generate_budget_allocation")
             );
+        } finally {
+            setBudgetLoading(false);
         }
         };
 
@@ -650,16 +621,36 @@ export default function CreateProjectModal({
     return (
         <>
             <Modal
-                visible={visible}
-                animationType="slide"
-                transparent
-                onRequestClose={handleClose}
+            visible={visible}
+            animationType="slide"
+            transparent
+            statusBarTranslucent
+            onRequestClose={handleClose}
             >
                 <View style={styles.modalOverlay}>
+                <KeyboardAvoidingView
+                    style={styles.keyboardContainer}
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                    keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
+                >
+                
                     <View style={styles.modalContainer}>
                         <ScrollView
-                            contentContainerStyle={styles.scrollContainer}
+                            ref={scrollViewRef}
+                            onScroll={(event) => {
+                                scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+                            }}
+                            scrollEventThrottle={16}
+                            style={styles.modalScrollView}
+                            contentContainerStyle={[
+                                styles.scrollContainer,
+                                { paddingBottom: 40 + keyboardHeight },
+                            ]}
                             showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            keyboardDismissMode="on-drag"
+                            nestedScrollEnabled
+                            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
                         >
                             {step === 1 && (
                                 <CreateProjectStep
@@ -676,6 +667,8 @@ export default function CreateProjectModal({
                                     onChangeTargetAmount={onChangeTargetAmount}
                                     onChangeDeadlineMonths={onChangeDeadlineMonths}
                                     onChangePriority={onChangePriority}
+                                    onDescriptionFocus={handleDescriptionFocus}
+                                    onDescriptionBlur={handleDescriptionBlur}
                                     onCancel={handleClose}
                                     onNext={handleNextFromCreate}
                                 />
@@ -704,27 +697,46 @@ export default function CreateProjectModal({
                                 />
                             )}
 
-                            {step === 4 && (
-                                <BudgetAllocationReview
-                                    budgetResult={budgetResult}
-                                    loading={budgetSaveLoading}
-                                    onBack={handleBackStep}
-                                    onConfirm={handleSaveBudgetAllocation}
-                                    onCancel={handleClose}
-                                />
+                            {step === 4 && budgetPlan && (
+                                <>
+                                    <BudgetPlanReview
+                                        plan={budgetPlan}
+                                        applying={budgetSaveLoading}
+                                        onApply={handleApplyBudgetAllocation}
+                                    />
+                                    <Pressable
+                                        style={{ height: 48, alignItems: "center", justifyContent: "center", marginTop: 8 }}
+                                        onPress={handleBudgetGenerationClose}
+                                        disabled={budgetSaveLoading}
+                                    >
+                                        <Text style={{ fontSize: 15, fontWeight: "600", color: "#6B7280" }}>
+                                            {t("project.skip")}
+                                        </Text>
+                                    </Pressable>
+                                </>
                             )}
 
                     
                         </ScrollView>
                     </View>
+                
+                </KeyboardAvoidingView>
                 </View>
             </Modal>
 
             <SuccessModal
                 visible={showSuccessModal}
                 onDone={handleSuccessClose}
-                title={t("project.created_success_title")}
-                description={t("project.created_success_desc")}
+                title={
+                    successKind === "BUDGET"
+                        ? t("project.budget_saved_success_title")
+                        : t("project.created_success_title")
+                }
+                description={
+                    successKind === "BUDGET"
+                        ? t("project.budget_saved_success_desc")
+                        : t("project.created_success_desc")
+                }
                 buttonText={t("common.done")}
             />
                 

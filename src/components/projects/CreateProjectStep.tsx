@@ -27,6 +27,8 @@ type Props = {
   onChangeDeadlineMonths: (months: string) => void;
   onChangePriority: (value: ProjectPriority) => void;
   onChangeDescription: (description: string) => void;
+  onDescriptionFocus?: () => void;
+  onDescriptionBlur?: () => void;
   onCancel: () => void;
   onNext: () => void;
 };
@@ -45,6 +47,8 @@ export default function CreateProjectStep({
   onChangeDeadlineMonths,
   onChangePriority,
   onChangeDescription,
+  onDescriptionFocus,
+  onDescriptionBlur,
   onCancel,
   onNext,
 }: Props) {
@@ -77,6 +81,8 @@ export default function CreateProjectStep({
           onChangeTargetAmount={onChangeTargetAmount}
           onChangeDeadlineMonths={onChangeDeadlineMonths}
           onChangePriority={onChangePriority}
+          onDescriptionFocus={onDescriptionFocus}
+          onDescriptionBlur={onDescriptionBlur}
         />
 
         <View style={styles.buttonRow}>
@@ -95,7 +101,7 @@ export default function CreateProjectStep({
                   : t("project.next")
             }
             onPress={onNext}
-            disabled={!canCreateProject || checkingPriorities || loading}
+            disabled={checkingPriorities || loading}
           />
         </View>
       </View>

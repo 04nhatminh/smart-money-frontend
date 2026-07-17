@@ -18,6 +18,7 @@ import {
     validateCreateProjectForm,
 } from "../utils/project";
 import { formatDateToYYYYMMDD } from "../utils/dateFormatter";
+import { t } from "../i18n";
 
 const initialFormValues: CreateProjectFormValues = {
     name: "",
@@ -126,7 +127,9 @@ export function useCreateProject({
             name: values.name.trim(),
             description: values.description.trim(),
             targetAmount: parseCurrencyToNumber(values.targetAmount),
-            deadline: formatDateToYYYYMMDD(addMonthsFromDate(Number(values.deadlineMonths))),
+            // Backend counts plan length inclusively (gap + 1). For an N-month
+            // plan send deadline = today + (N - 1) months. See getMonthsFromDeadline.
+            deadline: formatDateToYYYYMMDD(addMonthsFromDate(Number(values.deadlineMonths) - 1)),
             type: values.type,
             priority: values.priority,
             currency: "VND",
@@ -139,8 +142,9 @@ export function useCreateProject({
         ): CreateProjectPayload => {
         return {
             ...buildPayload(),
+            // Inclusive month convention: an N-month advisor plan → today + (N - 1).
             deadline: formatDateToYYYYMMDD(
-                addMonthsFromDate(advisor.numberOfMonths)
+                addMonthsFromDate(advisor.numberOfMonths - 1)
             ),
         };
     };
@@ -150,6 +154,52 @@ export function useCreateProject({
         setValues(initialFormValues);
         setErrors(initialErrors);
     };
+
+    const validateRequiredFields = () => {
+        const nextErrors: CreateProjectFormErrors = {
+            name: "",
+            targetAmount: "",
+            deadlineMonths: "",
+            description: "",
+        };
+
+        const name = values.name?.trim() ?? "";
+
+        const targetAmount = Number(
+            String(values.targetAmount ?? "").replace(/[^\d]/g, "")
+        );
+
+        const deadlineMonths = Number(
+            String(values.deadlineMonths ?? "").replace(/[^\d]/g, "")
+        );
+
+        if (!name) {
+            nextErrors.name = t("project.name_required");
+        }
+
+        if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
+            nextErrors.targetAmount = t(
+            "project.target_amount_required"
+            );
+        }
+
+        if (!Number.isFinite(deadlineMonths) || deadlineMonths <= 0) {
+            nextErrors.deadlineMonths = t(
+            "project.deadline_required"
+            );
+        }
+
+        // Description không bắt buộc
+        nextErrors.description = "";
+
+        setErrors(nextErrors);
+
+        return (
+            !nextErrors.name &&
+            !nextErrors.targetAmount &&
+            !nextErrors.deadlineMonths
+        );
+        };
 
     return {
         values,
@@ -166,6 +216,7 @@ export function useCreateProject({
         buildPayloadWithAdvisor,
         canCreateProject,
         availablePriorities,
+        validateRequiredFields,
         resetForm,
         onChangePriority,
     };

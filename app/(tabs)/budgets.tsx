@@ -24,7 +24,7 @@ import { AddTransactionModal } from "../../src/components/transactions/AddTransa
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { Receipt } from "../../src/types/transaction.types";
 import { FinancialSetupApi } from "../../src/api/financialSetup.api";
-import { FinancialSetup, getFinancialSetupLabel } from "../../src/types/financialSetup";
+import { FinancialSetup } from "../../src/types/financialSetup";
 import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
 import { t } from "../../src/i18n";
 import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/dataRefreshEmitter";
@@ -53,7 +53,7 @@ const categoryIconMap: { [key: string]: { icon: string; color: string; displayNa
     HEALTH: { icon: "heart", color: "#F44336", displayName: "budget.category_health" },
     EDUCATION: { icon: "book", color: "#3629B7", displayName: "budget.category_education" },
     SHOPPING: { icon: "bag", color: "#4CAF50", displayName: "budget.category_shopping" },
-    OTHER: { icon: "more", color: "#757575", displayName: "budget.category_other" },
+    OTHER: { icon: "ellipsis-horizontal", color: "#757575", displayName: "budget.category_other" },
 };
 
 export default function BudgetListPage() {
@@ -83,7 +83,9 @@ export default function BudgetListPage() {
         // when that happens instead of showing stale numbers until the next manual reload.
         const refreshListener = () => loadBudgets();
         dataRefreshEmitter.on(FINANCIAL_DATA_UPDATED, refreshListener);
-        return () => dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener);
+        return () => {
+            dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener);
+        };
     }, []);
 
     const loadFinancialSetup = async () => {
@@ -274,12 +276,23 @@ export default function BudgetListPage() {
                 label: t("financialSetup.row_focus"),
                 value: t(`financialSetup.focusMode.${financialSetup.focusMode}`),
             },
+            {
+                label: t("financialSetup.row_auto_invest"),
+                value:
+                    financialSetup.autoInvestSurplus == null
+                        ? "-"
+                        : t(
+                              `financialSetup.autoInvest.${
+                                  financialSetup.autoInvestSurplus ? "ON" : "OFF"
+                              }`
+                          ),
+            },
         ];
 
         return (
             <View style={styles.profileCard}>
                 <View style={styles.profileCardHeader}>
-                        <View style={styles.profileCardTitleRow}>
+                    <View style={styles.profileCardTitleRow}>
                         <Ionicons name="wallet-outline" size={22} color="#4B3FD6" />
                         <Text style={styles.profileCardTitle}>
                             {t("financialSetup.card_title")}
@@ -416,6 +429,7 @@ export default function BudgetListPage() {
 
                 <FinancialSetupModal
                     visible={showEditSetup}
+                    mode="edit"
                     onClose={() => {
                         setShowEditSetup(false);
                         loadFinancialSetup();

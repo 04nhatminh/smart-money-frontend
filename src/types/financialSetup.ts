@@ -65,6 +65,12 @@ export interface FinancialSetup {
   savingPace: SavingPace;
   interventionLevel: InterventionLevel;
   focusMode: FocusMode;
+  /**
+   * Whether monthly leftover budget is auto-swept into active savings projects.
+   * Nullable in the normalized shape because pre-change users have never set it
+   * — the setup form must render with no pre-selected default in that case.
+   */
+  autoInvestSurplus?: boolean | null;
   financialSetupCompleted: boolean;
 }
 
@@ -73,21 +79,8 @@ export interface UpdateFinancialSetupPayload {
   savingPace: SavingPace;
   interventionLevel: InterventionLevel;
   focusMode: FocusMode;
-}
-
-export interface FinancialSetup {
-  income: number;
-  savingPace: SavingPace;
-  interventionLevel: InterventionLevel;
-  focusMode: FocusMode;
-  financialSetupCompleted: boolean;
-}
-
-export interface UpdateFinancialSetupPayload {
-  income: number;
-  savingPace: SavingPace;
-  interventionLevel: InterventionLevel;
-  focusMode: FocusMode;
+  // Required by the backend contract — omitting it now returns HTTP 400.
+  autoInvestSurplus: boolean;
 }
 
 export interface FinancialSetupResponseData {
@@ -95,6 +88,7 @@ export interface FinancialSetupResponseData {
   savingPace?: SavingPace;
   interventionLevel: InterventionLevel;
   focusMode?: FocusMode;
+  autoInvestSurplus?: boolean | null;
   financialSetupCompleted: boolean;
 }
 
