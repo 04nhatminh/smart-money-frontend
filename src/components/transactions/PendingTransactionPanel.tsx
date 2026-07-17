@@ -116,6 +116,8 @@ const SwipeableItem: React.FC<{
 
   const translateX = useRef(new Animated.Value(0)).current;
   const THRESHOLD = 80;
+  const MAX_SWIPE = 120;
+  const ACTION_THRESHOLD = 70;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -125,16 +127,26 @@ const SwipeableItem: React.FC<{
         return isHorizontal && Math.abs(gestureState.dx) > 5;
       },
       onPanResponderTerminationRequest: () => false,
+
       onPanResponderMove: (_, gestureState) => {
-        const newX = Math.max(-THRESHOLD, Math.min(THRESHOLD, gestureState.dx));
-        translateX.setValue(newX);
+        let dx = gestureState.dx;
+
+        if (Math.abs(dx) > MAX_SWIPE) {
+          dx =
+            Math.sign(dx) *
+            (MAX_SWIPE + (Math.abs(dx) - MAX_SWIPE) * 0.25);
+        }
+
+        translateX.setValue(dx);
       },
       onPanResponderRelease: (_, gestureState) => {
         const { dx } = gestureState;
-        if (dx > THRESHOLD) {
-          Animated.timing(translateX, {
+        if (dx > ACTION_THRESHOLD) {
+          Animated.spring(translateX, {
             toValue: THRESHOLD,
-            duration: 200,
+            stiffness: 180,
+            damping: 20,
+            mass: 0.7,
             useNativeDriver: true,
           }).start(() => {
             onApprove(item.id);
@@ -144,16 +156,17 @@ const SwipeableItem: React.FC<{
               useNativeDriver: true,
             }).start();
           });
-        } else if (dx < -THRESHOLD) {
-          Animated.timing(translateX, {
-            toValue: -THRESHOLD,
-            duration: 200,
+        } else if (dx < -ACTION_THRESHOLD) {
+          Animated.spring(translateX, {
+            toValue: -ACTION_THRESHOLD,
+            stiffness: 180,
+            damping: 20,
             useNativeDriver: true,
           }).start(() => {
             onReject(item.id);
-            Animated.timing(translateX, {
+
+            Animated.spring(translateX, {
               toValue: 0,
-              duration: 200,
               useNativeDriver: true,
             }).start();
           });
