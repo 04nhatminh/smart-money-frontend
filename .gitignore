@@ -50,3 +50,9 @@ yarn-error.*
 *.log.
 
 package-lock.json
+
+#claude files
+.claude/
+
+#.vscode/
+.vscode/

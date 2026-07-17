@@ -160,6 +160,16 @@ export default function BudgetListPage() {
 
         return (
             <View key={item.budgetId} style={styles.budgetCard}>
+                <View style={styles.cardTopBar}>
+                    <TouchableOpacity
+                        style={styles.viewDetailButton}
+                        onPress={() => router.push(`/(tabs)/budgets/${item.budgetId}` as any)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                        <Text style={styles.viewDetailText}>{t("budget.view_detail")}</Text>
+                        <Ionicons name="chevron-forward" size={16} color="#4B3FD6" />
+                    </TouchableOpacity>
+                </View>
                 <View style={styles.cardHeader}>
                     <View style={styles.categoryInfo}>
                         <CircularProgress
@@ -467,12 +477,30 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 3,
     },
+    cardTopBar: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        paddingHorizontal: 16,
+        paddingTop: 10,
+    },
+    viewDetailButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 2,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    viewDetailText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#4B3FD6',
+    },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 16,
-        paddingTop: 16,
+        paddingTop: 4,
         paddingBottom: 12,
         borderBottomWidth: 1,
         borderBottomColor: '#F0F0F0',
