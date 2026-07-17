@@ -255,16 +255,6 @@ export default {
   wait: {
       waiting: "Chờ Một Xí",
   },
-  category: {
-    food: "Thức ăn",
-    transportation: "Di chuyển",
-    clothing: "Quần áo",
-    utilities: "Tiện ích",
-    entertainment: "Giải trí",
-    health: "Sức khỏe",
-    education: "Giáo dục",
-    other: "Khác"
-  },
   transaction: {
     addTitle: "Thêm giao dịch",
     editTitle: "Chỉnh sửa giao dịch",
@@ -277,6 +267,7 @@ export default {
     expense: "Chi tiêu",
     income: "Thu nhập",
     saveSuccess: "Thêm giao dịch thành công",
+    saveSuccessDesc: "Giao dịch đã được lưu thành công.",
     confirmExit: "Giao dịch chưa được lưu",
     confirmExitDesc: "Mọi thay đổi sẽ bị mất nếu bạn thoát bây giờ.",
     amountRequired: "Vui lòng nhập số tiền",
@@ -562,6 +553,12 @@ export default {
     edit_button: "Chỉnh sửa",
     cancel_button: "Hủy",
     profile_details: "Chi tiết hồ sơ của bạn",
+    budget_saved_success_title: "Lưu ngân sách thành công",
+    budget_saved_success_desc: "Ngân sách được đề xuất đã được lưu và sẵn sàng để theo dõi.",
+
+    name_required: "Vui lòng nhập tên dự án.",
+    target_amount_required: "Vui lòng nhập số tiền mục tiêu.",
+    deadline_required: "Vui lòng nhập thời hạn.",
   },
   budget: {
     checking_profile: "Đang kiểm tra...",

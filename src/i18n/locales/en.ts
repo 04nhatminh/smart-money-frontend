@@ -254,16 +254,6 @@ export default {
   wait: {
     waiting: "Waiting a moment",
   },
-  category: {
-    food: "Food",
-    transportation: "Transportation",
-    clothing: "Clothing",
-    utilities: "Utilities",
-    entertainment: "Entertainment",
-    health: "Health",
-    education: "Education",
-    other: "Other"
-  },
   transaction: {
     addTitle: "Add Transaction",
     editTitle: "Edit Transaction",
@@ -563,6 +553,13 @@ export default {
     edit_button: "Edit",
     cancel_button: "Cancel",
     profile_details: "Your profile details",
+
+    budget_saved_success_title: "Budget saved successfully",
+    budget_saved_success_desc: "Your suggested budget has been saved and is ready to track.",
+
+    name_required: "Please enter a project name.",
+    target_amount_required: "Please enter a target amount.",
+    deadline_required: "Please enter a deadline.",
   },
   budget: {
     checking_profile: "Checking...",
@@ -698,21 +695,6 @@ export default {
       your_project_is_ready_set_up_ai_powered_budget_allocation_based_on_your_financial_profile_to_stay_on_track: "Your project is ready! Set up an AI-powered budget allocation based on your financial profile to stay on track.",
       exit: "Exit",
     }
-  },
-
-  // Transaction category enums as sent by the backend (raw enum → display name).
-  category: {
-    FOOD: "Food",
-    TRANSPORTATION: "Transportation",
-    CLOTHING: "Clothing",
-    UTILITIES: "Utilities",
-    ENTERTAINMENT: "Entertainment",
-    HEALTH: "Health",
-    EDUCATION: "Education",
-    SHOPPING: "Shopping",
-    OTHER: "Other",
-    PROJECT_CONTRIBUTION: "Project contribution",
-    PROJECT_REFUND: "Project refund",
   },
 
   severity: {
