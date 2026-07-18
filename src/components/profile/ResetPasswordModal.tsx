@@ -17,7 +17,6 @@ import { InputField } from '../InputField';
 import authService from '../../auth/authService';
 import { t } from '../../i18n';
 import { useLanguage } from '../../i18n/LanguageProvider';
-
 type Step = 'confirm' | 'otp' | 'reset';
 
 interface ResetPasswordModalProps {
