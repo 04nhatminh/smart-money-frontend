@@ -175,8 +175,6 @@ function RootLayoutNav() {
         <Stack.Screen name="group-invite" />
         <Stack.Screen name="group/[id]" />
         <Stack.Screen name="group-project/[id]" />
-        <Stack.Screen name="group" />
-        <Stack.Screen name="group-project" />
         <Stack.Screen name="insights" />
         <Stack.Screen name="suggestions" />
       </Stack>

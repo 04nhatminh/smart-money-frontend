@@ -39,7 +39,6 @@ yarn-error.*
 
 # generated native folders
 /ios
-/android
 /claude
 /android/app/debug.keystore
 /android/gradle
@@ -49,4 +48,9 @@ yarn-error.*
 *.log
 *.log.
 
-package-lock.json
+
+#claude files
+.claude/
+
+#.vscode/
+.vscode/

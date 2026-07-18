@@ -58,6 +58,62 @@ class BudgetAPI {
     }
   }
 
+  async getBudgetDetail(budgetId: string): Promise<ApiResponse<BudgetItem>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/budgets/${budgetId}`;
+      console.log("🔵 [BudgetAPI] GET Detail Request:", fullUrl);
+
+      const res = await http.get(`/api/v1/budgets/${budgetId}`);
+
+      console.log("🟢 [BudgetAPI] GET Detail Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [BudgetAPI] GET Detail Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  }
+
+  async deleteBudget(budgetId: string): Promise<ApiResponse<void>> {
+    try {
+      const fullUrl = `${http.defaults.baseURL}/api/v1/budgets/${budgetId}`;
+      console.log("🟠 [BudgetAPI] DELETE Request:", fullUrl);
+
+      const res = await http.delete(`/api/v1/budgets/${budgetId}`);
+
+      console.log("🟢 [BudgetAPI] DELETE Success:", res.data);
+      return res.data;
+    } catch (error: any) {
+      const errorMsg = error?.message || "Unknown error";
+      const status = error?.response?.status || "No status";
+      const responseData = error?.response?.data;
+
+      console.error("🔴 [BudgetAPI] DELETE Error Details:");
+      console.error("   Message:", errorMsg);
+      console.error("   Status:", status);
+      console.error("   Response Data:", responseData);
+
+      return (
+        error?.response?.data || {
+          success: false,
+          message: errorMsg,
+        }
+      );
+    }
+  }
+
   async createBulk(
     data: CreateBudgetBulkPayload
   ): Promise<ApiResponse<BudgetItem[]>> {
