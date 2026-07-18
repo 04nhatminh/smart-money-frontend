@@ -54,7 +54,7 @@ export interface SendResetPasswordResponse extends ApiResponse<SendResetPassword
 export interface VerifyResetPasswordResponse extends ApiResponse<{}> {}
 
 export interface UpdateUserRequest {
-  fullname?: string;
+  fullName?: string;
   avatar?: File;
   dateOfBirth?: Date | string;
   phone?: string;

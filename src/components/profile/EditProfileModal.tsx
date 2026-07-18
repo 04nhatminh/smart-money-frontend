@@ -91,7 +91,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         : undefined;
       console.log('Submitting update with DOB:', dob);
       const updateData = {
-        fullname: fullName.trim(),
+        fullName: fullName.trim(),
         phone: phone.trim() || undefined,
         dateOfBirth: dob
       };

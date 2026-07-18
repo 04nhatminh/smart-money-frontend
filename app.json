@@ -22,7 +22,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.ngohaibang.smartmoneyfrontend",
+      "package": "com.smartmoney",
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
