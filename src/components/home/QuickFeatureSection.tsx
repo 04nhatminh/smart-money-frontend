@@ -1,6 +1,8 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useEffect, useState } from "react";
+import PendingStorage, { pendingEventBus } from "../../storage/pendingTransactionStorage";
 
 type QuickFeatureSectionProps = {
   onOpenCreateProject: () => void;
@@ -11,6 +13,7 @@ export default function QuickFeatureSection({
   onOpenCreateProject,
   onOpenClassify,
 }: QuickFeatureSectionProps) {
+  const [pendingCount, setPendingCount] = useState(0);
   const quickFeatures = [
     {
       id: 'project',
@@ -35,6 +38,20 @@ export default function QuickFeatureSection({
     },
   ];
 
+  useEffect(() => {
+    const load = () => {
+      setPendingCount(PendingStorage.getAll().length);
+    };
+
+    load();
+
+    pendingEventBus.on("updated", load);
+
+    return () => {
+      pendingEventBus.off("updated", load);
+    };
+  }, []);
+
   return (
     <View style={styles.quickFeatureWrapper}>
       <View style={styles.quickFeatureContainer}>
@@ -45,8 +62,9 @@ export default function QuickFeatureSection({
             activeOpacity={0.82}
             onPress={item.onPress}
           >
+
             <View style={styles.quickFeatureIconBox}>
-              {item.iconType === 'ion' ? (
+              {item.iconType === "ion" ? (
                 <Ionicons
                   name={item.iconName as any}
                   size={22}
@@ -60,6 +78,13 @@ export default function QuickFeatureSection({
                 />
               )}
 
+              {item.id === "classify" && pendingCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {pendingCount > 99 ? "99+" : pendingCount}
+                  </Text>
+                </View>
+              )}
             </View>
 
             <Text style={styles.quickFeatureLabel}>{item.title}</Text>
@@ -112,5 +137,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     textAlign: 'center',
+  },
+
+  badge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#EF4444",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+
+  badgeText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontWeight: "700",
   },
 });

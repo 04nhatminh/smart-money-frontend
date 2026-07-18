@@ -19,6 +19,10 @@ import { t } from '../../i18n';
 import authService from '../../auth/authService';
 import { formatDateToDDMMYYYY } from '../../utils/dateFormatter';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import {
+  DateTimePickerAndroid,
+} from '@react-native-community/datetimepicker';
+import {parseDDMMYYYYHHMM } from '../../utils/dateFormatter';
 
 interface EditProfileModalProps {
   visible: boolean;
@@ -35,9 +39,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 }) => {
   const [fullName, setFullName] = useState(user.fullName || '');
   const [phone, setPhone] = useState(user.phone || '');
-  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(
-    user.dateOfBirth ? new Date(user.dateOfBirth) : null
-  );
+  const initialDate =
+  typeof user.dateOfBirth === "string"
+    ? parseDDMMYYYYHHMM(user.dateOfBirth)
+    : user.dateOfBirth ?? null;
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(initialDate);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const { lang } = useLanguage();
@@ -46,7 +52,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     if (visible) {
       setFullName(user.fullName || '');
       setPhone(user.phone || '');
-      setDateOfBirth(user.dateOfBirth ? new Date(user.dateOfBirth) : null);
+      setDateOfBirth(initialDate);
     }
   }, [visible, user]);
 
@@ -59,7 +65,18 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     }
   };
 
-
+  const openPicker = () => {
+    DateTimePickerAndroid.open({
+      value: dateOfBirth ?? new Date(),
+      mode: "date",
+      maximumDate: new Date(),
+      onChange: (event, selectedDate) => {
+        if (event.type === "set" && selectedDate) {
+          setDateOfBirth(selectedDate);
+        }
+      },
+    });
+  };
 
   const handleSave = async () => {
     if (!fullName.trim()) {
@@ -70,8 +87,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     try {
       setLoading(true);
       const dob = dateOfBirth
-                  ? formatDateToDDMMYYYY(dateOfBirth)
-                  : undefined;
+        ? formatDateToDDMMYYYY(dateOfBirth)
+        : undefined;
       console.log('Submitting update with DOB:', dob);
       const updateData = {
         fullname: fullName.trim(),
@@ -138,32 +155,29 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 <Text style={styles.label}>{t('profile.date_of_birth')}</Text>
                 <TouchableOpacity
                   style={styles.dateButton}
-                  onPress={() => setShowDatePicker(true)}
+                  onPress={() => {
+                    if (Platform.OS === 'android') {
+                      openPicker();
+                    } else {
+                      setShowDatePicker(true);
+                    }
+                  }}
                   disabled={loading}
                 >
                   <Ionicons name="calendar-outline" size={20} color="#3629B7" />
                   <Text style={styles.dateButtonText}>
                     {dateOfBirth
                       ? dateOfBirth.toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })
                       : t('profile.select_date')}
                   </Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Date Picker */}
-              {showDatePicker && (
-                <DateTimePicker
-                  value={dateOfBirth || new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleDateChange}
-                  maximumDate={new Date()}
-                />
-              )}
+
 
               {Platform.OS === 'ios' && showDatePicker && (
                 <TouchableOpacity
@@ -174,6 +188,19 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 </TouchableOpacity>
               )}
             </ScrollView>
+
+              {/* Date Picker */}
+              {showDatePicker && (
+                <DateTimePicker
+                  value={dateOfBirth || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'android'
+                    ? 'calendar'
+                    : 'spinner'} 
+                  onChange={handleDateChange}
+                  maximumDate={new Date()}
+                />
+              )}
 
             {/* Action Buttons */}
             <View style={styles.footer}>

@@ -10,6 +10,7 @@ import {
     Dimensions,
     Text,
     StatusBar,
+    LayoutAnimation,
     Alert
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -27,12 +28,14 @@ import { AuthTabs } from "../../src/components/auth/AuthTabs";
 import { formatDateToDDMMYYYY } from "../../src/utils/dateFormatter";
 import { Ionicons } from '@expo/vector-icons';
 import authService from "../../src/auth/authService";
-import { 
-    RegisterRequest, 
-    VerifyEmailRequest, 
-    SendResetPasswordOtpRequest, 
-    ResetPasswordRequest 
+import { Keyboard } from "react-native";
+import {
+    RegisterRequest,
+    VerifyEmailRequest,
+    SendResetPasswordOtpRequest,
+    ResetPasswordRequest
 } from "../../src/types/auth.types";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 const { width, height } = Dimensions.get('window');
 
@@ -40,12 +43,12 @@ export default function AuthScreen() {
     const router = useRouter();
     const { login, checkAuthStatus } = useAuth();
     const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
-    
+
     // Sign In states
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(false);
-    
+
     // Sign Up states
     const [username, setUsername] = useState("");
     const [fullName, setFullName] = useState("");
@@ -71,21 +74,39 @@ export default function AuthScreen() {
     const [signUpError, setSignUpError] = useState<string | null>(null);
     const [otpError, setOtpError] = useState<string | null>(null);
     const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
-    
+    const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+
     // Common states
     const [success, setSuccess] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
     const { lang } = useLanguage();
 
+    React.useEffect(() => {
+        const showSub = Keyboard.addListener("keyboardDidShow", () => {
+            setKeyboardVisible(true);
+            LayoutAnimation.easeInEaseOut();
+        });
+
+        const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+            setKeyboardVisible(false);
+            LayoutAnimation.easeInEaseOut();
+        });
+
+        return () => {
+            showSub.remove();
+            hideSub.remove();
+        };
+    }, []);
+
     const handleSignIn = async () => {
         setSignInError(null);
         setLoading(true);
-        
+
         try {
             console.log('🔐 Attempting login with email:', email);
             const res = await login(email, password);
-            
+
             if (res.success) {
                 console.log('✅ Login successful');
             } else {
@@ -103,35 +124,35 @@ export default function AuthScreen() {
     const handleSignUp = async () => {
         setSignUpError(null);
         setSuccess(null);
-        
+
         // Validation
         if (!fullName.trim() || !signupEmail.trim() || !signupPassword.trim()) {
             setSignUpError(t("auth.fill_required_fields"));
             return;
         }
-        
+
         if (signupPassword !== confirmPassword) {
             setSignUpError(t("auth.passwords_dont_match"));
             return;
         }
-        
+
         if (signupPassword.length < 6) {
             setSignUpError(t("auth.password_too_short"));
             return;
         }
-        
+
         // Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(signupEmail)) {
             setSignUpError(t("auth.invalid_email"));
             return;
         }
-        
+
         setLoading(true);
-        
+
         try {
             const formattedDate = formatDateToDDMMYYYY(dateOfBirth);
-            
+
             const registerData: RegisterRequest = {
                 username: username.trim() || signupEmail.split('@')[0], // Generate from email if empty
                 fullName: fullName.trim(),
@@ -141,10 +162,10 @@ export default function AuthScreen() {
                 phone: phone.trim(),
                 dateOfBirth: formattedDate,
             };
-            
+
             console.log('📝 Registering with data:', { ...registerData, password: '***' });
             const response = await authService.register(registerData);
-            
+
             if (response.success) {
                 console.log('✅ Registration successful, showing OTP modal');
                 setShowOTPModal(true);
@@ -154,7 +175,7 @@ export default function AuthScreen() {
             } else {
                 console.log('❌ Registration failed:', response.message);
                 setSignUpError(t("auth.registration_failed"));
-                
+
                 if (response.errors) {
                     const errorMessages = Object.values(response.errors).flat();
                     setSignUpError(errorMessages.join(", "));
@@ -175,16 +196,16 @@ export default function AuthScreen() {
                 email: email,
                 otp: otpString
             };
-            
+
             console.log('🔐 Verifying OTP for:', email);
             const res = await authService.verifyEmail(request);
-            
+
             if (res.success) {
                 console.log('✅ OTP verified successfully');
                 setShowOTPModal(false);
                 setActiveTab("signin");
                 setSuccess(t("auth.email_verified"));
-                
+
                 // Auto-fill email for sign in
                 setEmail(email);
             } else {
@@ -208,10 +229,10 @@ export default function AuthScreen() {
                 email: email,
                 otp: otpString
             };
-            
+
             console.log('🔐 Verifying reset password OTP for:', email);
             const res = await authService.verifyResetPassword(request);
-            
+
             if (res.success) {
                 console.log('✅ Reset password OTP verified');
                 setShowResetPassword(true);
@@ -237,16 +258,16 @@ export default function AuthScreen() {
             const request: SendResetPasswordOtpRequest = {
                 email: email
             };
-            
+
             console.log('📧 Resending OTP to:', email);
             let res;
-            
+
             if (otpType === "VERIFY") {
                 res = await authService.forgotPassword(request);
             } else {
                 res = await authService.resendOTP(request);
             }
-            
+
             if (res.success) {
                 console.log('✅ OTP resent successfully');
                 setSuccess(t("auth.otp_resent"));
@@ -254,7 +275,7 @@ export default function AuthScreen() {
                 console.log('❌ Failed to resend OTP:', res.message);
                 setOtpError(t("auth.resend_failed"));
             }
-            
+
             return res;
         } catch (error: any) {
             console.error('💥 Resend OTP error:', error);
@@ -270,16 +291,16 @@ export default function AuthScreen() {
             setSignInError(t("auth.require_email"));
             return;
         }
-        
+
         try {
             setLoading(true);
             const request: SendResetPasswordOtpRequest = {
                 email: email
             };
-            
+
             console.log('🔑 Requesting password reset for:', email);
             const res = await authService.forgotPassword(request);
-            
+
             if (res.success) {
                 console.log('✅ Password reset OTP sent');
                 setOtpEmail(email);
@@ -303,43 +324,43 @@ export default function AuthScreen() {
     const handleResetPassword = async () => {
         setResetPasswordError(null);
         setLoading(true);
-        
+
         if (!otpEmail) {
             setResetPasswordError(t("auth.email_not_found"));
             setLoading(false);
             return;
         }
-        
+
         if (newPassword !== newConfirmPassword) {
             setResetPasswordError(t("auth.passwords_dont_match"));
             setLoading(false);
             return;
         }
-        
+
         if (newPassword.length < 6) {
             setResetPasswordError(t("auth.password_too_short"));
             setLoading(false);
             return;
         }
-        
+
         try {
             console.log('🔄 Resetting password for:', otpEmail);
             const request: ResetPasswordRequest = {
                 email: otpEmail,
                 newPassword: newPassword
             };
-            
+
             const res = await authService.resetPassword(request);
-            
+
             if (res.success) {
                 console.log('✅ Password reset successful');
                 setSuccess(t("auth.password_reset_success"));
                 setShowResetPassword(false);
                 setActiveTab("signin");
-                
+
                 // Auto-fill email for sign in
                 setEmail(otpEmail);
-                
+
                 // Clear reset token
                 await authService.clearAuthData();
             } else {
@@ -365,7 +386,7 @@ export default function AuthScreen() {
         // The actual Google login flow will be handled by SocialLogin component
         // onSuccessSocialLogin will be called after successful authentication
     };
-    
+
     const handleFacebookLogin = () => {
         console.log('👤 Facebook login initiated');
         // The actual Facebook login flow will be handled by SocialLogin component
@@ -404,144 +425,141 @@ export default function AuthScreen() {
 
     return (
         <SafeAreaView style={styles.safe}>
-            <StatusBar barStyle="light-content" backgroundColor="#3629B7" />
-            
-            {/* Gradient Background */}
-            <LinearGradient
-                colors={['#3629B7', '#5655B9', '#A8A3D7']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.gradientBackground}
+
+            <KeyboardAwareScrollView
+                enableOnAndroid
+                extraScrollHeight={20}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
             >
-                {/* Decorative Circles */}
-                <View style={styles.circle1} />
-                <View style={styles.circle2} />
-                <View style={styles.circle3} />
-            </LinearGradient>
+                <StatusBar barStyle="light-content" backgroundColor="#3629B7" />
 
-            {/* Header with Back Button */}
-            <Pressable style={styles.exitBtn} onPress={goBack}>
-                <View style={styles.exitBtnInner}>
-                    <Ionicons name="arrow-back" size={24} color="#3629B7" />
+                {/* Gradient Background */}
+                <LinearGradient
+                    colors={['#3629B7', '#5655B9', '#A8A3D7']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.gradientBackground}
+                >
+                    {/* Decorative Circles */}
+                    <View style={styles.circle1} />
+                    <View style={styles.circle2} />
+                    <View style={styles.circle3} />
+                </LinearGradient>
+
+                {/* Header with Back Button */}
+                <Pressable style={styles.exitBtn} onPress={goBack}>
+                    <View style={styles.exitBtnInner}>
+                        <Ionicons name="arrow-back" size={24} color="#3629B7" />
+                    </View>
+                </Pressable>
+
+                {/* Language Switch */}
+                <View style={styles.languageSwitchContainer}>
+                    <LanguageSwitch />
                 </View>
-            </Pressable>
 
-            {/* Language Switch */}
-            <View style={styles.languageSwitchContainer}>
-                <LanguageSwitch />
-            </View>
-
-            {/* Main Content */}
-            <View style={styles.container}>
-                {/* Logo/Title Section */}
-                <View style={styles.logoContainer}>
-                    <Text style={styles.appName}>Smart Money</Text>
-                    <Text style={styles.appTagline}>{t("auth.welcome")}</Text>
-                </View>
-
-                {/* Form Section */}
-                <View style={styles.formWrapper}>
-                    <View style={styles.formCard}>
-                        {showResetPassword ? (
-                            <ResetPasswordForm
-                                password={newPassword}
-                                setPassword={setNewPassword}
-                                confirmPassword={newConfirmPassword}
-                                setConfirmPassword={setNewConfirmPassword}
-                                error={resetPasswordError}
-                                loading={loading}
-                                onResetPassword={handleResetPassword}
-                            />
-                        ) : showOTPModal && otpEmail ? (
-                            <OtpVerificationScreen
-                                email={otpEmail}
-                                type={otpType}
-                                onVerifyOtp={onVerifyOtp}
-                                OnForgetPassword={onVerifyResetPassword}
-                                onResendOtp={onResendOtp}
-                            />
-                        ) : (
-                            <>
-                                <AuthTabs
-                                    activeTab={activeTab}
-                                    onTabChange={setActiveTab}
+                {/* Main Content */}
+                <View style={styles.container}>
+                    {/* Logo/Title Section */}
+                    {!isKeyboardVisible && (
+                        <View style={styles.logoContainer}>
+                            <Text style={styles.appName}>Smart Money</Text>
+                            <Text style={styles.appTagline}>{t("auth.welcome")}</Text>
+                        </View>
+                    )}
+                    {/* Form Section */}
+                    <View style={styles.formWrapper}>
+                        <View style={styles.formCard}>
+                            {showResetPassword ? (
+                                <ResetPasswordForm
+                                    password={newPassword}
+                                    setPassword={setNewPassword}
+                                    confirmPassword={newConfirmPassword}
+                                    setConfirmPassword={setNewConfirmPassword}
+                                    error={resetPasswordError}
+                                    loading={loading}
+                                    onResetPassword={handleResetPassword}
                                 />
+                            ) : showOTPModal && otpEmail ? (
+                                <OtpVerificationScreen
+                                    email={otpEmail}
+                                    type={otpType}
+                                    onVerifyOtp={onVerifyOtp}
+                                    OnForgetPassword={onVerifyResetPassword}
+                                    onResendOtp={onResendOtp}
+                                />
+                            ) : (
+                                <>
+                                    <AuthTabs
+                                        activeTab={activeTab}
+                                        onTabChange={setActiveTab}
+                                    />
 
-                                {activeTab === "signin" ? (
-                                    <KeyboardAvoidingView
-                                        behavior={Platform.OS === 'android' ? 'height' : 'padding'}
-                                    >
-                                        <SignInForm
-                                            email={email}
-                                            setEmail={setEmail}
-                                            password={password}
-                                            setPassword={setPassword}
-                                            rememberMe={rememberMe}
-                                            setRememberMe={setRememberMe}
-                                            error={signInError}
-                                            loading={loading}
-                                            onSignIn={handleSignIn}
-                                            onForgotPassword={handleForgotPassword}
-                                        />
-                                    </KeyboardAvoidingView>
-                                ) : (
-                                    <KeyboardAvoidingView
-                                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                                        style={styles.keyboardView}
-                                        keyboardVerticalOffset={Platform.select({
-                                            ios: 64,
-                                            android: 0
-                                        })}
-                                    >
-                                        <ScrollView
-                                            showsVerticalScrollIndicator={false}
-                                            keyboardShouldPersistTaps="handled"
-                                            contentContainerStyle={styles.scrollContent}
+                                    {activeTab === "signin" ? (
+                                        <KeyboardAvoidingView
+                                            behavior={Platform.OS === 'android' ? 'height' : 'padding'}
                                         >
-                                            <SignUpForm
-                                                fullName={fullName}
-                                                setFullName={setFullName}
-                                                email={signupEmail}
-                                                setEmail={setSignupEmail}
-                                                password={signupPassword}
-                                                setPassword={setSignupPassword}
-                                                confirmPassword={confirmPassword}
-                                                setConfirmPassword={setConfirmPassword}
-                                                phone={phone}
-                                                setPhone={setPhone}
-                                                dateOfBirth={dateOfBirth}
-                                                setDateOfBirth={setDateOfBirth}
-                                                error={signUpError}
+                                            <SignInForm
+                                                email={email}
+                                                setEmail={setEmail}
+                                                password={password}
+                                                setPassword={setPassword}
+                                                rememberMe={rememberMe}
+                                                setRememberMe={setRememberMe}
+                                                error={signInError}
                                                 loading={loading}
-                                                onSignUp={handleSignUp}
+                                                onSignIn={handleSignIn}
+                                                onForgotPassword={handleForgotPassword}
                                             />
-                                        </ScrollView>
-                                    </KeyboardAvoidingView>
-                                )}
+                                        </KeyboardAvoidingView>
+                                    ) : (
 
-                                {activeTab === "signin" && (
-                                    <View style={styles.socialSection}>
-                                        <SocialLogin
-                                            onGoogleLogin={handleGoogleLogin}
-                                            onFacebookLogin={handleFacebookLogin}
-                                            onSuccess={onSuccessSocialLogin}
+
+                                        <SignUpForm
+                                            fullName={fullName}
+                                            setFullName={setFullName}
+                                            email={signupEmail}
+                                            setEmail={setSignupEmail}
+                                            password={signupPassword}
+                                            setPassword={setSignupPassword}
+                                            confirmPassword={confirmPassword}
+                                            setConfirmPassword={setConfirmPassword}
+                                            phone={phone}
+                                            setPhone={setPhone}
+                                            dateOfBirth={dateOfBirth}
+                                            setDateOfBirth={setDateOfBirth}
+                                            error={signUpError}
+                                            loading={loading}
+                                            onSignUp={handleSignUp}
                                         />
-                                    </View>
-                                )}
-                            </>
-                        )}
+                                    )}
 
-                        {/* Success Toast */}
-                        {success && (
-                            <View style={[styles.toast, styles.successToast]}>
-                                <Text style={styles.toastText}>
-                                    {success}
-                                </Text>
-                            </View>
-                        )}
+                                    {activeTab === "signin" && (
+                                        <View style={styles.socialSection}>
+                                            <SocialLogin
+                                                onGoogleLogin={handleGoogleLogin}
+                                                onFacebookLogin={handleFacebookLogin}
+                                                onSuccess={onSuccessSocialLogin}
+                                            />
+                                        </View>
+                                    )}
+                                </>
+                            )}
+
+                            {/* Success Toast */}
+                            {success && (
+                                <View style={[styles.toast, styles.successToast]}>
+                                    <Text style={styles.toastText}>
+                                        {success}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
                     </View>
                 </View>
-            </View>
+            </KeyboardAwareScrollView>
+
         </SafeAreaView>
     );
 }
