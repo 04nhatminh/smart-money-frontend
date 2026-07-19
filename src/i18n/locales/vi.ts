@@ -891,17 +891,17 @@ export default {
     savingPace: {
       RELAXED: "Thong thả",
       BALANCED: "Cân bằng",
-      AGGRESSIVE: "Tập trung",
+      AGGRESSIVE: "Quyết liệt",
     },
     interventionLevel: {
       NOTIFY: "Thông báo",
-      GENTLE: "Nhắc nhở",
-      HARD: "Giới hạn",
+      GENTLE: "Nhẹ nhàng",
+      HARD: "Cứng rắn",
     },
     focusMode: {
-      SAVE_MORE: "Tiết kiệm",
-      REDUCE_SPENDING: "Giảm chi",
-      TRACK_ONLY: "Theo dõi",
+      SAVE_MORE: "Tiết kiệm nhiều hơn",
+      REDUCE_SPENDING: "Giảm chi tiêu",
+      TRACK_ONLY: "Chỉ theo dõi",
     },
     saving_pace_description: "Chọn nhịp độ tiết kiệm phù hợp với bạn.",
     intervention_level_description: "Chọn cách SmartMoney nhắc nhở bạn.",

@@ -886,17 +886,17 @@ export default {
     savingPace: {
       RELAXED: "Relaxed",
       BALANCED: "Balanced",
-      AGGRESSIVE: "Focused",
+      AGGRESSIVE: "Aggressive",
     },
     interventionLevel: {
       NOTIFY: "Notify",
-      GENTLE: "Remind",
-      HARD: "Limit",
+      GENTLE: "Gentle",
+      HARD: "Hard",
     },
     focusMode: {
-      SAVE_MORE: "Save",
-      REDUCE_SPENDING: "Reduce",
-      TRACK_ONLY: "Track",
+      SAVE_MORE: "Save More",
+      REDUCE_SPENDING: "Reduce Spending",
+      TRACK_ONLY: "Track Only",
     },
     saving_pace_description: "Choose how fast you want SmartMoney to adjust your plan.",
     support_level_description: "Choose how strongly SmartMoney should guide your spending.",

@@ -96,7 +96,7 @@ function OptionGroup<T extends string>({
               </View>
 
               <Text
-                numberOfLines={1}
+                numberOfLines={2}
                 ellipsizeMode="tail"
                 style={[
                   styles.optionLabel,
