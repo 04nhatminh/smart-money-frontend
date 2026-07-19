@@ -68,8 +68,15 @@ export default function GroupDetailScreen() {
       ]);
       if (res.success && res.data) {
         setGroup(res.data);
+        if (!res.data.groupProjectId) {
+          await groupStorage.removeGroupProject(id);
+          setLocalGroupProjectId(null);
+        } else {
+          setLocalGroupProjectId(res.data.groupProjectId);
+        }
+      } else {
+        if (storedProjectId) setLocalGroupProjectId(storedProjectId);
       }
-      if (storedProjectId) setLocalGroupProjectId(storedProjectId);
     } catch {
       Alert.alert("Error", "Could not load group details.");
     }

@@ -23,6 +23,7 @@ import {
 import { formatCurrencyVND } from "../../src/utils/project";
 import { getGroupProjectErrorMessage } from "../../src/utils/groupProjectErrors";
 import PriorityPickerModal from "../../src/components/groups/PriorityPickerModal";
+import { groupStorage } from "../../src/storage/groupStorage";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   ACTIVE: { bg: "#D1FAE5", text: "#065F46" },
@@ -130,9 +131,30 @@ export default function GroupProjectDetailScreen() {
         } else {
           setMyPendingRequest(null);
         }
+      } else {
+        if (res.errorCode === "PROJECT_NOT_FOUND") {
+          await groupStorage.removeGroupProjectByProjectId(id);
+          Alert.alert(
+            "Project Failed",
+            "This group project has failed due to declined or insufficient sponsorship contributions.",
+            [{ text: "OK", onPress: () => router.canGoBack() ? router.back() : router.replace("/(tabs)/project") }]
+          );
+        } else {
+          Alert.alert("Error", res.message || "Could not load group project.");
+        }
       }
-    } catch {
-      Alert.alert("Error", "Could not load group project.");
+    } catch (err: any) {
+      const responseData = err?.response?.data;
+      if (responseData?.errorCode === "PROJECT_NOT_FOUND") {
+        await groupStorage.removeGroupProjectByProjectId(id);
+        Alert.alert(
+          "Project Failed",
+          "This group project has failed due to declined or insufficient sponsorship contributions.",
+          [{ text: "OK", onPress: () => router.canGoBack() ? router.back() : router.replace("/(tabs)/project") }]
+        );
+      } else {
+        Alert.alert("Error", "Could not load group project.");
+      }
     }
   }, [id]);
 

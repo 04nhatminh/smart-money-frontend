@@ -28,6 +28,7 @@ export type GroupDetailResponse = {
 export type CreateGroupPayload = {
   name: string;
   description?: string;
+  cloneGroupId?: string;
 };
 
 export type InviteGroupMemberPayload = {
