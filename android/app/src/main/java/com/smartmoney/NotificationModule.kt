@@ -1,4 +1,4 @@
-package com.ngohaibang.smartmoneyfrontend
+package com.smartmoney
 
 import android.content.Intent
 import android.provider.Settings

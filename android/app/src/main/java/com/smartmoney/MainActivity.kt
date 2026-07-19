@@ -1,4 +1,4 @@
-package com.ngohaibang.smartmoneyfrontend
+package com.smartmoney
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

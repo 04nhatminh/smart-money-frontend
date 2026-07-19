@@ -1,4 +1,4 @@
-package com.ngohaibang.smartmoneyfrontend
+package com.smartmoney
 import android.widget.Toast
 
 import android.service.notification.NotificationListenerService

@@ -214,7 +214,7 @@ class AuthApi {
   private toUpdateFormData(data: UpdateUserRequest): FormData {
     const formData = new FormData();
     
-    if (data.fullname) formData.append('fullname', data.fullname);
+    if (data.fullName) formData.append('fullName', data.fullName);
     if (data.phone) formData.append('phone', data.phone);
     if (data.dateOfBirth) formData.append('dateOfBirth', data.dateOfBirth.toString());
     if (data.avatar) formData.append('avatar', data.avatar);
