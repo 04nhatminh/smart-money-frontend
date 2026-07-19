@@ -15,7 +15,7 @@ import {
     ProjectPriority,
 } from "../../types/project.types";
 import CreateProjectStep from "./CreateProjectStep";
-import SavingPlanModeStep, { SavingPlanAction }from "./SavingPlanModeStep";
+import SavingPlanModeStep, { SavingPlanAction } from "./SavingPlanModeStep";
 import FinancialSetupModal from "../financialSetup/FinancialSetupModal";
 import BudgetAllocationSuggestionStep from "./BudgetAllocationSuggestionStep";
 import { t } from "../../i18n";
@@ -102,7 +102,7 @@ export default function CreateProjectModal({
         buildPayload,
         buildPayloadWithAdvisor,
         resetForm,
-    } = useCreateProject({usedPriorities,});
+    } = useCreateProject({ usedPriorities, });
 
     const handleDescriptionFocus = () => {
         descriptionFocusedRef.current = true;
@@ -148,38 +148,38 @@ export default function CreateProjectModal({
     const fetchUsedPriorities =
         async () => {
 
-        try {
+            try {
 
-            setCheckingPriorities(true);
+                setCheckingPriorities(true);
 
-            const response = await ProjectAPI.getAll();
+                const response = await ProjectAPI.getAll({ status: "ACTIVE", });
 
-            if (!response?.success || !response?.data) {
-            setUsedPriorities([]);
-            return;
+                if (!response?.success || !response?.data) {
+                    setUsedPriorities([]);
+                    return;
+                }
+
+                const priorities = [
+                    ...new Set(
+                        response.data
+                            .map(
+                                (project) =>
+                                    project.priority
+                            )
+                            .filter(Boolean)
+                    ),
+                ] as ProjectPriority[];
+
+                setUsedPriorities(priorities);
+
+            } catch (error) {
+
+                console.log("Fetch priorities error:", error);
+                setUsedPriorities([]);
+
+            } finally {
+                setCheckingPriorities(false);
             }
-
-            const priorities = [
-                ...new Set(
-                    response.data
-                        .map(
-                            (project) =>
-                                project.priority
-                        )
-                        .filter(Boolean)
-                ),
-            ] as ProjectPriority[];
-
-            setUsedPriorities(priorities);
-
-        } catch (error) {
-
-            console.log("Fetch priorities error:", error);
-            setUsedPriorities([]);
-
-        } finally {
-            setCheckingPriorities(false);
-        }
         };
 
     useEffect(() => {
@@ -304,7 +304,7 @@ export default function CreateProjectModal({
 
         // console.log("Moving to step 2");
         setStep(2);
-        };
+    };
 
     const isMissingFinancialSetupError = (errorCode?: string) =>
         [
@@ -398,32 +398,32 @@ export default function CreateProjectModal({
     const createProject = async (useAdvisorDeadline: boolean) => {
         try {
             const payload =
-            useAdvisorDeadline && advisorData
-                ? buildPayloadWithAdvisor(advisorData)
-                : buildPayload();
+                useAdvisorDeadline && advisorData
+                    ? buildPayloadWithAdvisor(advisorData)
+                    : buildPayload();
 
             console.log(payload);
 
             const response = await ProjectAPI.create(payload);
 
             if (!response?.success) {
-            if (response?.errorCode === "PROJECT_ACTIVE_PRIORITY_CONFLICT") {
-                await fetchUsedPriorities();
-                setAdvisorData(null);
-                setMode(null);
-                setStep(1);
+                if (response?.errorCode === "PROJECT_ACTIVE_PRIORITY_CONFLICT") {
+                    await fetchUsedPriorities();
+                    setAdvisorData(null);
+                    setMode(null);
+                    setStep(1);
 
-                Alert.alert(
-                t("project.priority_conflict_title"),
-                t("project.priority_conflict_desc")
+                    Alert.alert(
+                        t("project.priority_conflict_title"),
+                        t("project.priority_conflict_desc")
+                    );
+
+                    return false;
+                }
+
+                throw new Error(
+                    response?.message || t("project.failed_create_project")
                 );
-
-                return false;
-            }
-
-            throw new Error(
-                response?.message || t("project.failed_create_project")
-            );
             }
 
             // Thông báo Project đã thay đổi
@@ -432,8 +432,8 @@ export default function CreateProjectModal({
             return true;
         } catch (error: any) {
             Alert.alert(
-            t("project.create_project_error_title"),
-            error?.message || t("project.failed_create_project")
+                t("project.create_project_error_title"),
+                error?.message || t("project.failed_create_project")
             );
 
             return false;
@@ -453,12 +453,12 @@ export default function CreateProjectModal({
             const created = await createProject(true);
 
             if (created) {
-            moveToBudgetGenerationStep();
+                moveToBudgetGenerationStep();
             }
         } finally {
             setLoadingAction(null);
         }
-        };
+    };
 
     const handleKeepOriginalPlan = async () => {
         try {
@@ -468,7 +468,7 @@ export default function CreateProjectModal({
             const created = await createProject(false);
 
             if (created) {
-            moveToBudgetGenerationStep();
+                moveToBudgetGenerationStep();
             }
         } finally {
             setLoadingAction(null);
@@ -479,7 +479,7 @@ export default function CreateProjectModal({
         setShowBudgetGeneration(false);
 
         setSuccessKind("PROJECT");
-        
+
         setShowSuccessModal(true);
     };
 
@@ -516,13 +516,13 @@ export default function CreateProjectModal({
             setShowSuccessModal(true);
         } catch (error: any) {
             Alert.alert(
-              t("common.error"),
-              error?.message || t("project.failed_create_project")
+                t("common.error"),
+                error?.message || t("project.failed_create_project")
             );
         } finally {
             setBudgetSaveLoading(false);
         }
-        };
+    };
 
     // Deterministic, synchronous allocation — computes the plan in a single
     // HTTP call (no jobId / WebSocket) and moves to the editable review step.
@@ -560,13 +560,13 @@ export default function CreateProjectModal({
             setStep(4);
         } catch (error: any) {
             Alert.alert(
-              t("project.budget_title"),
-              error?.message || t("project.failed_generate_budget_allocation")
+                t("project.budget_title"),
+                error?.message || t("project.failed_generate_budget_allocation")
             );
         } finally {
             setBudgetLoading(false);
         }
-        };
+    };
 
     const handleCreateBudgetAllocation = async () => {
         if (!user?.financialSetupCompleted) {
@@ -576,7 +576,7 @@ export default function CreateProjectModal({
         }
 
         await runBudgetGeneration();
-        };
+    };
 
     const handleFinancialSetupSuccess = async () => {
         setShowFinancialSetup(false);
@@ -621,106 +621,106 @@ export default function CreateProjectModal({
     return (
         <>
             <Modal
-            visible={visible}
-            animationType="slide"
-            transparent
-            statusBarTranslucent
-            onRequestClose={handleClose}
+                visible={visible}
+                animationType="slide"
+                transparent
+                statusBarTranslucent
+                onRequestClose={handleClose}
             >
                 <View style={styles.modalOverlay}>
-                <KeyboardAvoidingView
-                    style={styles.keyboardContainer}
-                    behavior={Platform.OS === "ios" ? "padding" : undefined}
-                    keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
-                >
-                
-                    <View style={styles.modalContainer}>
-                        <ScrollView
-                            ref={scrollViewRef}
-                            onScroll={(event) => {
-                                scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
-                            }}
-                            scrollEventThrottle={16}
-                            style={styles.modalScrollView}
-                            contentContainerStyle={[
-                                styles.scrollContainer,
-                                { paddingBottom: 40 + keyboardHeight },
-                            ]}
-                            showsVerticalScrollIndicator={false}
-                            keyboardShouldPersistTaps="handled"
-                            keyboardDismissMode="on-drag"
-                            nestedScrollEnabled
-                            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
-                        >
-                            {step === 1 && (
-                                <CreateProjectStep
-                                    values={values}
-                                    errors={errors}
-                                    previewDeadline={previewDeadline}
-                                    loading={loading}
-                                    checkingPriorities={checkingPriorities}
-                                    canCreateProject={canCreateProject}
-                                    availablePriorities={availablePriorities}
-                                    onChangeType={onChangeType}
-                                    onChangeName={onChangeName}
-                                    onChangeDescription={onChangeDescription}
-                                    onChangeTargetAmount={onChangeTargetAmount}
-                                    onChangeDeadlineMonths={onChangeDeadlineMonths}
-                                    onChangePriority={onChangePriority}
-                                    onDescriptionFocus={handleDescriptionFocus}
-                                    onDescriptionBlur={handleDescriptionBlur}
-                                    onCancel={handleClose}
-                                    onNext={handleNextFromCreate}
-                                />
-                            )}
+                    <KeyboardAvoidingView
+                        style={styles.keyboardContainer}
+                        behavior={Platform.OS === "ios" ? "padding" : undefined}
+                        keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
+                    >
 
-                            {step === 2 && (
-                                <SavingPlanModeStep
-                                    mode={mode}
-                                    advisorData={advisorData}
-                                    advisorLoading={advisorLoading}
-                                    advisorError={advisorError}
-                                    loadingAction={loadingAction}
-                                    onBack={handleBackStep}
-                                    onSelectMode={handleSelectMode}
-                                    onEditProject={handleEditProjectFromAdvisor}
-                                    onConfirmAdvisorPlan={handleConfirmAdvisorPlan}
-                                    onKeepOriginalPlan={handleKeepOriginalPlan}    
-                                />
-                            )}
-
-                            {step === 3 && showBudgetGeneration && (
-                                <BudgetAllocationSuggestionStep
-                                    loading={budgetLoading}
-                                    onSkip={handleBudgetGenerationClose}
-                                    onCreate={handleCreateBudgetAllocation}
-                                />
-                            )}
-
-                            {step === 4 && budgetPlan && (
-                                <>
-                                    <BudgetPlanReview
-                                        plan={budgetPlan}
-                                        applying={budgetSaveLoading}
-                                        onApply={handleApplyBudgetAllocation}
+                        <View style={styles.modalContainer}>
+                            <ScrollView
+                                ref={scrollViewRef}
+                                onScroll={(event) => {
+                                    scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+                                }}
+                                scrollEventThrottle={16}
+                                style={styles.modalScrollView}
+                                contentContainerStyle={[
+                                    styles.scrollContainer,
+                                    { paddingBottom: 40 + keyboardHeight },
+                                ]}
+                                showsVerticalScrollIndicator={false}
+                                keyboardShouldPersistTaps="handled"
+                                keyboardDismissMode="on-drag"
+                                nestedScrollEnabled
+                                automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+                            >
+                                {step === 1 && (
+                                    <CreateProjectStep
+                                        values={values}
+                                        errors={errors}
+                                        previewDeadline={previewDeadline}
+                                        loading={loading}
+                                        checkingPriorities={checkingPriorities}
+                                        canCreateProject={canCreateProject}
+                                        availablePriorities={availablePriorities}
+                                        onChangeType={onChangeType}
+                                        onChangeName={onChangeName}
+                                        onChangeDescription={onChangeDescription}
+                                        onChangeTargetAmount={onChangeTargetAmount}
+                                        onChangeDeadlineMonths={onChangeDeadlineMonths}
+                                        onChangePriority={onChangePriority}
+                                        onDescriptionFocus={handleDescriptionFocus}
+                                        onDescriptionBlur={handleDescriptionBlur}
+                                        onCancel={handleClose}
+                                        onNext={handleNextFromCreate}
                                     />
-                                    <Pressable
-                                        style={{ height: 48, alignItems: "center", justifyContent: "center", marginTop: 8 }}
-                                        onPress={handleBudgetGenerationClose}
-                                        disabled={budgetSaveLoading}
-                                    >
-                                        <Text style={{ fontSize: 15, fontWeight: "600", color: "#6B7280" }}>
-                                            {t("project.skip")}
-                                        </Text>
-                                    </Pressable>
-                                </>
-                            )}
+                                )}
 
-                    
-                        </ScrollView>
-                    </View>
-                
-                </KeyboardAvoidingView>
+                                {step === 2 && (
+                                    <SavingPlanModeStep
+                                        mode={mode}
+                                        advisorData={advisorData}
+                                        advisorLoading={advisorLoading}
+                                        advisorError={advisorError}
+                                        loadingAction={loadingAction}
+                                        onBack={handleBackStep}
+                                        onSelectMode={handleSelectMode}
+                                        onEditProject={handleEditProjectFromAdvisor}
+                                        onConfirmAdvisorPlan={handleConfirmAdvisorPlan}
+                                        onKeepOriginalPlan={handleKeepOriginalPlan}
+                                    />
+                                )}
+
+                                {step === 3 && showBudgetGeneration && (
+                                    <BudgetAllocationSuggestionStep
+                                        loading={budgetLoading}
+                                        onSkip={handleBudgetGenerationClose}
+                                        onCreate={handleCreateBudgetAllocation}
+                                    />
+                                )}
+
+                                {step === 4 && budgetPlan && (
+                                    <>
+                                        <BudgetPlanReview
+                                            plan={budgetPlan}
+                                            applying={budgetSaveLoading}
+                                            onApply={handleApplyBudgetAllocation}
+                                        />
+                                        <Pressable
+                                            style={{ height: 48, alignItems: "center", justifyContent: "center", marginTop: 8 }}
+                                            onPress={handleBudgetGenerationClose}
+                                            disabled={budgetSaveLoading}
+                                        >
+                                            <Text style={{ fontSize: 15, fontWeight: "600", color: "#6B7280" }}>
+                                                {t("project.skip")}
+                                            </Text>
+                                        </Pressable>
+                                    </>
+                                )}
+
+
+                            </ScrollView>
+                        </View>
+
+                    </KeyboardAvoidingView>
                 </View>
             </Modal>
 
@@ -739,7 +739,7 @@ export default function CreateProjectModal({
                 }
                 buttonText={t("common.done")}
             />
-                
+
             <ConfirmExitModal
                 visible={showExitModal}
                 onCancel={() => setShowExitModal(false)}
