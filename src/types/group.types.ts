@@ -79,10 +79,26 @@ export type GroupProjectDetailResponse = {
   members: GroupProjectMemberDetail[];
 };
 
+export type MemberSimulationDto = {
+  userId: string;
+  username: string;
+  fullName: string;
+  capacity: number;
+  originalShare: number;
+  proposedShare: number;
+  deficit: number;
+  needsSponsorship: boolean;
+  autoSponsorEnabled: boolean;
+  autoSponsorLimit: number | null;
+};
+
 export type GroupProjectSuggestionsResponse = {
   totalCapacity: number;
   suggestedMonths: number;
   suggestedAmount: number;
+  isFeasible: boolean | null;
+  totalDeficit: number | null;
+  memberSimulations: MemberSimulationDto[] | null;
 };
 
 export type GroupProjectSuggestionsPayload = {

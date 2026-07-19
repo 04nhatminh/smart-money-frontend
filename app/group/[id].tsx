@@ -20,6 +20,7 @@ import { useAuth } from "../../src/context/AuthContext";
 import { GroupDetailResponse, GroupMemberResponse } from "../../src/types/group.types";
 import InviteGroupMemberModal from "../../src/components/groups/InviteGroupMemberModal";
 import GroupProjectSuggestionsModal from "../../src/components/groups/GroupProjectSuggestionsModal";
+import CreateGroupProjectModal from "../../src/components/groups/CreateGroupProjectModal";
 import { groupStorage } from "../../src/storage/groupStorage";
 import { parseCurrencyToNumber, formatNumberWithDots } from "../../src/utils/project";
 
@@ -43,7 +44,9 @@ export default function GroupDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+  const [suggestionsPrefill, setSuggestionsPrefill] = useState<{ targetAmount: number; totalMonths: number; totalCapacity: number } | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [locking, setLocking] = useState(false);
   const [lockError, setLockError] = useState<string | null>(null);
@@ -478,7 +481,7 @@ export default function GroupDetailScreen() {
         {canCreateProject && (
           <Pressable
             style={[styles.actionBtn, outsideCreationWindow && styles.actionBtnDisabled]}
-            onPress={() => !outsideCreationWindow && setShowSuggestionsModal(true)}
+            onPress={() => !outsideCreationWindow && setShowCreateModal(true)}
             disabled={outsideCreationWindow}
           >
             <Ionicons name="folder-open-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
@@ -647,15 +650,37 @@ export default function GroupDetailScreen() {
         onInvited={() => { setShowInviteModal(false); fetchGroup(); }}
       />
 
+      <CreateGroupProjectModal
+        visible={showCreateModal}
+        group={group}
+        prefillTargetAmount={suggestionsPrefill?.targetAmount}
+        prefillTotalMonths={suggestionsPrefill?.totalMonths}
+        totalCapacity={suggestionsPrefill?.totalCapacity}
+        onClose={() => {
+          setShowCreateModal(false);
+          setSuggestionsPrefill(null);
+        }}
+        onCreated={async (groupProjectId) => {
+          await groupStorage.setGroupProject(id!, groupProjectId);
+          setLocalGroupProjectId(groupProjectId);
+          setShowCreateModal(false);
+          setSuggestionsPrefill(null);
+          router.push(`/group-project/${groupProjectId}` as any);
+        }}
+        onNotFeasible={() => {
+          setShowCreateModal(false);
+          setShowSuggestionsModal(true);
+        }}
+      />
+
       <GroupProjectSuggestionsModal
         visible={showSuggestionsModal}
         group={group}
         onClose={() => setShowSuggestionsModal(false)}
-        onProjectCreated={async (groupProjectId) => {
-          await groupStorage.setGroupProject(id!, groupProjectId);
-          setLocalGroupProjectId(groupProjectId);
+        onContinue={(prefillData) => {
+          setSuggestionsPrefill(prefillData);
           setShowSuggestionsModal(false);
-          router.push(`/group-project/${groupProjectId}` as any);
+          setShowCreateModal(true);
         }}
       />
     </SafeAreaView>

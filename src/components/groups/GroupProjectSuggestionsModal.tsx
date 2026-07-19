@@ -17,30 +17,26 @@ import {
   GroupProjectSuggestionsResponse,
 } from "../../types/group.types";
 import { formatCurrencyVND, parseCurrencyToNumber } from "../../utils/project";
-import CreateGroupProjectModal from "./CreateGroupProjectModal";
-
 type PlanMode = "amount" | "duration";
 
 type Props = {
   visible: boolean;
   group: GroupDetailResponse;
   onClose: () => void;
-  onProjectCreated: (groupProjectId: string) => void;
+  onContinue: (prefill: { targetAmount: number; totalMonths: number; totalCapacity: number }) => void;
 };
 
 export default function GroupProjectSuggestionsModal({
   visible,
   group,
   onClose,
-  onProjectCreated,
+  onContinue,
 }: Props) {
   const [mode, setMode] = useState<PlanMode>("amount");
   const [amountInput, setAmountInput] = useState("");
   const [monthsInput, setMonthsInput] = useState("");
   const [suggestion, setSuggestion] = useState<GroupProjectSuggestionsResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
-  const [prefill, setPrefill] = useState<{ targetAmount: number; totalMonths: number; totalCapacity: number } | null>(null);
 
   // The anchor is whichever value the admin is fixing; the other is derived by
   // the backend from the group's monthly capacity.
@@ -87,8 +83,8 @@ export default function GroupProjectSuggestionsModal({
     const targetAmount = mode === "amount" ? anchorAmount : suggestion.suggestedAmount;
     const totalMonths = mode === "amount" ? suggestion.suggestedMonths : anchorMonths;
     if (!targetAmount || !totalMonths) return;
-    setPrefill({ targetAmount, totalMonths, totalCapacity: suggestion.totalCapacity });
-    setShowCreate(true);
+    onContinue({ targetAmount, totalMonths, totalCapacity: suggestion.totalCapacity });
+    handleClose();
   };
 
   const handleClose = () => {
@@ -96,145 +92,130 @@ export default function GroupProjectSuggestionsModal({
     setAmountInput("");
     setMonthsInput("");
     setSuggestion(null);
-    setPrefill(null);
     onClose();
   };
 
   return (
-    <>
-      <Modal visible={visible && !showCreate} transparent animationType="slide" onRequestClose={handleClose}>
-        <Pressable style={styles.overlay} onPress={handleClose}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <View style={styles.handle} />
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+      <Pressable style={styles.overlay} onPress={handleClose}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          <View style={styles.handle} />
 
-            <View style={styles.header}>
-              <Text style={styles.title}>Plan Group Project</Text>
-              <Pressable onPress={handleClose} hitSlop={12}>
-                <Ionicons name="close" size={24} color="#64748B" />
-              </Pressable>
-            </View>
+          <View style={styles.header}>
+            <Text style={styles.title}>Plan Group Project</Text>
+            <Pressable onPress={handleClose} hitSlop={12}>
+              <Ionicons name="close" size={24} color="#64748B" />
+            </Pressable>
+          </View>
 
-            <Text style={styles.subtitle}>
-              Fix either the target or the duration — we'll work out the other from your group's monthly capacity.
-            </Text>
+          <Text style={styles.subtitle}>
+            Fix either the target or the duration — we'll work out the other from your group's monthly capacity.
+          </Text>
 
-            {/* Mode toggle */}
-            <View style={styles.toggleRow}>
-              <Pressable
-                style={[styles.toggleTab, mode === "amount" && styles.toggleTabActive]}
-                onPress={() => switchMode("amount")}
-              >
-                <Text style={[styles.toggleText, mode === "amount" && styles.toggleTextActive]}>
-                  By Amount
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.toggleTab, mode === "duration" && styles.toggleTabActive]}
-                onPress={() => switchMode("duration")}
-              >
-                <Text style={[styles.toggleText, mode === "duration" && styles.toggleTextActive]}>
-                  By Duration
-                </Text>
-              </Pressable>
-            </View>
+          {/* Mode toggle */}
+          <View style={styles.toggleRow}>
+            <Pressable
+              style={[styles.toggleTab, mode === "amount" && styles.toggleTabActive]}
+              onPress={() => switchMode("amount")}
+            >
+              <Text style={[styles.toggleText, mode === "amount" && styles.toggleTextActive]}>
+                By Amount
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.toggleTab, mode === "duration" && styles.toggleTabActive]}
+              onPress={() => switchMode("duration")}
+            >
+              <Text style={[styles.toggleText, mode === "duration" && styles.toggleTextActive]}>
+                By Duration
+              </Text>
+            </Pressable>
+          </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {mode === "amount" ? (
-                <>
-                  <Text style={styles.label}>I want to save</Text>
-                  <View style={styles.inputRow}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="e.g. 10,000,000"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="numeric"
-                      value={amountInput}
-                      onChangeText={handleAmountChange}
-                    />
-                    <Text style={styles.currencyTag}>VND</Text>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.label}>I want to finish in</Text>
-                  <View style={styles.inputRow}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="e.g. 6"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="numeric"
-                      value={monthsInput}
-                      onChangeText={handleMonthsChange}
-                    />
-                    <Text style={styles.currencyTag}>months</Text>
-                  </View>
-                </>
-              )}
-
-              {/* Derived preview */}
-              {suggestion && (
-                <View style={styles.previewCard}>
-                  <View style={styles.previewRow}>
-                    <Ionicons name="people-outline" size={15} color="#3629B7" />
-                    <Text style={styles.previewMuted}>
-                      Group capacity: {formatCurrencyVND(suggestion.totalCapacity)} VND/month
-                    </Text>
-                  </View>
-                  <View style={styles.previewDivider} />
-                  {mode === "amount" ? (
-                    <Text style={styles.previewMain}>
-                      Reaches your goal in{" "}
-                      <Text style={styles.previewBold}>{suggestion.suggestedMonths} months</Text>
-                    </Text>
-                  ) : (
-                    <Text style={styles.previewMain}>
-                      Your group can save{" "}
-                      <Text style={styles.previewBold}>
-                        {formatCurrencyVND(suggestion.suggestedAmount)} VND
-                      </Text>
-                    </Text>
-                  )}
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {mode === "amount" ? (
+              <>
+                <Text style={styles.label}>I want to save</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 10,000,000"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                    value={amountInput}
+                    onChangeText={handleAmountChange}
+                  />
+                  <Text style={styles.currencyTag}>VND</Text>
                 </View>
-              )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.label}>I want to finish in</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 6"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                    value={monthsInput}
+                    onChangeText={handleMonthsChange}
+                  />
+                  <Text style={styles.currencyTag}>months</Text>
+                </View>
+              </>
+            )}
 
-              <Pressable
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  pressed && { opacity: 0.85 },
-                  (!anchorValid || loading) && styles.btnDisabled,
-                ]}
-                onPress={suggestion ? handleContinue : calculate}
-                disabled={!anchorValid || loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
+            {/* Derived preview */}
+            {suggestion && (
+              <View style={styles.previewCard}>
+                <View style={styles.previewRow}>
+                  <Ionicons name="people-outline" size={15} color="#3629B7" />
+                  <Text style={styles.previewMuted}>
+                    Group capacity: {formatCurrencyVND(suggestion.totalCapacity)} VND/month
+                  </Text>
+                </View>
+                <View style={styles.previewDivider} />
+                {mode === "amount" ? (
+                  <Text style={styles.previewMain}>
+                    Reaches your goal in{" "}
+                    <Text style={styles.previewBold}>{suggestion.suggestedMonths} months</Text>
+                  </Text>
                 ) : (
-                  <Text style={styles.primaryBtnText}>{suggestion ? "Continue" : "Calculate"}</Text>
+                  <Text style={styles.previewMain}>
+                    Your group can save{" "}
+                    <Text style={styles.previewBold}>
+                      {formatCurrencyVND(suggestion.suggestedAmount)} VND
+                    </Text>
+                  </Text>
                 )}
-              </Pressable>
+              </View>
+            )}
 
-              {suggestion && (
-                <Text style={styles.footnote}>
-                  You can fine-tune the exact target and duration on the next step.
-                </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                pressed && { opacity: 0.85 },
+                (!anchorValid || loading) && styles.btnDisabled,
+              ]}
+              onPress={suggestion ? handleContinue : calculate}
+              disabled={!anchorValid || loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.primaryBtnText}>{suggestion ? "Continue" : "Calculate"}</Text>
               )}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+            </Pressable>
 
-      {prefill && (
-        <CreateGroupProjectModal
-          visible={showCreate}
-          group={group}
-          prefillTargetAmount={prefill.targetAmount}
-          prefillTotalMonths={prefill.totalMonths}
-          totalCapacity={prefill.totalCapacity}
-          onClose={() => { setShowCreate(false); setPrefill(null); }}
-          onCreated={(id) => { setShowCreate(false); onProjectCreated(id); }}
-        />
-      )}
-    </>
+            {suggestion && (
+              <Text style={styles.footnote}>
+                You can fine-tune the exact target and duration on the next step.
+              </Text>
+            )}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 

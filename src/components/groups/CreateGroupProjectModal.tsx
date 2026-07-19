@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,11 +19,12 @@ import { getGroupProjectErrorMessage } from "../../utils/groupProjectErrors";
 type Props = {
   visible: boolean;
   group: GroupDetailResponse;
-  prefillTargetAmount: number;
-  prefillTotalMonths: number;
-  totalCapacity: number;
+  prefillTargetAmount?: number;
+  prefillTotalMonths?: number;
+  totalCapacity?: number;
   onClose: () => void;
   onCreated: (groupProjectId: string) => void;
+  onNotFeasible?: () => void;
 };
 
 export default function CreateGroupProjectModal({
@@ -34,34 +35,34 @@ export default function CreateGroupProjectModal({
   totalCapacity,
   onClose,
   onCreated,
+  onNotFeasible,
 }: Props) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [targetAmount, setTargetAmount] = useState(
-    prefillTargetAmount > 0 ? prefillTargetAmount.toString() : ""
-  );
-  const [totalMonths, setTotalMonths] = useState(
-    prefillTotalMonths > 0 ? prefillTotalMonths.toString() : ""
-  );
+  const [targetAmount, setTargetAmount] = useState("");
+  const [totalMonths, setTotalMonths] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Feasibility: the group can save at most sum(capacity) × months over the project.
-  // A target above that can never be reached and (target/deadline being fixed)
-  // would create a permanently broken project, so it's a hard block here.
-  const joinedMembers = group.members.filter((m) => m.inviteStatus === "JOINED");
-  const sumCapacity = joinedMembers.reduce((sum, m) => sum + (m.capacitySnapshot || 0), 0);
-  const parsedMonths = parseInt(totalMonths, 10) || 0;
-  const absoluteMaxAmount = sumCapacity * parsedMonths;
-  const exceedsCapacity =
-    absoluteMaxAmount > 0 && parseCurrencyToNumber(targetAmount) > absoluteMaxAmount;
+  useEffect(() => {
+    if (visible) {
+      setTargetAmount(
+        prefillTargetAmount && prefillTargetAmount > 0 ? prefillTargetAmount.toString() : ""
+      );
+      setTotalMonths(
+        prefillTotalMonths && prefillTotalMonths > 0 ? prefillTotalMonths.toString() : ""
+      );
+      setName("");
+      setDescription("");
+      setErrors({});
+    }
+  }, [visible, prefillTargetAmount, prefillTotalMonths]);
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Project name is required";
     const amount = parseCurrencyToNumber(targetAmount);
     if (!amount || amount <= 0) e.targetAmount = "Target amount is required";
-    else if (exceedsCapacity) e.targetAmount = "Target exceeds your group's maximum saving capacity for this duration";
     const months = parseInt(totalMonths, 10);
     if (!months || months <= 0) e.totalMonths = "Duration is required";
     setErrors(e);
@@ -84,9 +85,22 @@ export default function CreateGroupProjectModal({
         if (!data.isFeasible) {
           Alert.alert(
             "Không khả thi",
-            "Với mức thu nhập hiện tại của nhóm, mục tiêu này chưa thực sự phù hợp. Bạn nên cân nhắc giảm số tiền mục tiêu hoặc kéo dài thời gian tích lũy để đạt được hiệu quả tốt nhất nhé!"
+            "Với mức thu nhập hiện tại của nhóm, mục tiêu này chưa thực sự phù hợp. Chúng tôi sẽ đề xuất các phương án khả thi dựa trên đóng góp của thành viên.",
+            [
+              {
+                text: "Xem đề xuất",
+                onPress: () => {
+                  setLoading(false);
+                  onNotFeasible?.();
+                },
+              },
+              {
+                text: "Hủy",
+                style: "cancel",
+                onPress: () => setLoading(false),
+              },
+            ]
           );
-          setLoading(false);
           return;
         }
 
@@ -228,25 +242,14 @@ export default function CreateGroupProjectModal({
               <Text style={styles.currencyTag}>months</Text>
             </View>
             {errors.totalMonths ? <Text style={styles.errorText}>{errors.totalMonths}</Text> : null}
-
-            {exceedsCapacity ? (
-              <View style={[styles.warningBanner, { backgroundColor: "#FEE2E2", marginTop: 16, marginBottom: 0 }]}>
-                <Ionicons name="trending-down-outline" size={14} color="#991B1B" />
-                <Text style={[styles.warningText, { color: "#991B1B" }]}>
-                  Your group can save about {formatCurrencyVND(absoluteMaxAmount)} VND over {parsedMonths}{" "}
-                  {parsedMonths === 1 ? "month" : "months"}. Lower the target or increase the duration.
-                </Text>
-              </View>
-            ) : null}
-
             <Pressable
               style={({ pressed }) => [
                 styles.createBtn,
                 pressed && { opacity: 0.85 },
-                (loading || outsideWindow || exceedsCapacity) && styles.btnDisabled,
+                (loading || outsideWindow) && styles.btnDisabled,
               ]}
               onPress={handleCreate}
-              disabled={loading || outsideWindow || exceedsCapacity}
+              disabled={loading || outsideWindow}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
