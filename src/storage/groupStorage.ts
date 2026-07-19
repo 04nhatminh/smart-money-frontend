@@ -47,4 +47,30 @@ export const groupStorage = {
       return null;
     }
   },
+
+  async removeGroupProject(groupId: string): Promise<void> {
+    try {
+      const json = await AsyncStorage.getItem(GROUP_PROJECTS_KEY);
+      const map: Record<string, string> = json ? JSON.parse(json) : {};
+      delete map[groupId];
+      await AsyncStorage.setItem(GROUP_PROJECTS_KEY, JSON.stringify(map));
+    } catch {}
+  },
+
+  async removeGroupProjectByProjectId(groupProjectId: string): Promise<void> {
+    try {
+      const json = await AsyncStorage.getItem(GROUP_PROJECTS_KEY);
+      const map: Record<string, string> = json ? JSON.parse(json) : {};
+      let changed = false;
+      for (const gId in map) {
+        if (map[gId] === groupProjectId) {
+          delete map[gId];
+          changed = true;
+        }
+      }
+      if (changed) {
+        await AsyncStorage.setItem(GROUP_PROJECTS_KEY, JSON.stringify(map));
+      }
+    } catch {}
+  },
 };

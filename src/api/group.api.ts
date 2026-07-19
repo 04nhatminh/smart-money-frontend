@@ -11,6 +11,9 @@ import {
   GroupProjectSuggestionsResponse,
   InviteGroupMemberPayload,
   JoinGroupProjectPayload,
+  UpdateAutoSponsorshipRequest,
+  GroupProjectSponsorshipRequestResponse,
+  RespondToSponsorshipRequest,
 } from "../types/group.types";
 
 const handleError = (error: any) =>
@@ -144,6 +147,57 @@ export const GroupAPI = {
   async dissolveGroupProject(groupProjectId: string): Promise<ApiResponse<null>> {
     try {
       const res = await http.post(`/api/v1/group-projects/${groupProjectId}/dissolve`);
+      return res.data;
+    } catch (e) {
+      return handleError(e);
+    }
+  },
+
+  async unlockGroup(groupId: string): Promise<ApiResponse<GroupDetailResponse>> {
+    try {
+      const res = await http.post(`/api/v1/groups/${groupId}/unlock`);
+      return res.data;
+    } catch (e) {
+      return handleError(e);
+    }
+  },
+
+  async deleteGroup(groupId: string): Promise<ApiResponse<null>> {
+    try {
+      const res = await http.delete(`/api/v1/groups/${groupId}`);
+      return res.data;
+    } catch (e) {
+      return handleError(e);
+    }
+  },
+
+  async updateAutoSponsorship(
+    groupId: string,
+    data: UpdateAutoSponsorshipRequest
+  ): Promise<ApiResponse<null>> {
+    try {
+      const res = await http.put(`/api/v1/groups/${groupId}/auto-sponsorship`, data);
+      return res.data;
+    } catch (e) {
+      return handleError(e);
+    }
+  },
+
+  async getPendingSponsorshipRequests(): Promise<ApiResponse<GroupProjectSponsorshipRequestResponse[]>> {
+    try {
+      const res = await http.get("/api/v1/group-projects/sponsorship/pending");
+      return res.data;
+    } catch (e) {
+      return handleError(e);
+    }
+  },
+
+  async respondToSponsorshipRequest(
+    requestId: string,
+    data: RespondToSponsorshipRequest
+  ): Promise<ApiResponse<null>> {
+    try {
+      const res = await http.post(`/api/v1/group-projects/sponsorship/${requestId}/respond`, data);
       return res.data;
     } catch (e) {
       return handleError(e);

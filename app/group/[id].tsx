@@ -9,6 +9,8 @@ import {
   StyleSheet,
   Text,
   View,
+  Switch,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -18,7 +20,9 @@ import { useAuth } from "../../src/context/AuthContext";
 import { GroupDetailResponse, GroupMemberResponse } from "../../src/types/group.types";
 import InviteGroupMemberModal from "../../src/components/groups/InviteGroupMemberModal";
 import GroupProjectSuggestionsModal from "../../src/components/groups/GroupProjectSuggestionsModal";
+import CreateGroupProjectModal from "../../src/components/groups/CreateGroupProjectModal";
 import { groupStorage } from "../../src/storage/groupStorage";
+import { parseCurrencyToNumber, formatNumberWithDots } from "../../src/utils/project";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   FORMING: { bg: "#FEF9C3", text: "#92400E" },
@@ -40,11 +44,23 @@ export default function GroupDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+  const [suggestionsPrefill, setSuggestionsPrefill] = useState<{ targetAmount: number; totalMonths: number; totalCapacity: number } | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [locking, setLocking] = useState(false);
   const [lockError, setLockError] = useState<string | null>(null);
   const [localGroupProjectId, setLocalGroupProjectId] = useState<string | null>(null);
+
+  // New Sponsorship & Management States
+  const [autoSponsorEnabled, setAutoSponsorEnabled] = useState(false);
+  const [autoSponsorLimitType, setAutoSponsorLimitType] = useState<"MAX" | "CUSTOM">("MAX");
+  const [autoSponsorLimit, setAutoSponsorLimit] = useState("");
+  const [isSavingSponsorship, setIsSavingSponsorship] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null);
+  const [sentEmails, setSentEmails] = useState<Record<string, boolean>>({});
+  const [unlocking, setUnlocking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchGroup = useCallback(async () => {
     if (!id) return;
@@ -55,8 +71,15 @@ export default function GroupDetailScreen() {
       ]);
       if (res.success && res.data) {
         setGroup(res.data);
+        if (!res.data.groupProjectId) {
+          await groupStorage.removeGroupProject(id);
+          setLocalGroupProjectId(null);
+        } else {
+          setLocalGroupProjectId(res.data.groupProjectId);
+        }
+      } else {
+        if (storedProjectId) setLocalGroupProjectId(storedProjectId);
       }
-      if (storedProjectId) setLocalGroupProjectId(storedProjectId);
     } catch {
       Alert.alert("Error", "Could not load group details.");
     }
@@ -65,6 +88,18 @@ export default function GroupDetailScreen() {
   useEffect(() => {
     fetchGroup().finally(() => setLoading(false));
   }, [fetchGroup]);
+
+  // Sync auto sponsor settings when group details load
+  useEffect(() => {
+    if (group && user) {
+      const me = group.members.find((m) => m.userId === user.id);
+      if (me) {
+        setAutoSponsorEnabled(me.autoSponsorEnabled || false);
+        setAutoSponsorLimitType(me.autoSponsorLimit ? "CUSTOM" : "MAX");
+        setAutoSponsorLimit(me.autoSponsorLimit ? formatNumberWithDots(me.autoSponsorLimit) : "");
+      }
+    }
+  }, [group, user]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -87,6 +122,150 @@ export default function GroupDetailScreen() {
       setLockError("Something went wrong.");
     } finally {
       setLocking(false);
+    }
+  };
+
+  const handleUnlockGroup = async () => {
+    if (!group) return;
+    setUnlocking(true);
+    setLockError(null);
+    try {
+      const res = await GroupAPI.unlockGroup(group.groupId);
+      if (res.success && res.data) {
+        setGroup(res.data);
+        Alert.alert("Success", "Group unlocked successfully!");
+      } else {
+        setLockError(res.message || "Could not unlock group.");
+      }
+    } catch {
+      setLockError("Something went wrong.");
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+  const handleDeleteGroup = () => {
+    if (!group) return;
+    Alert.alert(
+      "Delete Group",
+      "Are you sure you want to permanently delete this group?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              const res = await GroupAPI.deleteGroup(group.groupId);
+              if (res.success) {
+                Alert.alert("Deleted", "Group deleted successfully.", [
+                  { text: "OK", onPress: () => router.replace("/(tabs)/project") }
+                ]);
+              } else {
+                Alert.alert("Error", res.message || "Could not delete group.");
+              }
+            } catch {
+              Alert.alert("Error", "Something went wrong.");
+            } finally {
+              setDeleting(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleResendInvite = async (email: string) => {
+    if (!group || !email) return;
+    setResendingEmail(email);
+    try {
+      const res = await GroupAPI.inviteMember(group.groupId, { email });
+      if (res.success) {
+        setSentEmails((prev) => ({ ...prev, [email]: true }));
+        Alert.alert("Success", `Invitation resent to ${email}!`);
+        setTimeout(() => {
+          setSentEmails((prev) => ({ ...prev, [email]: false }));
+        }, 4000);
+      } else {
+        Alert.alert("Error", res.message || "Failed to resend invitation.");
+      }
+    } catch {
+      Alert.alert("Error", "Something went wrong.");
+    } finally {
+      setResendingEmail(null);
+    }
+  };
+
+  const handleSaveSponsorshipSettings = async () => {
+    if (!group) return;
+
+    // Find current user's capacity
+    const me = group.members.find((m) => m.userId === user?.id);
+    const capacity = me?.capacitySnapshot ?? 0;
+
+    if (autoSponsorEnabled && autoSponsorLimitType === "CUSTOM" && autoSponsorLimit) {
+      const limitVal = parseCurrencyToNumber(autoSponsorLimit);
+      if (limitVal > capacity) {
+        Alert.alert(
+          "Limit Exceeds Capacity",
+          `The entered sponsor limit (${formatNumberWithDots(limitVal)} VND) exceeds your maximum capability (${formatNumberWithDots(capacity)} VND). Please select an option:`,
+          [
+            {
+              text: "Switch to Max Capability",
+              onPress: async () => {
+                setAutoSponsorLimitType("MAX");
+                setAutoSponsorLimit("");
+                setIsSavingSponsorship(true);
+                try {
+                  const res = await GroupAPI.updateAutoSponsorship(group.groupId, {
+                    enabled: autoSponsorEnabled,
+                    limit: undefined,
+                  });
+                  if (res.success) {
+                    Alert.alert("Success", "Auto-sponsor settings updated successfully!");
+                    await fetchGroup();
+                  } else {
+                    Alert.alert("Error", res.message || "Could not save settings.");
+                  }
+                } catch {
+                  Alert.alert("Error", "Something went wrong.");
+                } finally {
+                  setIsSavingSponsorship(false);
+                }
+              }
+            },
+            {
+              text: "Input another number",
+              style: "cancel"
+            }
+          ]
+        );
+        return;
+      }
+    }
+
+    setIsSavingSponsorship(true);
+    try {
+      const limitVal = autoSponsorLimitType === "CUSTOM" && autoSponsorLimit
+        ? parseCurrencyToNumber(autoSponsorLimit)
+        : undefined;
+
+      const res = await GroupAPI.updateAutoSponsorship(group.groupId, {
+        enabled: autoSponsorEnabled,
+        limit: limitVal,
+      });
+
+      if (res.success) {
+        Alert.alert("Success", "Auto-sponsor settings updated successfully!");
+        await fetchGroup();
+      } else {
+        Alert.alert("Error", res.message || "Could not save settings.");
+      }
+    } catch {
+      Alert.alert("Error", "Something went wrong.");
+    } finally {
+      setIsSavingSponsorship(false);
     }
   };
 
@@ -226,30 +405,68 @@ export default function GroupDetailScreen() {
         </View>
 
         {/* Admin actions */}
-        {isAdmin && group.status === "FORMING" && (
+        {isAdmin && (
           <View style={{ gap: 10 }}>
-            <Pressable style={styles.actionBtn} onPress={() => setShowInviteModal(true)}>
-              <Ionicons name="person-add-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={styles.actionBtnText}>Invite Member</Text>
-            </Pressable>
+            {group.status === "FORMING" && (
+              <>
+                <Pressable style={styles.actionBtn} onPress={() => setShowInviteModal(true)}>
+                  <Ionicons name="person-add-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.actionBtnText}>Invite Member</Text>
+                </Pressable>
 
-            <Pressable
-              style={[styles.lockBtn, (joinedCount === 0 || locking) && styles.lockBtnDisabled]}
-              onPress={joinedCount > 0 ? handleLockGroup : undefined}
-              disabled={joinedCount === 0 || locking}
-            >
-              {locking ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="lock-closed-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.actionBtnText}>Lock Group</Text>
-                </>
-              )}
-            </Pressable>
+                <Pressable
+                  style={[styles.lockBtn, (joinedCount === 0 || locking) && styles.lockBtnDisabled]}
+                  onPress={joinedCount > 0 ? handleLockGroup : undefined}
+                  disabled={joinedCount === 0 || locking}
+                >
+                  {locking ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="lock-closed-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                      <Text style={styles.actionBtnText}>Lock Group</Text>
+                    </>
+                  )}
+                </Pressable>
 
-            {joinedCount === 0 && (
-              <Text style={styles.lockHint}>At least one member must join before you can lock the group</Text>
+                {joinedCount === 0 && (
+                  <Text style={styles.lockHint}>At least one member must join before you can lock the group</Text>
+                )}
+              </>
+            )}
+
+            {group.status === "LOCKED" && !hasGroupProject && (
+              <Pressable
+                style={[styles.actionBtn, { backgroundColor: "#F59E0B" }, unlocking && styles.actionBtnDisabled]}
+                onPress={handleUnlockGroup}
+                disabled={unlocking}
+              >
+                {unlocking ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="lock-open-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.actionBtnText}>Unlock Group</Text>
+                  </>
+                )}
+              </Pressable>
+            )}
+
+            {!hasGroupProject && (
+              <Pressable
+                style={[styles.actionBtn, { backgroundColor: "#EF4444" }, deleting && styles.actionBtnDisabled]}
+                onPress={handleDeleteGroup}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.actionBtnText}>Delete Group</Text>
+                  </>
+                )}
+              </Pressable>
             )}
 
             {lockError && (
@@ -264,7 +481,7 @@ export default function GroupDetailScreen() {
         {canCreateProject && (
           <Pressable
             style={[styles.actionBtn, outsideCreationWindow && styles.actionBtnDisabled]}
-            onPress={() => !outsideCreationWindow && setShowSuggestionsModal(true)}
+            onPress={() => !outsideCreationWindow && setShowCreateModal(true)}
             disabled={outsideCreationWindow}
           >
             <Ionicons name="folder-open-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
@@ -293,6 +510,86 @@ export default function GroupDetailScreen() {
           </Pressable>
         )}
 
+        {/* Auto-Sponsorship Settings Panel */}
+        {group.status !== "DISSOLVED" && (
+          <View style={styles.card}>
+            <View style={styles.autoSponsorHeader}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.autoSponsorTitle}>
+                  Auto-Sponsor Teammates
+                </Text>
+                <Text style={styles.autoSponsorDesc}>
+                  Automatically contribute using your surplus income if a teammate lacks funds.
+                </Text>
+              </View>
+              <Switch
+                value={autoSponsorEnabled}
+                onValueChange={setAutoSponsorEnabled}
+                trackColor={{ false: "#E2E8F0", true: "#3629B7" }}
+                thumbColor={autoSponsorEnabled ? "#FFFFFF" : "#F4F4F5"}
+              />
+            </View>
+
+            {autoSponsorEnabled && (
+              <View style={styles.autoSponsorOptions}>
+                <Pressable
+                  style={styles.radioOption}
+                  onPress={() => setAutoSponsorLimitType("MAX")}
+                >
+                  <Ionicons
+                    name={autoSponsorLimitType === "MAX" ? "radio-button-on" : "radio-button-off"}
+                    size={18}
+                    color="#3629B7"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.radioOptionText}>Sponsor maximum (Full surplus)</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.radioOption}
+                  onPress={() => setAutoSponsorLimitType("CUSTOM")}
+                >
+                  <Ionicons
+                    name={autoSponsorLimitType === "CUSTOM" ? "radio-button-on" : "radio-button-off"}
+                    size={18}
+                    color="#3629B7"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.radioOptionText}>Specific maximum monthly limit</Text>
+                </Pressable>
+
+                {autoSponsorLimitType === "CUSTOM" && (
+                  <View style={styles.customLimitContainer}>
+                    <Text style={styles.inputLabel}>Maximum limit per month (VND)</Text>
+                    <TextInput
+                      style={styles.customLimitInput}
+                      keyboardType="numeric"
+                      value={autoSponsorLimit}
+                      onChangeText={(val) => {
+                        const numeric = parseCurrencyToNumber(val);
+                        setAutoSponsorLimit(numeric > 0 ? formatNumberWithDots(numeric) : "");
+                      }}
+                      placeholder="e.g. 500.000"
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+
+            <Pressable
+              style={[styles.saveSponsorBtn, isSavingSponsorship && styles.actionBtnDisabled]}
+              onPress={handleSaveSponsorshipSettings}
+              disabled={isSavingSponsorship}
+            >
+              {isSavingSponsorship ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.saveSponsorBtnText}>Save Settings</Text>
+              )}
+            </Pressable>
+          </View>
+        )}
+
         {/* Members list */}
         <Text style={styles.sectionTitle}>Members</Text>
         {group.members.map((member) => {
@@ -305,13 +602,18 @@ export default function GroupDetailScreen() {
               </View>
               <View style={styles.memberInfo}>
                 <Text style={styles.memberUserId} numberOfLines={1}>
-                  {member.username ?? member.userId}
+                  {member.username ?? member.userId}{member.userId === user?.id ? " (You)" : ""}
                 </Text>
               </View>
               <View style={styles.memberBadges}>
                 {member.role === "ADMIN" && (
                   <View style={styles.adminBadge}>
                     <Text style={styles.adminBadgeText}>Admin</Text>
+                  </View>
+                )}
+                {member.role === "MEMBER" && (
+                  <View style={[styles.adminBadge, { backgroundColor: "#F1F5F9" }]}>
+                    <Text style={[styles.adminBadgeText, { color: "#64748B" }]}>Member</Text>
                   </View>
                 )}
                 <View style={[styles.inviteChip, { backgroundColor: iStyle.bg }]}>
@@ -322,7 +624,16 @@ export default function GroupDetailScreen() {
                     <ActivityIndicator size="small" color="#EF4444" />
                   ) : (
                     <Pressable onPress={() => handleRemoveMember(member)} hitSlop={10}>
-                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                      <Ionicons name="trash-outline" size={18} color="#EF4444" style={{ marginLeft: 6 }} />
+                    </Pressable>
+                  )
+                )}
+                {isAdmin && member.inviteStatus === "INVITED" && group.status === "FORMING" && (
+                  resendingEmail === member.email ? (
+                    <ActivityIndicator size="small" color="#3629B7" style={{ marginLeft: 6 }} />
+                  ) : (
+                    <Pressable onPress={() => handleResendInvite(member.email || "")} hitSlop={10} style={styles.resendBtn}>
+                      <Text style={styles.resendBtnText}>Resend</Text>
                     </Pressable>
                   )
                 )}
@@ -339,15 +650,37 @@ export default function GroupDetailScreen() {
         onInvited={() => { setShowInviteModal(false); fetchGroup(); }}
       />
 
+      <CreateGroupProjectModal
+        visible={showCreateModal}
+        group={group}
+        prefillTargetAmount={suggestionsPrefill?.targetAmount}
+        prefillTotalMonths={suggestionsPrefill?.totalMonths}
+        totalCapacity={suggestionsPrefill?.totalCapacity}
+        onClose={() => {
+          setShowCreateModal(false);
+          setSuggestionsPrefill(null);
+        }}
+        onCreated={async (groupProjectId) => {
+          await groupStorage.setGroupProject(id!, groupProjectId);
+          setLocalGroupProjectId(groupProjectId);
+          setShowCreateModal(false);
+          setSuggestionsPrefill(null);
+          router.push(`/group-project/${groupProjectId}` as any);
+        }}
+        onNotFeasible={() => {
+          setShowCreateModal(false);
+          setShowSuggestionsModal(true);
+        }}
+      />
+
       <GroupProjectSuggestionsModal
         visible={showSuggestionsModal}
         group={group}
         onClose={() => setShowSuggestionsModal(false)}
-        onProjectCreated={async (groupProjectId) => {
-          await groupStorage.setGroupProject(id!, groupProjectId);
-          setLocalGroupProjectId(groupProjectId);
+        onContinue={(prefillData) => {
+          setSuggestionsPrefill(prefillData);
           setShowSuggestionsModal(false);
-          router.push(`/group-project/${groupProjectId}` as any);
+          setShowCreateModal(true);
         }}
       />
     </SafeAreaView>
@@ -444,4 +777,17 @@ const styles = StyleSheet.create({
   adminBadgeText: { fontSize: 11, fontWeight: "700", color: "#3629B7" },
   inviteChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   inviteChipText: { fontSize: 11, fontWeight: "700" },
+  autoSponsorHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  autoSponsorTitle: { fontSize: 15, fontWeight: "700", color: "#3629B7" },
+  autoSponsorDesc: { fontSize: 12, color: "#64748B", marginTop: 2, lineHeight: 16 },
+  autoSponsorOptions: { borderTopWidth: 1, borderTopColor: "#E2E8F0", paddingTop: 12, marginTop: 4, gap: 10 },
+  radioOption: { flexDirection: "row", alignItems: "center", paddingVertical: 6 },
+  radioOptionText: { fontSize: 13, color: "#334155", fontWeight: "500" },
+  customLimitContainer: { marginTop: 4, paddingLeft: 26 },
+  inputLabel: { fontSize: 11, color: "#64748B", marginBottom: 4, fontWeight: "500" },
+  customLimitInput: { borderWidth: 1, borderColor: "#CBD5E1", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, fontSize: 13, color: "#0F172A", backgroundColor: "#F8FAFC" },
+  saveSponsorBtn: { backgroundColor: "#3629B7", borderRadius: 12, height: 38, justifyContent: "center", alignItems: "center", marginTop: 14 },
+  saveSponsorBtnText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
+  resendBtn: { backgroundColor: "#FEF3C7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginLeft: 6 },
+  resendBtnText: { fontSize: 11, fontWeight: "700", color: "#D97706" },
 });

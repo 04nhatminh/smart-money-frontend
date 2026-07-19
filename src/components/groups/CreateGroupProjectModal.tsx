@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,11 +19,12 @@ import { getGroupProjectErrorMessage } from "../../utils/groupProjectErrors";
 type Props = {
   visible: boolean;
   group: GroupDetailResponse;
-  prefillTargetAmount: number;
-  prefillTotalMonths: number;
-  totalCapacity: number;
+  prefillTargetAmount?: number;
+  prefillTotalMonths?: number;
+  totalCapacity?: number;
   onClose: () => void;
   onCreated: (groupProjectId: string) => void;
+  onNotFeasible?: () => void;
 };
 
 export default function CreateGroupProjectModal({
@@ -34,33 +35,34 @@ export default function CreateGroupProjectModal({
   totalCapacity,
   onClose,
   onCreated,
+  onNotFeasible,
 }: Props) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [targetAmount, setTargetAmount] = useState(
-    prefillTargetAmount > 0 ? prefillTargetAmount.toString() : ""
-  );
-  const [totalMonths, setTotalMonths] = useState(
-    prefillTotalMonths > 0 ? prefillTotalMonths.toString() : ""
-  );
+  const [targetAmount, setTargetAmount] = useState("");
+  const [totalMonths, setTotalMonths] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Feasibility: the group can save at most capacity × months over the project.
-  // A target above that can never be reached and (target/deadline being fixed)
-  // would create a permanently broken project, so it's a hard block here.
-  const parsedMonths = parseInt(totalMonths, 10);
-  const maxFeasibleAmount =
-    totalCapacity > 0 && parsedMonths > 0 ? totalCapacity * parsedMonths : 0;
-  const exceedsCapacity =
-    maxFeasibleAmount > 0 && parseCurrencyToNumber(targetAmount) > maxFeasibleAmount;
+  useEffect(() => {
+    if (visible) {
+      setTargetAmount(
+        prefillTargetAmount && prefillTargetAmount > 0 ? prefillTargetAmount.toString() : ""
+      );
+      setTotalMonths(
+        prefillTotalMonths && prefillTotalMonths > 0 ? prefillTotalMonths.toString() : ""
+      );
+      setName("");
+      setDescription("");
+      setErrors({});
+    }
+  }, [visible, prefillTargetAmount, prefillTotalMonths]);
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Project name is required";
     const amount = parseCurrencyToNumber(targetAmount);
     if (!amount || amount <= 0) e.targetAmount = "Target amount is required";
-    else if (exceedsCapacity) e.targetAmount = "Target exceeds your group's saving capacity for this duration";
     const months = parseInt(totalMonths, 10);
     if (!months || months <= 0) e.totalMonths = "Duration is required";
     setErrors(e);
@@ -70,6 +72,66 @@ export default function CreateGroupProjectModal({
   const handleCreate = async () => {
     if (!validate()) return;
     setLoading(true);
+    try {
+      // 1. Call suggestions API to simulate actual capacity and check feasibility with auto-sponsorship rules
+      const suggestRes = await GroupAPI.getSuggestions({
+        groupId: group.groupId,
+        inputMonths: parseInt(totalMonths, 10),
+        inputAmount: parseCurrencyToNumber(targetAmount),
+      });
+
+      if (suggestRes.success && suggestRes.data) {
+        const data = suggestRes.data;
+        if (!data.isFeasible) {
+          Alert.alert(
+            "Không khả thi",
+            "Với mức thu nhập hiện tại của nhóm, mục tiêu này chưa thực sự phù hợp. Chúng tôi sẽ đề xuất các phương án khả thi dựa trên đóng góp của thành viên.",
+            [
+              {
+                text: "Xem đề xuất",
+                onPress: () => {
+                  setLoading(false);
+                  onNotFeasible?.();
+                },
+              },
+              {
+                text: "Hủy",
+                style: "cancel",
+                onPress: () => setLoading(false),
+              },
+            ]
+          );
+          return;
+        }
+
+        if (data.totalDeficit && data.totalDeficit > 0) {
+          // Group can afford via sponsorship! Show simulation alert matching Web
+          Alert.alert(
+            "Mô Phỏng Gánh Vác Đóng Góp",
+            "Một số thành viên trong nhóm không đủ khả năng tài chính để đóng góp đều nhau. Tuy nhiên, các thành viên khác có đủ khả năng bù đắp phần thiếu hụt này.\n\nDự án sẽ được khởi tạo dưới dạng Chờ duyệt tài trợ (hoặc Tự động kích hoạt nếu người gánh đã bật Auto-Sponsor). Bạn có muốn tiếp tục?",
+            [
+              { text: "Hủy bỏ", style: "cancel", onPress: () => setLoading(false) },
+              {
+                text: "Xác nhận & Khởi tạo",
+                onPress: async () => {
+                  setLoading(true);
+                  await executeCreate();
+                },
+              },
+            ]
+          );
+          return;
+        }
+      }
+
+      await executeCreate();
+    } catch {
+      Alert.alert("Error", "Something went wrong.");
+      setLoading(false);
+    }
+  };
+
+  const executeCreate = async () => {
     try {
       const res = await GroupAPI.createGroupProject({
         groupId: group.groupId,
@@ -180,25 +242,14 @@ export default function CreateGroupProjectModal({
               <Text style={styles.currencyTag}>months</Text>
             </View>
             {errors.totalMonths ? <Text style={styles.errorText}>{errors.totalMonths}</Text> : null}
-
-            {exceedsCapacity ? (
-              <View style={[styles.warningBanner, { backgroundColor: "#FEE2E2", marginTop: 16, marginBottom: 0 }]}>
-                <Ionicons name="trending-down-outline" size={14} color="#991B1B" />
-                <Text style={[styles.warningText, { color: "#991B1B" }]}>
-                  Your group can save about {formatCurrencyVND(maxFeasibleAmount)} VND over {parsedMonths}{" "}
-                  {parsedMonths === 1 ? "month" : "months"}. Lower the target or increase the duration.
-                </Text>
-              </View>
-            ) : null}
-
             <Pressable
               style={({ pressed }) => [
                 styles.createBtn,
                 pressed && { opacity: 0.85 },
-                (loading || outsideWindow || exceedsCapacity) && styles.btnDisabled,
+                (loading || outsideWindow) && styles.btnDisabled,
               ]}
               onPress={handleCreate}
-              disabled={loading || outsideWindow || exceedsCapacity}
+              disabled={loading || outsideWindow}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />

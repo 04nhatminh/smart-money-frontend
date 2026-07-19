@@ -5,10 +5,13 @@ export type GroupInviteStatus = "INVITED" | "JOINED" | "DECLINED";
 export type GroupMemberResponse = {
   userId: string;
   username?: string;
+  email?: string;
   role: GroupRole;
   inviteStatus: GroupInviteStatus;
   capacitySnapshot: number;
   joinedAt: string | null;
+  autoSponsorEnabled?: boolean;
+  autoSponsorLimit?: number | null;
 };
 
 export type GroupDetailResponse = {
@@ -25,6 +28,7 @@ export type GroupDetailResponse = {
 export type CreateGroupPayload = {
   name: string;
   description?: string;
+  cloneGroupId?: string;
 };
 
 export type InviteGroupMemberPayload = {
@@ -38,7 +42,7 @@ export type GroupInviteResponse = {
 };
 
 // Group Projects
-export type GroupProjectStatus = "ACTIVE" | "COMPLETED" | "DISSOLVED";
+export type GroupProjectStatus = "ACTIVE" | "COMPLETED" | "DISSOLVED" | "PENDING_SPONSORSHIP" | "SPONSORSHIP_FAILED";
 export type GroupProjectPriority = "LOW" | "MEDIUM" | "HIGH";
 export type SubProjectStatus = "ACTIVE" | "FROZEN" | "COMPLETED" | "ABANDONED" | "EXPIRED";
 
@@ -75,10 +79,26 @@ export type GroupProjectDetailResponse = {
   members: GroupProjectMemberDetail[];
 };
 
+export type MemberSimulationDto = {
+  userId: string;
+  username: string;
+  fullName: string;
+  capacity: number;
+  originalShare: number;
+  proposedShare: number;
+  deficit: number;
+  needsSponsorship: boolean;
+  autoSponsorEnabled: boolean;
+  autoSponsorLimit: number | null;
+};
+
 export type GroupProjectSuggestionsResponse = {
   totalCapacity: number;
   suggestedMonths: number;
   suggestedAmount: number;
+  isFeasible: boolean | null;
+  totalDeficit: number | null;
+  memberSimulations: MemberSimulationDto[] | null;
 };
 
 export type GroupProjectSuggestionsPayload = {
@@ -108,4 +128,24 @@ export type GroupListItemResponse = {
   status: GroupStatus;
   memberCount: number;
   adminId: string;
+};
+
+export type UpdateAutoSponsorshipRequest = {
+  enabled: boolean;
+  limit?: number;
+};
+
+export type GroupProjectSponsorshipRequestResponse = {
+  requestId: string;
+  groupProjectId: string;
+  groupProjectName: string;
+  groupName: string;
+  askedAmount: number;
+  originalShare: number;
+  proposedShare: number;
+  totalMonths: number;
+};
+
+export type RespondToSponsorshipRequest = {
+  agreed: boolean;
 };
