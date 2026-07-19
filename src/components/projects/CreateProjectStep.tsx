@@ -56,8 +56,6 @@ export default function CreateProjectStep({
     <>
       <Text style={styles.title}>{t("project.create_title")}</Text>
 
-      <ProjectTypeTabs value={values.type} onChange={onChangeType} />
-
       {!checkingPriorities && !canCreateProject && (
         <View style={styles.warningBox}>
           <Text style={styles.warningText}>
