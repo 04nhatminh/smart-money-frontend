@@ -18,6 +18,7 @@ import { useAuth } from "../../src/context/AuthContext";
 import {
   GroupProjectDetailResponse,
   GroupProjectMemberDetail,
+  GroupProjectSponsorshipRequestResponse,
 } from "../../src/types/group.types";
 import { formatCurrencyVND } from "../../src/utils/project";
 import { getGroupProjectErrorMessage } from "../../src/utils/groupProjectErrors";
@@ -27,6 +28,8 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   ACTIVE: { bg: "#D1FAE5", text: "#065F46" },
   COMPLETED: { bg: "#DBEAFE", text: "#1E40AF" },
   DISSOLVED: { bg: "#F3F4F6", text: "#6B7280" },
+  PENDING_SPONSORSHIP: { bg: "#FEF9C3", text: "#D97706" },
+  SPONSORSHIP_FAILED: { bg: "#FEE2E2", text: "#DC2626" },
 };
 
 const SUB_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -102,6 +105,7 @@ export default function GroupProjectDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showPriority, setShowPriority] = useState(false);
   const [dissolving, setDissolving] = useState(false);
+  const [myPendingRequest, setMyPendingRequest] = useState<GroupProjectSponsorshipRequestResponse | null>(null);
 
   const fetchProject = useCallback(async () => {
     if (!id) return;
@@ -109,8 +113,23 @@ export default function GroupProjectDetailScreen() {
       const res = await GroupAPI.getGroupProjectDetail(id);
       if (res.success && res.data) {
         setProject(res.data);
+        
+        // Fetch details of the group
         const groupRes = await GroupAPI.getGroupDetail(res.data.groupId);
         if (groupRes.success && groupRes.data) setGroupAdminId(groupRes.data.adminId);
+
+        // Fetch pending sponsorship requests if the status is PENDING_SPONSORSHIP
+        if (res.data.status === "PENDING_SPONSORSHIP") {
+          const sponsorRes = await GroupAPI.getPendingSponsorshipRequests();
+          if (sponsorRes.success && sponsorRes.data) {
+            const match = sponsorRes.data.find((r) => r.groupProjectId === id);
+            setMyPendingRequest(match || null);
+          } else {
+            setMyPendingRequest(null);
+          }
+        } else {
+          setMyPendingRequest(null);
+        }
       }
     } catch {
       Alert.alert("Error", "Could not load group project.");
@@ -125,6 +144,27 @@ export default function GroupProjectDetailScreen() {
     setRefreshing(true);
     await fetchProject();
     setRefreshing(false);
+  };
+
+  const handleRespondSponsorship = async (agreed: boolean) => {
+    if (!myPendingRequest) return;
+    setLoading(true);
+    try {
+      const res = await GroupAPI.respondToSponsorshipRequest(myPendingRequest.requestId, { agreed });
+      if (res.success) {
+        Alert.alert(
+          "Success",
+          agreed ? "You agreed to sponsor your teammate!" : "You declined the sponsorship request."
+        );
+        await fetchProject();
+      } else {
+        Alert.alert("Error", res.message || "Failed to respond to request.");
+      }
+    } catch {
+      Alert.alert("Error", "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDissolve = () => {
@@ -236,6 +276,61 @@ export default function GroupProjectDetailScreen() {
             <Text style={styles.celebrationText}>
               "{project.name}" hit its {formatCurrencyVND(project.targetAmount)} VND target.
               Congratulations to everyone who contributed!
+            </Text>
+          </View>
+        )}
+
+        {/* Pending Sponsorship Notice */}
+        {project.status === "PENDING_SPONSORSHIP" && (
+          <View style={[styles.sponsorshipCard, { borderColor: "#F59E0B" }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+              <Ionicons name="alert-circle" size={20} color="#D97706" style={{ marginRight: 6 }} />
+              <Text style={styles.sponsorshipTitle}>
+                {myPendingRequest ? "Sponsorship Request Pending" : "Awaiting Sponsorship Surveys"}
+              </Text>
+            </View>
+
+            {myPendingRequest ? (
+              <View>
+                <Text style={styles.sponsorshipText}>
+                  A teammate lacks financial capacity. The system proposes that you sponsor them by contributing an extra{" "}
+                  <Text style={{ fontWeight: "700" }}>{formatCurrencyVND(myPendingRequest.askedAmount)} VND/month</Text>.
+                  This changes your share from{" "}
+                  <Text style={{ fontWeight: "700" }}>{formatCurrencyVND(myPendingRequest.originalShare)}</Text> to{" "}
+                  <Text style={{ fontWeight: "700" }}>{formatCurrencyVND(myPendingRequest.proposedShare)} VND/month</Text>.
+                </Text>
+                <View style={styles.sponsorshipActionRow}>
+                  <Pressable
+                    style={[styles.sponsorshipBtn, styles.declineSponsorBtn]}
+                    onPress={() => handleRespondSponsorship(false)}
+                  >
+                    <Text style={[styles.sponsorshipBtnText, { color: "#EF4444" }]}>Decline</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.sponsorshipBtn, styles.agreeSponsorBtn]}
+                    onPress={() => handleRespondSponsorship(true)}
+                  >
+                    <Text style={[styles.sponsorshipBtnText, { color: "#FFFFFF" }]}>Agree</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.sponsorshipText}>
+                The project is waiting for teammates to respond to proposed sponsorship shares.
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Sponsorship Failed Notice */}
+        {project.status === "SPONSORSHIP_FAILED" && (
+          <View style={[styles.sponsorshipCard, { borderColor: "#EF4444", backgroundColor: "#FEE2E2" }]}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="close-circle" size={20} color="#DC2626" style={{ marginRight: 6 }} />
+              <Text style={[styles.sponsorshipTitle, { color: "#991B1B" }]}>Sponsorship Failed</Text>
+            </View>
+            <Text style={[styles.sponsorshipText, { color: "#7F1D1D", marginTop: 4 }]}>
+              This project has failed because members declined or lacked capacity to sponsor the deficit.
             </Text>
           </View>
         )}
@@ -407,4 +502,12 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.5 },
   dissolveBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
+  sponsorshipCard: { backgroundColor: "#FFFBEB", borderWidth: 1.5, borderColor: "#FEF3C7", borderRadius: 18, padding: 18, gap: 8 },
+  sponsorshipTitle: { fontSize: 15, fontWeight: "800", color: "#92400E" },
+  sponsorshipText: { fontSize: 13, color: "#78350F", lineHeight: 20 },
+  sponsorshipActionRow: { flexDirection: "row", gap: 10, justifyContent: "flex-end", marginTop: 10 },
+  sponsorshipBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1 },
+  declineSponsorBtn: { borderColor: "#EF4444", backgroundColor: "transparent" },
+  agreeSponsorBtn: { borderColor: "#D97706", backgroundColor: "#D97706" },
+  sponsorshipBtnText: { fontSize: 13, fontWeight: "700" },
 });
