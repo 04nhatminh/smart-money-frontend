@@ -834,6 +834,7 @@ export default {
       other: "\"{{description}}\" đã tăng từ {{previousAmount}} lên {{newAmount}}.",
     },
     project_off_track: "\"{{projectName}}\" đang chậm tiến độ — cần khoảng {{requiredMonthly}} mỗi tháng để đạt được trước {{deadline}}.",
+    over_committed: "Bạn đã phân bổ hết thu nhập tháng này — không còn gì để chi tiêu.",
   },
 
   // Giao diện màn hình danh sách insight.
@@ -846,7 +847,6 @@ export default {
     error: "Không tải được thông tin chi tiêu",
     retry: "Thử lại",
     viewing_month: "Đang xem {{month}}",
-    over_committed: "Bạn đã phân bổ hết thu nhập tháng này — không còn gì để chi tiêu.",
   },
 
   // Thiết lập đặc điểm / cài đặt — quyết định cách adaptive engine nhắc nhở.
