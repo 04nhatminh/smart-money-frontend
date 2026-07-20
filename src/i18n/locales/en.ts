@@ -843,6 +843,7 @@ export default {
       other: "\"{{description}}\" went up from {{previousAmount}} to {{newAmount}}.",
     },
     project_off_track: "\"{{projectName}}\" is behind schedule — about {{requiredMonthly}} a month is needed to reach it by {{deadline}}.",
+    over_committed: "Your budgets add up to more than your income — consider adjusting them.",
   },
 
   // FE chrome for the insights feed screen.
@@ -855,7 +856,6 @@ export default {
     error: "Couldn't load insights",
     retry: "Retry",
     viewing_month: "Viewing {{month}}",
-    over_committed: "Your budgets add up to more than your income — consider adjusting them.",
   },
 
   // Trait onboarding / settings — configures how the adaptive engine nudges.
