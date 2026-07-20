@@ -200,6 +200,7 @@ export default {
       reduce_budget: "Bạn liên tục chi dưới ngân sách {{category}} — bạn muốn giảm bớt không?",
       contribute_to_project: "Tháng này bạn có tiền dư — góp một phần vào \"{{projectName}}\"?",
       rebalance_budgets: "Tổng ngân sách của bạn vượt quá thu nhập — bạn muốn cân đối lại không?",
+      rebalance_projects: "Tổng dự án của bạn vượt quá thu nhập — bạn muốn cân đối lại không?",
       reallocate_budget: "Ngân sách {{category}} có thể bị vượt — bù từ các ngân sách bạn chưa dùng?",
       review_subscription: "\"{{description}}\" vừa tăng giá — bạn muốn xem lại không?",
       increase_contribution: "\"{{projectName}}\" đang chậm tiến độ — góp thêm một chút để bắt kịp?",
@@ -845,6 +846,7 @@ export default {
     error: "Không tải được thông tin chi tiêu",
     retry: "Thử lại",
     viewing_month: "Đang xem {{month}}",
+    over_committed: "Bạn đã phân bổ hết thu nhập tháng này — không còn gì để chi tiêu.",
   },
 
   // Thiết lập đặc điểm / cài đặt — quyết định cách adaptive engine nhắc nhở.

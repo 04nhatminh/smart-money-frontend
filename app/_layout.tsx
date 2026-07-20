@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { View, ActivityIndicator, AppState } from "react-native";
+import { View, ActivityIndicator, AppState, Platform } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from 'expo-notifications';
 import { LanguageProvider } from "../src/i18n/LanguageProvider";
@@ -57,6 +57,21 @@ function RootLayoutNav() {
         shouldSetBadge: true,
       }),
     });
+  }, []);
+
+  useEffect(() => {
+    const setup = async () => {
+      if (Platform.OS !== "android") return;
+
+      const channel = await Notifications.setNotificationChannelAsync("default", {
+        name: "Default",
+        importance: Notifications.AndroidImportance.MAX,
+      });
+
+      console.log("Channel created:", channel);
+    };
+
+    setup();
   }, []);
 
   // Cold-start: app was killed, user tapped notification → listener isn't attached yet,
