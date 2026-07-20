@@ -59,13 +59,15 @@ const getCategoryLabel = (category?: string) => {
     case "CLOTHING":
       return t("category.CLOTHING");
     case "UTILITIES":
-      return t("category UTILITIES");
+      return t("category.UTILITIES");
     case "ENTERTAINMENT":
       return t("category.ENTERTAINMENT");
     case "HEALTH":
       return t("category.HEALTH");
     case "EDUCATION":
       return t("category.EDUCATION");
+    case "SHOPPING":
+      return t("category.SHOPPING");
     default:
       return t("category.OTHER");
   }
@@ -79,6 +81,7 @@ const CATEGORIES = [
   "ENTERTAINMENT",
   "HEALTH",
   "EDUCATION",
+  "SHOPPING",
   "OTHER",
 ];
 
