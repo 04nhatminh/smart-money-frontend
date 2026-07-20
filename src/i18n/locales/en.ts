@@ -199,6 +199,7 @@ export default {
       reduce_budget: "You keep coming in under your {{category}} budget — want to trim it?",
       contribute_to_project: "You have spare money this month — put some toward \"{{projectName}}\"?",
       rebalance_budgets: "Your budgets add up to more than your income — want to rebalance them?",
+      rebalance_projects: "Your projects add up to more than your income — want to rebalance them?",
       reallocate_budget: "Your {{category}} budget may overflow — cover it from budgets you're not using?",
       review_subscription: "\"{{description}}\" just got more expensive — want to review it?",
       increase_contribution: "\"{{projectName}}\" is behind schedule — add a bit more to catch up?",
@@ -561,6 +562,20 @@ export default {
     target_amount_required: "Please enter a target amount.",
     deadline_required: "Please enter a deadline.",
   },
+  // Danh mục giao dịch theo enum backend (enum thô → tên hiển thị).
+  category: {
+    FOOD: "Food",
+    TRANSPORTATION: "Transportation",
+    CLOTHING: "Clothing",
+    UTILITIES: "Utilities",
+    ENTERTAINMENT: "Entertainment",
+    HEALTH: "Health",
+    EDUCATION: "Education",
+    SHOPPING: "Shopping",
+    OTHER: "Other",
+    PROJECT_CONTRIBUTION: "Project Contribution",
+    PROJECT_REFUND: "Project Refund",
+  },
   budget: {
     checking_profile: "Checking...",
     saving_profile: "Saving Profile...",
@@ -840,6 +855,7 @@ export default {
     error: "Couldn't load insights",
     retry: "Retry",
     viewing_month: "Viewing {{month}}",
+    over_committed: "Your budgets add up to more than your income — consider adjusting them.",
   },
 
   // Trait onboarding / settings — configures how the adaptive engine nudges.

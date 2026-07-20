@@ -59,6 +59,8 @@ http.interceptors.request.use(
   }
 );
 
+
+
 // Response interceptor - Xử lý refresh token khi hết hạn
 http.interceptors.response.use(
   (response) => response,
@@ -67,7 +69,11 @@ http.interceptors.response.use(
 
     const isRefreshRequest = originalRequest?.url?.includes("/api/v1/auth/refresh-token");
 
-    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
+    const hasAuthorization =
+        originalRequest.headers?.Authorization ||
+        originalRequest.headers?.authorization;
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest && hasAuthorization) {
       if (isRefreshing) {
         return new Promise(resolve => {
           subscribeTokenRefresh((token: string) => {
