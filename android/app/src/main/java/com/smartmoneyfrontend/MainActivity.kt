@@ -1,4 +1,4 @@
-package com.smartmoney
+package com.smartmoneyfrontend
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

@@ -115,6 +115,13 @@ export const SocialLogin: React.FC<SocialLoginProps> = ({
     const isGoogleLoading = activeMethod === 'google' && (googleLoading || processingToken);
     const isFacebookLoading = activeMethod === 'facebook' && (facebookLoading || processingToken);
 
+    const isAnyLoading =
+    disabled ||
+    processingToken ||
+    googleLoading ||
+    facebookLoading ||
+    activeMethod !== null;
+
     return (
         <>
             <View style={styles.dividerRow}>
@@ -133,7 +140,7 @@ export const SocialLogin: React.FC<SocialLoginProps> = ({
                     onPress={() => handleLogin('google')}
                     disabled={disabled || isGoogleLoading}
                 >
-                    {isGoogleLoading ? (
+                    {isAnyLoading ? (
                         <ActivityIndicator size="small" color="#444" />
                     ) : (
                         <>
@@ -156,7 +163,7 @@ export const SocialLogin: React.FC<SocialLoginProps> = ({
                     onPress={() => handleLogin('facebook')}
                     disabled={disabled || isFacebookLoading}
                 >
-                    {isFacebookLoading ? (
+                    {isAnyLoading ? (
                         <ActivityIndicator size="small" color="#fff" />
                     ) : (
                         <>

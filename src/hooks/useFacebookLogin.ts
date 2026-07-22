@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../lib/supabase';
+import * as Linking from "expo-linking";
+
+const redirectTo = Linking.createURL("");
 
 WebBrowser.maybeCompleteAuthSession();
+
+console.log("redirectTo =", redirectTo);
 
 export interface FacebookLoginState {
   session: any | null;
@@ -68,57 +73,45 @@ export const useFacebookLogin = () => {
     try {
       setState(prev => ({ ...prev, facebookLoading: true, errorMsg: null }));
 
-      const { url: authUrl, error } = await supabase.auth.signIn(
-        { provider: 'facebook' },
-        { redirectTo: 'smartmoneyfrontend://' }
-      );
-
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: {
+          redirectTo: Linking.createURL("/"), // Trả về app sau khi đăng nhập
+        },
+      });
 
       if (error) throw error;
-      if (!authUrl) throw new Error('No OAuth URL');
 
-      const result = await WebBrowser.openAuthSessionAsync(
-        authUrl,
-        'smartmoneyfrontend://'
-      );
+      if (data?.url) {
+        // Mở trình duyệt với URL đăng nhập Facebook
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+        console.log("OAuth result =", result);
+        // Xử lý kết quả (tuỳ chọn)
+        if (result.type === 'success') {
+            const hash = result.url.split("#")[1];
 
-      console.log('🌍 Browser result:', result);
+            const params = new URLSearchParams(hash);
 
-      if (result.type !== 'success') {
-        throw new Error('Login cancelled');
+            const { data: sessionData, error } = await supabase.auth.setSession({
+              access_token: params.get("access_token")!,
+              refresh_token: params.get("refresh_token")!,
+            });
+
+            console.log("setSession error =", error);
+            console.log("setSession data =", sessionData);
+
+            const session = await supabase.auth.getSession();
+            console.log("current session =", session);
+        } else if (result.type === 'cancel') {
+          setState(prev => ({ ...prev, errorMsg: 'Đăng nhập bị huỷ', facebookLoading: false }));
+        }
       }
-
-      const url = result.url;
-      const hashParams = url.split('#')[1];
-      if (!hashParams) {
-        throw new Error('No tokens in callback URL');
-      }
-
-      const params = new URLSearchParams(hashParams);
-      const access_token = params.get('access_token');
-      const refresh_token = params.get('refresh_token');
-
-      if (!access_token) {
-        throw new Error('Missing access token in callback');
-      }
-
-      // 3. Dùng setAuth (v1) thay vì setSession (v2)
-      // @ts-ignore – vì kiểu của supabase v1 không có setAuth, nhưng thực tế có
-      const { data: sessionData, error: sessionError } = await supabase.auth.setAuth(access_token);
-
-      if (sessionError) throw sessionError;
-
-      console.log('✅ Session set:', sessionData);
     } catch (err: any) {
-      console.error('❌ Facebook login error:', err.message);
-      setState(prev => ({
-        ...prev,
-        errorMsg: err.message,
-        facebookLoading: false,
-      }));
+      setState(prev => ({ ...prev, errorMsg: err.message, facebookLoading: false }));
     }
   };
 
+  
   // 4. Đăng xuất – giữ nguyên
   const signOut = async () => {
     try {

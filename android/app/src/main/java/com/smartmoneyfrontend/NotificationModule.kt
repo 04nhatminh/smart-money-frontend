@@ -1,4 +1,4 @@
-package com.smartmoney
+package com.smartmoneyfrontend
 
 import android.content.Intent
 import android.provider.Settings

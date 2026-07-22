@@ -120,7 +120,7 @@ const checkAuthStatus = async () => {
         }
 
         // ❗ chỉ clear nếu BE trả invalid refresh token
-        if (res?.errors?.refreshToken?.includes("INVALID_REFRESH_TOKEN")) {
+        if (!res.success && res.message === "INVALID_REFRESH_TOKEN") {
           console.log("❌ [AuthProvider] Refresh token invalid");
           await authService.clearAuthData();
           setUser(null);
