@@ -36,7 +36,7 @@ import {
     ResetPasswordRequest
 } from "../../src/types/auth.types";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-
+import { setPendingVerifyEmail, getPendingVerifyEmail } from "../../src/storage/emailStorage";
 const { width, height } = Dimensions.get('window');
 
 export default function AuthScreen() {
@@ -57,7 +57,6 @@ export default function AuthScreen() {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [phone, setPhone] = useState("");
     const [dateOfBirth, setDateOfBirth] = useState<Date>(new Date());
-    const [avatar, setAvatar] = useState("");
 
     // OTP states
     const [showOTPModal, setShowOTPModal] = useState(false);
@@ -103,16 +102,32 @@ export default function AuthScreen() {
         setSignInError(null);
         setLoading(true);
 
+
+
         try {
             console.log('🔐 Attempting login with email:', email);
             const res = await login(email, password);
 
             if (res.success) {
-                console.log('✅ Login successful');
-            } else {
-                console.log('❌ Login failed:', res.message);
-                setSignInError(res.message || t("auth.login_failed") || "Đăng nhập thất bại, vui lòng thử lại");
+                console.log("✅ Login successful");
+                return;
             }
+
+            if (res.message === "EMAIL_NOT_VERIFIED") {
+                const otp = await authService.checkOtpExists(email);
+
+                if (otp.data) {
+                    setOtpEmail(email);
+                    setOtpType("VERIFY");
+                    setShowOTPModal(true);
+                } else {
+                    setSignInError(t("auth.email_not_verified"));
+                }
+
+                return;
+            }
+
+            setSignInError(res.message || t("auth.login_failed"));
         } catch (err: any) {
             console.error('💥 Login error:', err);
             setSignInError(t("auth.login_failed"));
@@ -169,10 +184,32 @@ export default function AuthScreen() {
             if (response.success) {
                 console.log('✅ Registration successful, showing OTP modal');
                 setShowOTPModal(true);
+                await setPendingVerifyEmail(signupEmail);
                 setOtpEmail(signupEmail);
                 setOtpType("VERIFY");
                 setSuccess(t("auth.verification_code_sent"));
             } else {
+
+                if((await authService.checkOtpExists(signupEmail)).data) {
+                    setOtpEmail(signupEmail);
+                    setOtpType("VERIFY");
+
+                    Alert.alert(
+                        t("auth.email_not_verified"),
+                        t("auth.email_signed_up_yet"),
+                        [
+                            {
+                                text:t("auth.verify_now"),
+                                onPress:()=>{
+                                    setShowOTPModal(true);
+                                }
+                            }
+                        ]
+                    );
+
+                    return;
+                }
+
                 console.log('❌ Registration failed:', response.message);
                 setSignUpError(t("auth.registration_failed"));
 
@@ -180,6 +217,7 @@ export default function AuthScreen() {
                     const errorMessages = Object.values(response.errors).flat();
                     setSignUpError(errorMessages.join(", "));
                 }
+                
             }
         } catch (err: any) {
             console.error("💥 Registration error:", err);
@@ -203,6 +241,7 @@ export default function AuthScreen() {
             if (res.success) {
                 console.log('✅ OTP verified successfully');
                 setShowOTPModal(false);
+                await setPendingVerifyEmail(null);
                 setActiveTab("signin");
                 setSuccess(t("auth.email_verified"));
 
@@ -236,6 +275,7 @@ export default function AuthScreen() {
             if (res.success) {
                 console.log('✅ Reset password OTP verified');
                 setShowResetPassword(true);
+                await setPendingVerifyEmail(null);
                 setShowOTPModal(false);
                 setSuccess(t("auth.email_verified"));
             } else {
@@ -303,6 +343,7 @@ export default function AuthScreen() {
 
             if (res.success) {
                 console.log('✅ Password reset OTP sent');
+                await setPendingVerifyEmail(email);
                 setOtpEmail(email);
                 setOtpType("UPDATE");
                 setShowOTPModal(true);
@@ -325,7 +366,8 @@ export default function AuthScreen() {
         setResetPasswordError(null);
         setLoading(true);
 
-        if (!otpEmail) {
+        const pendingEmail = await getPendingVerifyEmail();
+        if (!pendingEmail) {
             setResetPasswordError(t("auth.email_not_found"));
             setLoading(false);
             return;
@@ -344,7 +386,13 @@ export default function AuthScreen() {
         }
 
         try {
-            console.log('🔄 Resetting password for:', otpEmail);
+            console.log('🔄 Resetting password for:', await getPendingVerifyEmail());
+            const otpEmail = await getPendingVerifyEmail();
+            if (!otpEmail) {
+                setResetPasswordError(t("auth.email_not_found"));
+                setLoading(false);
+                return;
+            }
             const request: ResetPasswordRequest = {
                 email: otpEmail,
                 newPassword: newPassword
@@ -356,6 +404,8 @@ export default function AuthScreen() {
                 console.log('✅ Password reset successful');
                 setSuccess(t("auth.password_reset_success"));
                 setShowResetPassword(false);
+                setOtpEmail(null);
+                await setPendingVerifyEmail(null);
                 setActiveTab("signin");
 
                 // Auto-fill email for sign in

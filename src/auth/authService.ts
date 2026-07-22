@@ -17,6 +17,7 @@ import {
 } from '../types/auth.types';
 import { userStorage } from '../storage/userStorage';
 import { tokenStorage } from '../storage/tokenStorage';
+import aiInsightStorage from '../storage/aiInsightStorage';
 import * as base64 from "base-64";
 
 class AuthService {
@@ -100,6 +101,7 @@ class AuthService {
   async clearAuthData() {
     await tokenStorage.clear();
     await userStorage.clear();
+    await aiInsightStorage.clear();
   }
 
   // Get current token
@@ -161,21 +163,21 @@ class AuthService {
     }
   }
 
-    // Generate username from email
+  // Generate username from email
   private generateUsername(email: string): string {
     try {
       // Extract the local part before @
       const emailPart = email.split('@')[0];
-      
+
       // Clean the email part (remove special characters, keep only alphanumeric)
       const cleanedPart = emailPart.replace(/[^a-zA-Z0-9]/g, '');
-      
+
       // Use cleaned part or 'user' as fallback
       const baseUsername = cleanedPart || 'user';
-      
+
       // Add random suffix (4 characters from UUID)
       const randomSuffix = this.generateRandomSuffix(4);
-      
+
       return `${baseUsername}_${randomSuffix}`.toLowerCase();
     } catch (error) {
       // Fallback username generation
@@ -196,25 +198,25 @@ class AuthService {
   // Validate and prepare register data
   prepareRegisterData(userData: Partial<RegisterRequest>): RegisterRequest {
     const { email, username, ...rest } = userData;
-    
+
     if (!email) {
       throw new Error('Email is required');
     }
-    
+
     // Generate username from email if not provided
     const finalUsername = username?.trim() || this.generateUsername(email);
-    
+
     // Validate username (alphanumeric and underscores only)
     const usernameRegex = /^[a-zA-Z0-9_]+$/;
     if (!usernameRegex.test(finalUsername)) {
       throw new Error('Username can only contain letters, numbers, and underscores');
     }
-    
+
     // Ensure username length
     if (finalUsername.length < 3 || finalUsername.length > 30) {
       throw new Error('Username must be between 3 and 30 characters');
     }
-    
+
     return {
       ...rest,
       email: email.trim(),
@@ -228,10 +230,10 @@ class AuthService {
     try {
       // Prepare and validate register data
       const preparedData = this.prepareRegisterData(userData);
-      
+
       // Call API
       const response = await AuthApi.register(preparedData);
-      
+
       return response;
     } catch (error: any) {
       return {
@@ -249,8 +251,8 @@ class AuthService {
       return response;
     } catch (error: any) {
       return {
-          success: false,
-          message: error.message || "Email verification failed",
+        success: false,
+        message: error.message || "Email verification failed",
       };
     }
   }
@@ -285,27 +287,39 @@ class AuthService {
     }
   }
 
-  async verifyResetPassword (
+  async verifyResetPassword(
     data: VerifyEmailRequest
   ): Promise<ApiResponse<SendResetPasswordResponseData>> {
-      try {
-        const response = await AuthApi.verifyResetPassword(data);
-        this.setResetStorage(response.data?.resetToken!);
-        return response;
+    try {
+      const response = await AuthApi.verifyResetPassword(data);
+      this.setResetStorage(response.data?.resetToken!);
+      return response;
+    }
+    catch (error: any) {
+      return {
+        success: false,
+        message: error.message || "Invalid OTP",
       }
-      catch (error: any) {
-        return {
-          success: false,
-          message: error.message || "Invalid OTP",
-        }
-      }
+    }
+  }
+
+  async checkOtpExists(email: string): Promise<CheckResponse<boolean>> {
+    try {
+      const response = await AuthApi.checkOtpExists(email);
+      return response;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || "OTP not found",
+      };
+    }
   }
 
   async resetPassword(
     data: ResetPasswordRequest
   ): Promise<CheckResponse<void>> {
     try {
-      const resetToken = await this.getResetStorage(); 
+      const resetToken = await this.getResetStorage();
 
       if (!resetToken) {
         return {

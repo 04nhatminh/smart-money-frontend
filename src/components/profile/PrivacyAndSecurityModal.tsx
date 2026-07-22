@@ -36,9 +36,16 @@ export const PrivacyAndSecurityModal: React.FC<PrivacyAndSecurityModalProps> = (
 
   const loadEnabled = async () => {
     const val = await AsyncStorage.getItem(ENABLE_KEY);
+    console.log("LOAD =", val);
     setEnabled(val === "true");
   };
-
+  
+  useEffect(() => {
+    if (visible) {
+      loadEnabled();
+      checkPermission();
+    }
+  }, [visible]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener(

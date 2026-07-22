@@ -1,4 +1,4 @@
-package com.smartmoney
+package com.smartmoneyfrontend
 
 import android.app.Application
 import android.content.res.Configuration
@@ -13,7 +13,7 @@ import com.facebook.react.common.ReleaseLevel
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
 import com.facebook.react.defaults.DefaultReactNativeHost
 
-import com.smartmoney.NotificationPackage
+import com.smartmoneyfrontend.NotificationPackage
 
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper

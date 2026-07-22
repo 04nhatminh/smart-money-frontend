@@ -16,7 +16,7 @@
     "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-native-picker/picker": "2.11.1",
     "@stomp/stompjs": "^7.3.0",
-    "@supabase/supabase-js": "^1.35.7",
+    "@supabase/supabase-js": "^2.110.8",
     "axios": "^0.27.2",
     "babel-preset-expo": "~54.0.10",
     "base-64": "^1.0.0",

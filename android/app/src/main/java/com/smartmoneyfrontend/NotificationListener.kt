@@ -1,4 +1,4 @@
-package com.smartmoney
+package com.smartmoneyfrontend
 import android.widget.Toast
 
 import android.service.notification.NotificationListenerService
@@ -49,18 +49,19 @@ class NotificationListener : NotificationListenerService() {
             // Đọc Conversation Notification
             val bundleArray = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
 
-            if (bundleArray != null) {
-                val messages = Notification.MessagingStyle.Message
-                    .getMessagesFromBundleArray(bundleArray)
-
-                for (msg in messages) {
-                    if (!msg.text.isNullOrBlank()) {
-                        textBuilder.append(msg.text).append("\n")
-                    }
+            val text = when {
+                bundleArray != null -> {
+                    Notification.MessagingStyle.Message
+                        .getMessagesFromBundleArray(bundleArray)
+                        .joinToString("\n") { it.text?.toString().orEmpty() }
                 }
-            }
 
-            val text = textBuilder.toString().trim()
+                !extras.getCharSequence(Notification.EXTRA_BIG_TEXT).isNullOrBlank() ->
+                    extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
+
+                else ->
+                    extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
+            }
 
             Log.d(TAG, "TITLE = $title")
             Log.d(TAG, "TEXT  = $text")

@@ -1,4 +1,4 @@
-package com.smartmoney
+package com.smartmoneyfrontend
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

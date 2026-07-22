@@ -18,6 +18,7 @@ import { InteractionManager } from "react-native";
 import { resolveDeepLink } from "../src/utils/notificationDeepLink";
 import { useNotificationPermission } from "../src/hooks/useNotificationHandler";
 export const panelRef = React.createRef<PendingPanelRef>();
+import * as Linking from "expo-linking";
 
 SplashScreen.preventAutoHideAsync().catch(() => { });
 
@@ -47,6 +48,18 @@ function RootLayoutNav() {
       SplashScreen.hideAsync();
     }
   }, [isLoading]);
+
+  useEffect(() => {
+  Linking.getInitialURL().then(url => {
+    console.log("INITIAL URL:", url);
+  });
+
+  const sub = Linking.addEventListener("url", ({ url }) => {
+    console.log("OPEN URL:", url);
+  });
+
+  return () => sub.remove();
+}, []);
 
   useEffect(() => {
     Notifications.setNotificationHandler({

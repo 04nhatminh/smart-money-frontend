@@ -217,6 +217,8 @@ export class NotificationListenerService {
 
   private static normalizeVietnamese(text: string): string {
     return text
+      .replace(/[−–—﹣]/g, "-")      // normalize minus
+      .replace(/[₫]/g, "đ")          // normalize currency
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
@@ -230,7 +232,8 @@ export class NotificationListenerService {
 
     // 1. CHECK DẤU + / - TRƯỚC SỐ TIỀN (Quan trọng nhất)
     // Bắt các mẫu: -500.000đ, + 2.000.000, -1tr, + 5k
-    const signedMoneyRegex = /([+-])\s*(\d+([.,]\d+)?)\s*(k|nghin|ngan|tr|trieu|vnd|vnđ|d)/i;
+    const signedMoneyRegex =
+      /[-+]\s*\d[\d.,]*\s*(?:₫|đ|d|vnđ|vnd|k|nghin|ngan|tr|trieu)/i;
     if (signedMoneyRegex.test(normalized)) {
       score += 50; // Cộng cực mạnh
     }
@@ -278,7 +281,17 @@ export class NotificationListenerService {
     if (normalized.includes("giam gia") && normalized.includes("giao dich")) {
       score -= 10; // Phạt thêm để đẩy xuống dưới ngưỡng
     }
+console.log(JSON.stringify(normalized));
 
+console.log(
+    "signed",
+    signedMoneyRegex.test(normalized)
+);
+
+console.log(
+    "money",
+    this.MONEY_REGEX.test(normalized)
+);
     console.log(`📊 Score for "${text.substring(0, 40)}...": ${score}`);
     return score;
   }
@@ -290,8 +303,8 @@ export class NotificationListenerService {
     return score >= this.SCORE_THRESHOLD; // Chỉ true khi đạt ngưỡng
   }
 
-private static MONEY_REGEX =
-/\b\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\s?(₫|đ|d|vnđ|vnd|k|nghin|ngan|tr|trieu)\b/i;
+  private static MONEY_REGEX =
+    /\d[\d.,]*\s*(?:₫|đ|d|vnđ|vnd|k|nghin|ngan|tr|trieu)/i;
 
   private static ACCOUNT_REGEX = /(tk|tài khoản|account)/i;
 
@@ -309,7 +322,7 @@ private static MONEY_REGEX =
 
       // 🔥 FILTER QUAN TRỌNG
       const isTransaction = this.isTransactionNotification(text);
-      const isFinance = this.isFinanceApp(pkg,title);
+      const isFinance = this.isFinanceApp(pkg, title);
 
       if (!isTransaction) {
         console.log("⏭️ Not transaction");

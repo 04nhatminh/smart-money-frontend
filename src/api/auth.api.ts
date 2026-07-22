@@ -22,14 +22,14 @@ class AuthApi {
   // Convert RegisterRequest to FormData for multipart upload
   private async toFormData(data: RegisterRequest): Promise<FormData> {
     const formData = new FormData();
-    
+
     formData.append('username', data.username);
     formData.append('fullName', data.fullName);
     formData.append('email', data.email);
     formData.append('password', data.password);
     formData.append('phone', data.phone);
     formData.append('dateOfBirth', data.dateOfBirth?.toString() || '');
-    
+
     if (data.avatar) {
       formData.append('avatar', data.avatar);
     } else {
@@ -42,10 +42,10 @@ class AuthApi {
         type: 'image/png'
       } as any);
     }
-    
+
     return formData;
   }
-  
+
 
   private async getAuthHeader() {
     const token = await tokenStorage.getAccessToken();
@@ -92,6 +92,24 @@ class AuthApi {
         success: false,
         message: error.message || 'Email verification failed',
       };
+    }
+  }
+
+  // Check OTP still exists
+  async checkOtpExists(email: string): Promise<CheckResponse<boolean>> {
+    try {
+      const res = await http.get('/api/v1/auth/otp-exists', {
+        params: { email },
+      });
+
+      return res.data;
+    } catch (error: any) {
+      return (
+        error.response?.data || {
+          success: false,
+          message: error.message || 'Failed to check OTP',
+        }
+      );
     }
   }
 
@@ -213,12 +231,12 @@ class AuthApi {
   // Convert UpdateUserRequest to FormData for multipart upload
   private toUpdateFormData(data: UpdateUserRequest): FormData {
     const formData = new FormData();
-    
+
     if (data.fullName) formData.append('fullName', data.fullName);
     if (data.phone) formData.append('phone', data.phone);
     if (data.dateOfBirth) formData.append('dateOfBirth', data.dateOfBirth.toString());
     if (data.avatar) formData.append('avatar', data.avatar);
-    
+
     return formData;
   }
 
@@ -234,13 +252,13 @@ class AuthApi {
       }
 
       const isFormData = data instanceof FormData;
-      
+
       // If data is not FormData, convert it to FormData
       let requestData = isFormData ? data : this.toUpdateFormData(data as UpdateUserRequest);
 
       const headers: Record<string, string> = {
         Authorization: `Bearer ${token}`,
-        'Content-Type':'multipart/form-data'
+        'Content-Type': 'multipart/form-data'
       };
 
 
