@@ -126,12 +126,13 @@ const MONTH_SHORTS_EN = [
 // ─────────────────────────────────────────────────
 async function getTransactionAnalytics(
   month: number,
-  year: number
+  year: number,
+  type: "MONTH" | "YEAR" = "MONTH"
 ): Promise<AnalyticsResponse> {
   try {
     const res = await http.post(
       "/api/v1/transactions/analytics",
-      { month, year },
+      { month, year, type },
       {
         headers: {
           Accept: "application/json",
@@ -307,10 +308,38 @@ export default function AnalyticsScreen() {
   const [selectedMonthIndex, setSelectedMonthIndex] = useState(monthOptions.length - 1);
   const selectedMonth = monthOptions[selectedMonthIndex];
 
+  const [viewMode, setViewMode] = useState<"MONTH" | "YEAR">("MONTH");
+
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
   const [categoryProportions, setCategoryProportions] = useState<CategoryProportion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const MONTH_SHORT_MAP: Record<string, string> = useMemo(
+    () => ({
+      Jan: "T1", Feb: "T2", Mar: "T3", Apr: "T4", May: "T5", Jun: "T6",
+      Jul: "T7", Aug: "T8", Sep: "T9", Oct: "T10", Nov: "T11", Dec: "T12",
+    }),
+    []
+  );
+
+  const formatXLabel = (itemWeek: string) => {
+    if (viewMode === "YEAR") {
+      if (isVi && MONTH_SHORT_MAP[itemWeek]) {
+        return MONTH_SHORT_MAP[itemWeek];
+      }
+      return itemWeek;
+    }
+    return `W${itemWeek}`;
+  };
+
+  const formatTooltipHeader = (itemWeek: string) => {
+    if (viewMode === "YEAR") {
+      const m = isVi && MONTH_SHORT_MAP[itemWeek] ? MONTH_SHORT_MAP[itemWeek] : itemWeek;
+      return `${isVi ? "Tháng" : "Month"} ${m}`;
+    }
+    return `${isVi ? "Tuần" : "Week"} ${itemWeek}`;
+  };
 
   // ── KPI derived values ──
   const kpis = useMemo(() => {
@@ -335,14 +364,18 @@ export default function AnalyticsScreen() {
     }));
   }, [categoryProportions, kpis.totalExpense]);
 
-  const fetchAnalytics = async (month: number, year: number) => {
+  const fetchAnalytics = async (
+    month: number,
+    year: number,
+    mode: "MONTH" | "YEAR" = viewMode
+  ) => {
     try {
       setLoading(true);
       setError("");
-      const response = await getTransactionAnalytics(month, year);
+      const response = await getTransactionAnalytics(month, year, mode);
       if (!response.success) throw new Error(response.message);
-      setMonthlyStats(response.data.monthlyStats);
-      setCategoryProportions(response.data.categoryProportions);
+      setMonthlyStats(response.data.monthlyStats || []);
+      setCategoryProportions(response.data.categoryProportions || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : (isVi ? "Có lỗi xảy ra khi tải dữ liệu" : "Failed to load analytics"));
     } finally {
@@ -351,33 +384,38 @@ export default function AnalyticsScreen() {
   };
 
   useEffect(() => {
-    fetchAnalytics(selectedMonth.month, selectedMonth.year);
+    fetchAnalytics(selectedMonth.month, selectedMonth.year, viewMode);
   }, []);
 
   const handleSelectMonth = (index: number) => {
     setSelectedMonthIndex(index);
-    fetchAnalytics(monthOptions[index].month, monthOptions[index].year);
+    fetchAnalytics(monthOptions[index].month, monthOptions[index].year, viewMode);
+  };
+
+  const handleSwitchViewMode = (mode: "MONTH" | "YEAR") => {
+    setViewMode(mode);
+    fetchAnalytics(selectedMonth.month, selectedMonth.year, mode);
   };
 
   // Chart data
   const incomeData = useMemo(
     () =>
       monthlyStats.map((item) => ({
-        week: `W${item.week}`,
+        week: formatXLabel(item.week),
         value: Number(item.income) || 0,
-        label: `${isVi ? "Tuần" : "Week"} ${item.week}\n${isVi ? "Thu" : "Inc"}: ${formatVND(Number(item.income), isVi)}`,
+        label: `${formatTooltipHeader(item.week)}\n${isVi ? "Thu" : "Inc"}: ${formatVND(Number(item.income), isVi)}`,
       })),
-    [monthlyStats, isVi]
+    [monthlyStats, isVi, viewMode]
   );
 
   const expenseData = useMemo(
     () =>
       monthlyStats.map((item) => ({
-        week: `W${item.week}`,
+        week: formatXLabel(item.week),
         value: Number(item.expense) || 0,
-        label: `${isVi ? "Tuần" : "Week"} ${item.week}\n${isVi ? "Chi" : "Exp"}: ${formatVND(Number(item.expense), isVi)}`,
+        label: `${formatTooltipHeader(item.week)}\n${isVi ? "Chi" : "Exp"}: ${formatVND(Number(item.expense), isVi)}`,
       })),
-    [monthlyStats, isVi]
+    [monthlyStats, isVi, viewMode]
   );
 
   const pieData = useMemo(
@@ -407,16 +445,43 @@ export default function AnalyticsScreen() {
             {isVi ? "Phân Tích Thống Kê" : "Financial Analytics"}
           </Text>
           <Text style={styles.pageSubtitle}>
-            {selectedMonth.label} {isVi ? "năm" : ""} {selectedMonth.year}
+            {viewMode === "MONTH"
+              ? `${selectedMonth.label} ${isVi ? "năm" : ""} ${selectedMonth.year}`
+              : `${isVi ? "Cả năm" : "Full year"} ${selectedMonth.year}`}
           </Text>
         </View>
 
-        {/* Month Picker Strip */}
-        <MonthPickerStrip
-          options={monthOptions}
-          selectedIndex={selectedMonthIndex}
-          onSelect={handleSelectMonth}
-        />
+        {/* Mode Switcher Segment (Theo Tháng / Theo Năm) */}
+        <View style={styles.modeToggleRow}>
+          <TouchableOpacity
+            style={[styles.modeTab, viewMode === "MONTH" && styles.modeTabActive]}
+            onPress={() => handleSwitchViewMode("MONTH")}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.modeTabText, viewMode === "MONTH" && styles.modeTabTextActive]}>
+              {isVi ? "Theo Tháng" : "Monthly"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.modeTab, viewMode === "YEAR" && styles.modeTabActive]}
+            onPress={() => handleSwitchViewMode("YEAR")}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.modeTabText, viewMode === "YEAR" && styles.modeTabTextActive]}>
+              {isVi ? `Năm ${selectedMonth.year}` : `Year ${selectedMonth.year}`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Month Picker Strip (only in MONTH mode) */}
+        {viewMode === "MONTH" && (
+          <MonthPickerStrip
+            options={monthOptions}
+            selectedIndex={selectedMonthIndex}
+            onSelect={handleSelectMonth}
+          />
+        )}
 
         {/* Loading */}
         {loading && (
@@ -437,7 +502,7 @@ export default function AnalyticsScreen() {
               value={formatVND(kpis.totalIncome, isVi)}
               accentColor="#10B981"
               icon="↑"
-              subtext={isVi ? "Trong tháng" : "This month"}
+              subtext={isVi ? (viewMode === "MONTH" ? "Trong tháng" : "Trong năm") : (viewMode === "MONTH" ? "This month" : "This year")}
             />
             <KPICard
               cardWidth={kpiCardWidth}
@@ -445,7 +510,7 @@ export default function AnalyticsScreen() {
               value={formatVND(kpis.totalExpense, isVi)}
               accentColor="#EF4444"
               icon="↓"
-              subtext={isVi ? "Trong tháng" : "This month"}
+              subtext={isVi ? (viewMode === "MONTH" ? "Trong tháng" : "Trong năm") : (viewMode === "MONTH" ? "This month" : "This year")}
             />
             <KPICard
               cardWidth={kpiCardWidth}
@@ -483,7 +548,9 @@ export default function AnalyticsScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
-                {isVi ? "Thu Nhập vs Chi Tiêu Theo Tuần" : "Income vs Expense by Week"}
+                {viewMode === "MONTH"
+                  ? (isVi ? "Thu Nhập vs Chi Tiêu Theo Tuần" : "Income vs Expense by Week")
+                  : (isVi ? `Thu Nhập vs Chi Tiêu Các Tháng (Năm ${selectedMonth.year})` : `Income vs Expense by Month (${selectedMonth.year})`)}
               </Text>
               <Text style={styles.sectionCaption}>
                 {isVi ? "Chạm vào cột để xem chi tiết" : "Tap a column to view details"}
@@ -494,7 +561,7 @@ export default function AnalyticsScreen() {
               <VictoryChart
                 theme={VictoryTheme.material}
                 width={chartWidth}
-                domainPadding={{ x: 35, y: [0, 45] }}
+                domainPadding={{ x: viewMode === "YEAR" ? 16 : 35, y: [0, 45] }}
                 domain={maxChartValue === 0 ? { y: [0, 1000000] } : undefined}
                 height={275}
                 padding={{ top: 48, bottom: 40, left: 52, right: 20 }}
@@ -503,7 +570,7 @@ export default function AnalyticsScreen() {
                 <VictoryAxis
                   style={{
                     axis: { stroke: "#E5E7EB" },
-                    tickLabels: { fill: "#64748B", fontSize: 11, fontWeight: "600" },
+                    tickLabels: { fill: "#64748B", fontSize: viewMode === "YEAR" ? 9.5 : 11, fontWeight: "600" },
                     grid: { stroke: "transparent" },
                   }}
                 />
@@ -516,13 +583,13 @@ export default function AnalyticsScreen() {
                     grid: { stroke: "#EEF2F7" },
                   }}
                 />
-                <VictoryGroup offset={20}>
+                <VictoryGroup offset={viewMode === "YEAR" ? 8 : 20}>
                   <VictoryBar
                     data={incomeData}
                     x="week"
                     y="value"
                     labels={({ datum }) => datum.label}
-                    cornerRadius={{ top: 5 }}
+                    cornerRadius={viewMode === "YEAR" ? { top: 3 } : { top: 5 }}
                     labelComponent={
                       <VictoryTooltip
                         constrainToVisibleArea
@@ -532,14 +599,14 @@ export default function AnalyticsScreen() {
                         style={{ fill: "#FFFFFF", fontSize: 11.5, fontWeight: "800" }}
                       />
                     }
-                    style={{ data: { fill: "#10B981", width: 16, strokeWidth: 0 } }}
+                    style={{ data: { fill: "#10B981", width: viewMode === "YEAR" ? 7 : 16, strokeWidth: 0 } }}
                   />
                   <VictoryBar
                     data={expenseData}
                     x="week"
                     y="value"
                     labels={({ datum }) => datum.label}
-                    cornerRadius={{ top: 5 }}
+                    cornerRadius={viewMode === "YEAR" ? { top: 3 } : { top: 5 }}
                     labelComponent={
                       <VictoryTooltip
                         constrainToVisibleArea
@@ -549,7 +616,7 @@ export default function AnalyticsScreen() {
                         style={{ fill: "#FFFFFF", fontSize: 11.5, fontWeight: "800" }}
                       />
                     }
-                    style={{ data: { fill: "#EF4444", width: 16, strokeWidth: 0 } }}
+                    style={{ data: { fill: "#EF4444", width: viewMode === "YEAR" ? 7 : 16, strokeWidth: 0 } }}
                   />
                 </VictoryGroup>
               </VictoryChart>
@@ -706,6 +773,39 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontWeight: "600",
     marginTop: 2,
+  },
+
+  // Mode Switcher Segment
+  modeToggleRow: {
+    flexDirection: "row",
+    backgroundColor: "#EEF2F7",
+    borderRadius: 12,
+    padding: 3,
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  modeTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 9,
+  },
+  modeTabActive: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  modeTabText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  modeTabTextActive: {
+    color: "#3629B7",
+    fontWeight: "800",
   },
 
   // Month picker strip
