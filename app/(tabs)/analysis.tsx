@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   ActivityIndicator,
+  PanResponder,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -298,17 +299,70 @@ export default function AnalyticsScreen() {
   };
 
   const { width } = useWindowDimensions();
-  const chartWidth = width - 64; // Account for section margin (40) and padding (24)
-  const pieSize = Math.min(180, width * 0.42);
-  const pieCanvasWidth = pieSize + 40;
-  const pieCanvasHeight = pieSize + 48;
-  const kpiCardWidth = (width - 40 - 10) / 2; // Exact 2 cards per row
+  const sectionInnerWidth = width - 64; // Total width inside section card
+  const yAxisWidth = 52; // Fixed width for Y axis sidebar
+  const scrollAreaWidth = Math.max(100, sectionInnerWidth - yAxisWidth);
 
   const monthOptions = useMemo(() => getPreviousTwelveMonths(isVi), [isVi]);
   const [selectedMonthIndex, setSelectedMonthIndex] = useState(monthOptions.length - 1);
   const selectedMonth = monthOptions[selectedMonthIndex];
 
+  const pieSize = Math.min(180, width * 0.42);
+  const pieCanvasWidth = pieSize + 40;
+  const pieCanvasHeight = pieSize + 48;
+  const kpiCardWidth = (width - 40 - 10) / 2; // Exact 2 cards per row
+
   const [viewMode, setViewMode] = useState<"MONTH" | "YEAR">("MONTH");
+  const [zoomScale, setZoomScale] = useState<number>(1);
+  const zoomScaleRef = useRef<number>(1);
+  zoomScaleRef.current = zoomScale;
+
+  const initialPinchDistRef = useRef<number | null>(null);
+  const initialScaleRef = useRef<number>(1);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: (evt) => (evt.nativeEvent.touches?.length || 0) >= 2,
+      onStartShouldSetPanResponderCapture: (evt) => (evt.nativeEvent.touches?.length || 0) >= 2,
+      onMoveShouldSetPanResponder: (evt) => (evt.nativeEvent.touches?.length || 0) >= 2,
+      onMoveShouldSetPanResponderCapture: (evt) => (evt.nativeEvent.touches?.length || 0) >= 2,
+      onPanResponderGrant: (evt) => {
+        const touches = evt.nativeEvent.touches;
+        if (touches && touches.length >= 2) {
+          const dx = touches[0].pageX - touches[1].pageX;
+          const dy = touches[0].pageY - touches[1].pageY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 0) {
+            initialPinchDistRef.current = dist;
+            initialScaleRef.current = zoomScaleRef.current;
+          }
+        }
+      },
+      onPanResponderMove: (evt) => {
+        const touches = evt.nativeEvent.touches;
+        if (touches && touches.length >= 2 && initialPinchDistRef.current && initialPinchDistRef.current > 0) {
+          const dx = touches[0].pageX - touches[1].pageX;
+          const dy = touches[0].pageY - touches[1].pageY;
+          const currentDist = Math.sqrt(dx * dx + dy * dy);
+          const factor = currentDist / initialPinchDistRef.current;
+          const targetScale = Math.min(2.5, Math.max(1.0, initialScaleRef.current * factor));
+          setZoomScale(Number(targetScale.toFixed(2)));
+        }
+      },
+      onPanResponderRelease: () => {
+        initialPinchDistRef.current = null;
+      },
+      onPanResponderTerminate: () => {
+        initialPinchDistRef.current = null;
+      },
+    })
+  ).current;
+
+  const effectiveChartWidth = Math.round(scrollAreaWidth * zoomScale);
+  const barWidth = viewMode === "YEAR" ? Math.round(7 * zoomScale) : Math.round(16 * zoomScale);
+  const barOffset = viewMode === "YEAR" ? Math.round(8 * zoomScale) : Math.round(20 * zoomScale);
+  const domainPaddingX = viewMode === "YEAR" ? Math.round(14 * zoomScale) : Math.round(30 * zoomScale);
+  const tickFontSize = viewMode === "YEAR" ? (zoomScale > 1.2 ? 10.5 : 9.5) : 11;
 
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
   const [categoryProportions, setCategoryProportions] = useState<CategoryProportion[]>([]);
@@ -319,6 +373,23 @@ export default function AnalyticsScreen() {
     () => ({
       Jan: "T1", Feb: "T2", Mar: "T3", Apr: "T4", May: "T5", Jun: "T6",
       Jul: "T7", Aug: "T8", Sep: "T9", Oct: "T10", Nov: "T11", Dec: "T12",
+    }),
+    []
+  );
+
+  const MONTH_NUMBER_MAP: Record<string, string> = useMemo(
+    () => ({
+      Jan: "1", Feb: "2", Mar: "3", Apr: "4", May: "5", Jun: "6",
+      Jul: "7", Aug: "8", Sep: "9", Oct: "10", Nov: "11", Dec: "12",
+    }),
+    []
+  );
+
+  const MONTH_FULL_EN_MAP: Record<string, string> = useMemo(
+    () => ({
+      Jan: "January", Feb: "February", Mar: "March", Apr: "April",
+      May: "May", Jun: "June", Jul: "July", Aug: "August",
+      Sep: "September", Oct: "October", Nov: "November", Dec: "December",
     }),
     []
   );
@@ -335,8 +406,11 @@ export default function AnalyticsScreen() {
 
   const formatTooltipHeader = (itemWeek: string) => {
     if (viewMode === "YEAR") {
-      const m = isVi && MONTH_SHORT_MAP[itemWeek] ? MONTH_SHORT_MAP[itemWeek] : itemWeek;
-      return `${isVi ? "Tháng" : "Month"} ${m}`;
+      if (isVi) {
+        const num = MONTH_NUMBER_MAP[itemWeek] || itemWeek;
+        return `Tháng ${num}`;
+      }
+      return MONTH_FULL_EN_MAP[itemWeek] || itemWeek;
     }
     return `${isVi ? "Tuần" : "Week"} ${itemWeek}`;
   };
@@ -355,6 +429,16 @@ export default function AnalyticsScreen() {
     const vals = monthlyStats.flatMap(m => [Number(m.income) || 0, Number(m.expense) || 0]);
     return Math.max(...vals, 0);
   }, [monthlyStats]);
+
+  const yDomain = useMemo<[number, number]>(
+    () => [0, maxChartValue === 0 ? 1000000 : maxChartValue],
+    [maxChartValue]
+  );
+
+  const dummyYData = useMemo(
+    () => monthlyStats.map((item) => ({ week: item.week, value: Number(item.income) || 0 })),
+    [monthlyStats]
+  );
 
   const categoryWithAmount = useMemo(() => {
     return categoryProportions.map((cat, idx) => ({
@@ -394,6 +478,7 @@ export default function AnalyticsScreen() {
 
   const handleSwitchViewMode = (mode: "MONTH" | "YEAR") => {
     setViewMode(mode);
+    setZoomScale(1);
     fetchAnalytics(selectedMonth.month, selectedMonth.year, mode);
   };
 
@@ -550,76 +635,119 @@ export default function AnalyticsScreen() {
               <Text style={styles.sectionTitle}>
                 {viewMode === "MONTH"
                   ? (isVi ? "Thu Nhập vs Chi Tiêu Theo Tuần" : "Income vs Expense by Week")
-                  : (isVi ? `Thu Nhập vs Chi Tiêu Các Tháng (Năm ${selectedMonth.year})` : `Income vs Expense by Month (${selectedMonth.year})`)}
+                  : (isVi ? `Thu Nhập vs Chi Tiêu Các Tháng (${selectedMonth.year})` : `Income vs Expense by Month (${selectedMonth.year})`)}
               </Text>
               <Text style={styles.sectionCaption}>
-                {isVi ? "Chạm vào cột để xem chi tiết" : "Tap a column to view details"}
+                {isVi ? "Dùng 2 ngón tay để zoom • Vuốt ngang để xem" : "Pinch 2 fingers • Swipe to scroll"}
               </Text>
             </View>
 
-            <View style={styles.chartWrap}>
-              <VictoryChart
-                theme={VictoryTheme.material}
-                width={chartWidth}
-                domainPadding={{ x: viewMode === "YEAR" ? 16 : 35, y: [0, 45] }}
-                domain={maxChartValue === 0 ? { y: [0, 1000000] } : undefined}
-                height={275}
-                padding={{ top: 48, bottom: 40, left: 52, right: 20 }}
-                animate={{ duration: 500 }}
-              >
-                <VictoryAxis
-                  style={{
-                    axis: { stroke: "#E5E7EB" },
-                    tickLabels: { fill: "#64748B", fontSize: viewMode === "YEAR" ? 9.5 : 11, fontWeight: "600" },
-                    grid: { stroke: "transparent" },
-                  }}
-                />
-                <VictoryAxis
-                  dependentAxis
-                  tickFormat={(t) => formatVND(Number(t), isVi)}
-                  style={{
-                    axis: { stroke: "transparent" },
-                    tickLabels: { fill: "#64748B", fontSize: 10 },
-                    grid: { stroke: "#EEF2F7" },
-                  }}
-                />
-                <VictoryGroup offset={viewMode === "YEAR" ? 8 : 20}>
-                  <VictoryBar
-                    data={incomeData}
-                    x="week"
-                    y="value"
-                    labels={({ datum }) => datum.label}
-                    cornerRadius={viewMode === "YEAR" ? { top: 3 } : { top: 5 }}
-                    labelComponent={
-                      <VictoryTooltip
-                        constrainToVisibleArea
-                        pointerLength={10}
-                        dy={-4}
-                        flyoutStyle={{ fill: "#111827", stroke: "#111827", rx: 6, ry: 6 }}
-                        style={{ fill: "#FFFFFF", fontSize: 11.5, fontWeight: "800" }}
-                      />
-                    }
-                    style={{ data: { fill: "#10B981", width: viewMode === "YEAR" ? 7 : 16, strokeWidth: 0 } }}
+            {/* Split Chart View: Sticky Y-Axis (Left) + Scrollable Bars (Right) */}
+            <View style={styles.stickyChartContainer} {...panResponder.panHandlers}>
+              {/* Left Fixed Y-Axis */}
+              <View style={{ width: yAxisWidth, overflow: "hidden" }}>
+                <VictoryChart
+                  theme={VictoryTheme.material}
+                  width={yAxisWidth + 10}
+                  domain={{ y: yDomain }}
+                  domainPadding={{ y: [0, 45] }}
+                  height={275}
+                  padding={{ top: 48, bottom: 40, left: 44, right: 0 }}
+                >
+                  <VictoryAxis
+                    dependentAxis
+                    tickFormat={(t) => formatVND(Number(t), isVi)}
+                    style={{
+                      axis: { stroke: "transparent" },
+                      ticks: { stroke: "transparent" },
+                      tickLabels: { fill: "#64748B", fontSize: 10, fontWeight: "600" },
+                      grid: { stroke: "transparent" },
+                    }}
                   />
                   <VictoryBar
-                    data={expenseData}
+                    data={dummyYData}
                     x="week"
                     y="value"
-                    labels={({ datum }) => datum.label}
-                    cornerRadius={viewMode === "YEAR" ? { top: 3 } : { top: 5 }}
-                    labelComponent={
-                      <VictoryTooltip
-                        constrainToVisibleArea
-                        pointerLength={10}
-                        dy={-4}
-                        flyoutStyle={{ fill: "#111827", stroke: "#111827", rx: 6, ry: 6 }}
-                        style={{ fill: "#FFFFFF", fontSize: 11.5, fontWeight: "800" }}
-                      />
-                    }
-                    style={{ data: { fill: "#EF4444", width: viewMode === "YEAR" ? 7 : 16, strokeWidth: 0 } }}
+                    style={{ data: { fill: "transparent", width: 0 } }}
                   />
-                </VictoryGroup>
-              </VictoryChart>
+                </VictoryChart>
+              </View>
+
+              {/* Right Scrollable Chart */}
+              <View style={{ flex: 1 }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={zoomScale > 1}
+                  contentContainerStyle={zoomScale > 1 ? { paddingRight: 16 } : undefined}
+                  bounces={false}
+                >
+                  <View style={{ width: effectiveChartWidth }}>
+                    <VictoryChart
+                      theme={VictoryTheme.material}
+                      width={effectiveChartWidth}
+                      domain={{ y: yDomain }}
+                      domainPadding={{ x: domainPaddingX, y: [0, 45] }}
+                      height={275}
+                      padding={{ top: 48, bottom: 40, left: 10, right: 20 }}
+                      animate={{ duration: 200 }}
+                    >
+                      <VictoryAxis
+                        dependentAxis
+                        tickFormat={() => ""}
+                        style={{
+                          axis: { stroke: "transparent" },
+                          ticks: { stroke: "transparent" },
+                          tickLabels: { fill: "transparent" },
+                          grid: { stroke: "#EEF2F7" },
+                        }}
+                      />
+                      <VictoryAxis
+                        style={{
+                          axis: { stroke: "#E5E7EB" },
+                          tickLabels: { fill: "#64748B", fontSize: tickFontSize, fontWeight: "600" },
+                          grid: { stroke: "transparent" },
+                        }}
+                      />
+                      <VictoryGroup offset={barOffset}>
+                        <VictoryBar
+                          data={incomeData}
+                          x="week"
+                          y="value"
+                          labels={({ datum }) => datum.label}
+                          cornerRadius={viewMode === "YEAR" ? { top: 3 } : { top: 5 }}
+                          labelComponent={
+                            <VictoryTooltip
+                              constrainToVisibleArea
+                              pointerLength={10}
+                              dy={-4}
+                              flyoutStyle={{ fill: "#111827", stroke: "#111827", rx: 6, ry: 6 }}
+                              style={{ fill: "#FFFFFF", fontSize: 11.5, fontWeight: "800" }}
+                            />
+                          }
+                          style={{ data: { fill: "#10B981", width: barWidth, strokeWidth: 0 } }}
+                        />
+                        <VictoryBar
+                          data={expenseData}
+                          x="week"
+                          y="value"
+                          labels={({ datum }) => datum.label}
+                          cornerRadius={viewMode === "YEAR" ? { top: 3 } : { top: 5 }}
+                          labelComponent={
+                            <VictoryTooltip
+                              constrainToVisibleArea
+                              pointerLength={10}
+                              dy={-4}
+                              flyoutStyle={{ fill: "#111827", stroke: "#111827", rx: 6, ry: 6 }}
+                              style={{ fill: "#FFFFFF", fontSize: 11.5, fontWeight: "800" }}
+                            />
+                          }
+                          style={{ data: { fill: "#EF4444", width: barWidth, strokeWidth: 0 } }}
+                        />
+                      </VictoryGroup>
+                    </VictoryChart>
+                  </View>
+                </ScrollView>
+              </View>
             </View>
 
             <View style={styles.legendRow}>
@@ -941,6 +1069,30 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sectionHeader: { marginBottom: 6, paddingHorizontal: 6 },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+    paddingHorizontal: 4,
+  },
+  stickyChartContainer: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    justifyContent: "flex-start",
+  },
+  scaleBadge: {
+    backgroundColor: "#EEF2F7",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: "center",
+  },
+  scaleBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#3629B7",
+  },
   sectionTitle: { fontSize: 15, fontWeight: "800", color: "#111827" },
   sectionCaption: { marginTop: 2, fontSize: 11, color: "#94A3B8", fontWeight: "500" },
 
