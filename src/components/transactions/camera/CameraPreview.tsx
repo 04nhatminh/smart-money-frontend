@@ -27,7 +27,7 @@ export function CameraPreview({ uri, onRetake, onConfirm }: Props) {
 
       {/* Image Preview */}
       <View style={styles.imageContainer}>
-        <Image source={{ uri }} style={styles.image} />
+        <Image source={{ uri }} style={styles.image} resizeMode="contain" />
       </View>
 
       {/* Actions */}

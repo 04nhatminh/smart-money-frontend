@@ -20,12 +20,18 @@ type Props = {
   onClose: () => void;
 };
 
+// Guide frame geometry — MUST stay in sync with styles.frameGuide / frameGuideContainer below
+const GUIDE_WIDTH_FRACTION = 0.8; // frameGuide width: "80%"
+const GUIDE_ASPECT = 1.4; // frameGuide aspectRatio 1 / 1.4  (height = width * 1.4)
+const GUIDE_PADDING_BOTTOM = 40; // frameGuideContainer paddingBottom
+
 export function CameraScreen({ onCapture, onClose }: Props) {
   const { theme } = useThemeMode();
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [isRecording, setIsRecording] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraLayout, setCameraLayout] = useState<{ width: number; height: number } | null>(null);
 
   if (!permission) {
     return (
@@ -74,16 +80,65 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         quality: 0.8,
       });
 
-      // 🔥 crop theo tỉ lệ frame (5:4)
+      // 🔥 crop to match the on-screen guide frame.
+      // The preview renders "cover" (sensor image scaled to fill the view, overflow
+      // clipped), so the guide rect covers only a small central part of the full
+      // sensor image. Invert that transform to map the guide into sensor pixels.
+      const { uri, width, height } = photo;
+
+      let cropW: number, cropH: number, originX: number, originY: number;
+
+      if (cameraLayout && cameraLayout.width > 0 && cameraLayout.height > 0) {
+        const Lw = cameraLayout.width;
+        const Lh = cameraLayout.height;
+
+        // "cover" scale + centering offsets of the sensor image within the view
+        const scale = Math.max(Lw / width, Lh / height);
+        const offsetX = (Lw - width * scale) / 2;
+        const offsetY = (Lh - height * scale) / 2;
+
+        // Guide rect in view coords: centered horizontally, centered within the
+        // padded content box vertically (frameGuideContainer paddingBottom).
+        const frameW = Lw * GUIDE_WIDTH_FRACTION;
+        const frameH = frameW * GUIDE_ASPECT;
+        const frameLeft = (Lw - frameW) / 2;
+        const frameTop = (Lh - GUIDE_PADDING_BOTTOM) / 2 - frameH / 2;
+
+        cropW = frameW / scale;
+        cropH = frameH / scale;
+        originX = (frameLeft - offsetX) / scale;
+        originY = (frameTop - offsetY) / scale;
+
+        // Clamp to image bounds
+        cropW = Math.min(cropW, width);
+        cropH = Math.min(cropH, height);
+        originX = Math.max(0, Math.min(originX, width - cropW));
+        originY = Math.max(0, Math.min(originY, height - cropH));
+      } else {
+        // Fallback: centered portrait crop when layout isn't measured yet
+        const targetRatio = 1 / GUIDE_ASPECT;
+        cropW = width * GUIDE_WIDTH_FRACTION;
+        cropH = cropW / targetRatio;
+        if (cropH > height) {
+          cropH = height;
+          cropW = cropH * targetRatio;
+        }
+        originX = (width - cropW) / 2;
+        originY = (height - cropH) / 2;
+      }
+
+      console.log("📷 photo dims:", width, "x", height, "layout:", cameraLayout);
+      console.log("✂️ crop rect:", { originX, originY, cropW, cropH });
+
       const cropped = await ImageManipulator.manipulateAsync(
-        photo.uri,
+        uri,
         [
           {
             crop: {
-              originX: 0,
-              originY: 0,
-              width: photo.width,
-              height: photo.width * (4 / 5),
+              originX,
+              originY,
+              width: cropW,
+              height: cropH,
             },
           },
         ],
@@ -131,6 +186,12 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         facing="back"
         flash="auto"
         onCameraReady={() => setCameraReady(true)}
+        onLayout={(e) =>
+          setCameraLayout({
+            width: e.nativeEvent.layout.width,
+            height: e.nativeEvent.layout.height,
+          })
+        }
       />
 
       {/* Receipt Guide Frame - Overlay */}
