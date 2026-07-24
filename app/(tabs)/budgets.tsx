@@ -348,9 +348,8 @@ export default function BudgetListPage() {
     }
 
     return (
-        <KeyboardScreen keyboardVerticalOffset={80}>
-            <SafeAreaView style={styles.container}>
-                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
                 {/* Sticky Header */}
                 <View style={styles.header}>
@@ -436,7 +435,6 @@ export default function BudgetListPage() {
                     }}
                 />
             </SafeAreaView>
-        </KeyboardScreen>
     );
 }
 
