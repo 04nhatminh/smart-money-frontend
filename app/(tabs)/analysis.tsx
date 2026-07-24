@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   PanResponder,
   Platform,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -314,6 +315,7 @@ export default function AnalyticsScreen() {
 
   const [viewMode, setViewMode] = useState<"MONTH" | "YEAR">("MONTH");
   const [zoomScale, setZoomScale] = useState<number>(1);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const zoomScaleRef = useRef<number>(1);
   zoomScaleRef.current = zoomScale;
 
@@ -440,13 +442,18 @@ export default function AnalyticsScreen() {
     [monthlyStats]
   );
 
+  const activeCategoryProportions = useMemo(
+    () => categoryProportions.filter((c) => (Number(c.count) || 0) > 0 || (Number(c.percentage) || 0) > 0),
+    [categoryProportions]
+  );
+
   const categoryWithAmount = useMemo(() => {
-    return categoryProportions.map((cat, idx) => ({
+    return activeCategoryProportions.map((cat, idx) => ({
       ...cat,
       color: getCategoryColor(cat.category, idx),
       estimatedExpense: kpis.totalExpense * (cat.percentage / 100),
     }));
-  }, [categoryProportions, kpis.totalExpense]);
+  }, [activeCategoryProportions, kpis.totalExpense]);
 
   const fetchAnalytics = async (
     month: number,
@@ -456,6 +463,7 @@ export default function AnalyticsScreen() {
     try {
       setLoading(true);
       setError("");
+      setSelectedCategory(null);
       const response = await getTransactionAnalytics(month, year, mode);
       if (!response.success) throw new Error(response.message);
       setMonthlyStats(response.data.monthlyStats || []);
@@ -505,17 +513,16 @@ export default function AnalyticsScreen() {
 
   const pieData = useMemo(
     () =>
-      categoryProportions.map((item) => ({
+      activeCategoryProportions.map((item) => ({
         x: item.category,
         y: Number(item.count) || 0,
-        label: `${item.category}\n${item.count} ${isVi ? "GD" : "tx"} (${item.percentage.toFixed(1)}%)`,
       })),
-    [categoryProportions, isVi]
+    [activeCategoryProportions]
   );
 
   const pieColors = useMemo(
-    () => categoryProportions.map((item, idx) => getCategoryColor(item.category, idx)),
-    [categoryProportions]
+    () => activeCategoryProportions.map((item, idx) => getCategoryColor(item.category, idx)),
+    [activeCategoryProportions]
   );
 
   return (
@@ -523,6 +530,14 @@ export default function AnalyticsScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={() => {
+            if (selectedCategory) {
+              setSelectedCategory(null);
+            }
+          }}
+        >
 
         {/* Header */}
         <View style={styles.pageHeader}>
@@ -781,50 +796,87 @@ export default function AnalyticsScreen() {
                   data={pieData}
                   width={pieCanvasWidth}
                   height={pieCanvasHeight}
-                  padding={{ top: 32, bottom: 16, left: 20, right: 20 }}
+                  padding={{ top: 16, bottom: 16, left: 16, right: 16 }}
                   innerRadius={36}
-                  animate={{ duration: 500 }}
-                  labels={({ datum }) => datum.label}
+                  animate={{ duration: 300 }}
+                  labels={() => null}
                   colorScale={pieColors}
-                  labelComponent={
-                    <VictoryTooltip
-                      constrainToVisibleArea
-                      pointerLength={8}
-                      flyoutStyle={{ fill: "#111827", stroke: "#111827", rx: 6, ry: 6 }}
-                      style={{ fill: "#FFFFFF", fontSize: 11.5, fontWeight: "800" }}
-                    />
-                  }
-                  style={{ data: { stroke: "#FFFFFF", strokeWidth: 2 } }}
+                  events={[
+                    {
+                      target: "data",
+                      eventHandlers: {
+                        onPressIn: () => {
+                          return [
+                            {
+                              target: "data",
+                              mutation: (props) => {
+                                const catName = props.datum.x;
+                                setSelectedCategory((prev) => (prev === catName ? null : catName));
+                                return null;
+                              },
+                            },
+                          ];
+                        },
+                      },
+                    },
+                  ]}
+                  style={{
+                    data: {
+                      stroke: ({ datum }) => (datum.x === selectedCategory ? "#1E293B" : "#FFFFFF"),
+                      strokeWidth: ({ datum }) => (datum.x === selectedCategory ? 3 : 2),
+                      opacity: ({ datum }) => (selectedCategory ? (datum.x === selectedCategory ? 1 : 0.4) : 1),
+                    },
+                  }}
                 />
               </View>
 
-              {/* Category list with Budget-matched colors */}
+              {/* Category list with interactive tap and highlight */}
               <View style={styles.categoryList}>
-                {categoryWithAmount.map((item) => (
-                  <View key={item.category} style={styles.categoryItem}>
-                    <View
+                {categoryWithAmount.map((item) => {
+                  const isSelected = selectedCategory === item.category;
+                  const isDimmed = !!selectedCategory && !isSelected;
+
+                  return (
+                    <TouchableOpacity
+                      key={item.category}
                       style={[
-                        styles.categoryDot,
-                        { backgroundColor: item.color },
+                        styles.categoryItem,
+                        isSelected && styles.categoryItemActive,
+                        isDimmed && styles.categoryItemDimmed,
                       ]}
-                    />
-                    <View style={styles.categoryMeta}>
-                      <Text style={styles.categoryText} numberOfLines={1}>
-                        {item.category}
-                      </Text>
-                      <View style={styles.categoryBottom}>
-                        <Text style={[styles.categoryPercent, { color: item.color }]}>
-                          {item.percentage.toFixed(1)}%
+                      onPress={() => setSelectedCategory((prev) => (prev === item.category ? null : item.category))}
+                      activeOpacity={0.75}
+                    >
+                      <View
+                        style={[
+                          styles.categoryDot,
+                          { backgroundColor: item.color },
+                          isSelected && { transform: [{ scale: 1.3 }] },
+                        ]}
+                      />
+                      <View style={styles.categoryMeta}>
+                        <Text style={[styles.categoryText, isSelected && styles.categoryTextActive]} numberOfLines={1}>
+                          {item.category}
                         </Text>
-                        {item.estimatedExpense > 0 && (
-                          <Text style={styles.categoryAmount}>
-                            ~{formatVND(item.estimatedExpense, isVi)}
+                        <View style={styles.categoryBottom}>
+                          <Text style={[styles.categoryPercent, { color: item.color }]}>
+                            {item.percentage.toFixed(1)}%
                           </Text>
-                        )}
+                          {item.estimatedExpense > 0 && (
+                            <Text style={[styles.categoryAmount, isSelected && styles.categoryAmountActive]}>
+                              ~{formatVND(item.estimatedExpense, isVi)}
+                            </Text>
+                          )}
+                        </View>
                       </View>
-                    </View>
-                  </View>
-                ))}
+                      {isSelected && (
+                        <View style={[styles.categoryCheck, { backgroundColor: item.color }]}>
+                          <Text style={styles.categoryCheckText}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           </View>
@@ -845,6 +897,7 @@ export default function AnalyticsScreen() {
           </View>
         )}
 
+        </Pressable>
       </ScrollView>
 
       <AppBottomBar
@@ -1051,6 +1104,35 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginHorizontal: 20,
   },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    marginHorizontal: 20,
+    marginBottom: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+  },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#64748B",
+    textAlign: "center",
+  },
 
   // Sections
   section: {
@@ -1108,32 +1190,46 @@ const styles = StyleSheet.create({
   pieChart: { alignItems: "center", justifyContent: "center" },
 
   // Category list
-  categoryList: { flex: 1, paddingLeft: 8, gap: 8 },
-  categoryItem: { flexDirection: "row", alignItems: "flex-start" },
-  categoryDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8, marginTop: 3 },
+  categoryList: { flex: 1, paddingLeft: 6, gap: 4 },
+  categoryItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  categoryItemActive: {
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  categoryItemDimmed: {
+    opacity: 0.4,
+  },
+  categoryDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
   categoryMeta: { flex: 1 },
   categoryText: { fontSize: 12, color: "#334155", fontWeight: "700" },
+  categoryTextActive: { fontSize: 12.5, color: "#0F172A", fontWeight: "800" },
   categoryBottom: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 1 },
   categoryPercent: { fontSize: 11, fontWeight: "700" },
   categoryAmount: { fontSize: 10, color: "#94A3B8", fontWeight: "600" },
-
-  // Empty state
-  emptyState: {
+  categoryAmountActive: { color: "#475569", fontWeight: "700" },
+  categoryCheck: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: "center",
-    paddingVertical: 50,
-    paddingHorizontal: 20,
+    justifyContent: "center",
+    marginLeft: 4,
   },
-  emptyIcon: { fontSize: 44, marginBottom: 10 },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#3629B7",
-    marginBottom: 4,
-  },
-  emptySubtitle: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
-    textAlign: "center",
+  categoryCheckText: {
+    fontSize: 9.5,
+    color: "#FFFFFF",
+    fontWeight: "900",
   },
 });
