@@ -31,6 +31,7 @@ import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { useAIInsight } from "../../src/hooks/useAIInsight";
 import QuickFeatureSection from "../../src/components/home/QuickFeatureSection";
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
+import ProjectTypeSelectionModal from "../../src/components/projects/ProjectTypeSelectionModal";
 import LatestProjectsSection, { LatestProjectItem } from "../../src/components/home/LatestProjectsSection";
 import InsightsPreviewSection from "../../src/components/home/InsightsPreviewSection";
 import PendingSuggestionsSection from "../../src/components/home/PendingSuggestionsSection";
@@ -97,6 +98,7 @@ export default function HomePage() {
   const [cameraVisible, setCameraVisible] = useState(false);
   const [voiceVisible, setVoiceVisible] = useState(false);
   const [manualVisible, setManualVisible] = useState(false);
+  const [isProjectTypeSelectionVisible, setProjectTypeSelectionVisible] = useState(false);
   const [isCreateProjectVisible, setCreateProjectVisible] = useState(false);
   const [showFinancialSetup, setShowFinancialSetup] = useState(false);
 
@@ -136,6 +138,7 @@ export default function HomePage() {
   });
 
   const shouldHideBottomBar =
+    isProjectTypeSelectionVisible ||
     isCreateProjectVisible ||
     cameraVisible ||
     voiceVisible ||
@@ -693,7 +696,7 @@ export default function HomePage() {
 
           {/* Quick Feature Section */}
           <QuickFeatureSection
-            onOpenCreateProject={() => setCreateProjectVisible(true)}
+            onOpenCreateProject={() => setProjectTypeSelectionVisible(true)}
             onOpenClassify={() => { panelRef.current?.open(); }}
           />
 
@@ -707,7 +710,7 @@ export default function HomePage() {
           <LatestProjectsSection
             projects={latestProjects}
             loading={latestProjectsLoading}
-            onAddPress={() => setCreateProjectVisible(true)}
+            onAddPress={() => setProjectTypeSelectionVisible(true)}
           />
 
           {/* Budgets Section */}
@@ -806,6 +809,18 @@ export default function HomePage() {
           loadTransactions();
           loadAnalyticsSummary();
         }}
+      />
+
+      <ProjectTypeSelectionModal
+        visible={isProjectTypeSelectionVisible}
+        onClose={() => setProjectTypeSelectionVisible(false)}
+        onSelectPersonal={() => setCreateProjectVisible(true)}
+        onSelectGroup={() =>
+          router.push({
+            pathname: "/(tabs)/project",
+            params: { tab: "group" },
+          })
+        }
       />
 
       <CreateProjectModal

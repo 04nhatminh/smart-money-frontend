@@ -39,8 +39,15 @@ function GroupCard({ group, onPress }: { group: GroupListItemResponse; onPress: 
   const { user } = useAuth();
   const c = GROUP_STATUS_COLORS[group.status] ?? GROUP_STATUS_COLORS.DISSOLVED;
   const isAdmin = group.adminId === user?.id;
+
   return (
-    <Pressable style={groupStyles.card} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [
+        groupStyles.card,
+        pressed && { opacity: 0.92, backgroundColor: "#FAFAFC" },
+      ]}
+      onPress={onPress}
+    >
       <View style={groupStyles.cardHeader}>
         <View style={groupStyles.iconWrap}>
           <Ionicons name="people" size={22} color="#3629B7" />
@@ -62,9 +69,15 @@ function GroupCard({ group, onPress }: { group: GroupListItemResponse; onPress: 
           </View>
         </View>
       </View>
+
       <View style={groupStyles.footer}>
-        <Ionicons name="person-outline" size={13} color="#9CA3AF" />
-        <Text style={groupStyles.footerText}>{group.memberCount} member{group.memberCount !== 1 ? "s" : ""}</Text>
+        <View style={groupStyles.memberCountRow}>
+          <Ionicons name="person-outline" size={13} color="#64748B" />
+          <Text style={groupStyles.footerText}>
+            {group.memberCount} thành viên
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
       </View>
     </Pressable>
   );
@@ -81,11 +94,24 @@ export default function ProjectScreen() {
   const [createSeedDeadline, setCreateSeedDeadline] = useState<string | undefined>(undefined);
 
   // create=1 route param -> auto-open the create modal pre-filled with the seeds.
-  const { create, amount, deadline } = useLocalSearchParams<{
+  // tab=group route param -> switch to group tab.
+  const { create, amount, deadline, tab } = useLocalSearchParams<{
     create?: string;
     amount?: string;
     deadline?: string;
+    tab?: string;
   }>();
+
+  useEffect(() => {
+    if (tab === "group") {
+      setTabMode("group");
+      router.setParams({ tab: undefined });
+    } else if (tab === "personal") {
+      setTabMode("personal");
+      router.setParams({ tab: undefined });
+    }
+  }, [tab]);
+
   useEffect(() => {
     if (create === "1") {
       const seed = Number(amount);
@@ -346,23 +372,44 @@ const groupStyles = StyleSheet.create({
   },
   emptyCreateBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
   card: {
-    backgroundColor: "#FFFFFF", borderRadius: 18, padding: 16,
-    shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1.5,
   },
-  cardHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   iconWrap: {
-    width: 42, height: 42, borderRadius: 21,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: "#EEF0FF", justifyContent: "center", alignItems: "center",
   },
   cardInfo: { flex: 1 },
-  cardName: { fontSize: 15, fontWeight: "700", color: "#0F172A" },
+  cardName: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
   cardDesc: { fontSize: 12, color: "#64748B", marginTop: 2 },
   badges: { flexDirection: "row", gap: 6, alignItems: "center" },
   adminBadge: { backgroundColor: "#EEF0FF", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   adminBadgeText: { fontSize: 10, fontWeight: "700", color: "#3629B7" },
   statusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   statusChipText: { fontSize: 10, fontWeight: "700" },
-  footer: { flexDirection: "row", alignItems: "center", gap: 4 },
-  footerText: { fontSize: 12, color: "#9CA3AF" },
+  
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  memberCountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  footerText: { fontSize: 12, color: "#64748B", fontWeight: "500" },
 });
