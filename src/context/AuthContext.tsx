@@ -3,6 +3,7 @@ import { tokenStorage } from "../storage/tokenStorage";
 import { userStorage } from "../storage/userStorage";
 import authService from "../auth/authService";
 import AuthApi from "../api/auth.api";
+import { refreshToken as refreshTokenFromHttp, setSessionExpiredHandler } from "../api/http";
 import { UserResponse, UpdateUserRequest } from "../types/auth.types";
 import { initWebSocket, disconnectWebSocket } from "../services/websocket";
 
@@ -25,9 +26,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState<UserResponse | null>(null);
 
-  // Initialize auth service
+  // Initialize auth service & register session expired listener
   useEffect(() => {
-    console.log("🔐 [AuthProvider] Mounted, checking auth status...");
+    console.log("🔐 [AuthProvider] Mounted, setting up session listener and checking auth status...");
+    setSessionExpiredHandler(() => {
+      console.log("🔒 [AuthProvider] Session expired event received from http interceptor");
+      disconnectWebSocket();
+      setUser(null);
+      setIsSignedIn(false);
+    });
     checkAuthStatus();
   }, []);
 
@@ -83,48 +90,29 @@ const checkAuthStatus = async () => {
 
     if (refreshToken) {
       try {
-        console.log("🔄 [AuthProvider] Refreshing token...");
+        console.log("🔄 [AuthProvider] Refreshing token via shared refreshToken manager...");
 
-        const res = await authService.refreshToken({ refreshToken });
+        await refreshTokenFromHttp();
 
-        if (res.success && res.data) {
-          console.log("✅ [AuthProvider] Token refreshed successfully");
-          await tokenStorage.setAccessToken(res.data.accessToken);
-
-          if (res.data.refreshToken) {
-            await tokenStorage.setRefreshToken(res.data.refreshToken);
-          }
-
-          const userData = await loadCurrentUser();
-          setUser(userData);
-          setIsSignedIn(true);
-          
-          // 🔌 Initialize WebSocket after token refresh
-          if (userData?.id) {
-            try {
-              await initWebSocket(userData.id);
-              console.log("✅ [AuthProvider] WebSocket initialized after refresh");
-            } catch (err) {
-              console.error("❌ [AuthProvider] WebSocket init failed:", err);
-            }
-          }
-
-          return;
-        }
-
-        // ❗ chỉ clear nếu BE trả invalid refresh token
-        if (!res.success && res.message === "INVALID_REFRESH_TOKEN") {
-          console.log("❌ [AuthProvider] Refresh token invalid");
-          await authService.clearAuthData();
-          setUser(null);
-          setIsSignedIn(false);
-          return;
-        }
-
-      } catch (e) {
-        console.log("❌ [AuthProvider] Refresh failed (network?) → KEEP TOKEN");
+        console.log("✅ [AuthProvider] Token refreshed successfully");
+        const userData = await loadCurrentUser();
+        setUser(userData);
+        setIsSignedIn(true);
         
-        // ❗ KHÔNG clear token ở đây
+        // 🔌 Initialize WebSocket after token refresh
+        if (userData?.id) {
+          try {
+            await initWebSocket(userData.id);
+            console.log("✅ [AuthProvider] WebSocket initialized after refresh");
+          } catch (err) {
+            console.error("❌ [AuthProvider] WebSocket init failed:", err);
+          }
+        }
+
+        return;
+      } catch (e) {
+        console.log("❌ [AuthProvider] Refresh failed or token expired:", e);
+        setUser(null);
         setIsSignedIn(false);
         return;
       }

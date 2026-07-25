@@ -976,3 +976,304 @@ const baseMarkdownStyles = StyleSheet.create({
     marginVertical: 6,
   },
 });
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F8F8FC",
+  },
+
+  header: {
+    paddingHorizontal: 18,
+    paddingTop: 50,
+    paddingBottom: 10,
+    backgroundColor: "#FFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#ECECEC",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  backButton: {
+    marginRight: 8,
+    padding: 4, // để tăng vùng bấm
+  },
+
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#3629B7",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  headerSubtitle: {
+    fontSize: 12,
+    color: "#777",
+    marginTop: 2,
+  },
+
+  messageWrapper: {
+    marginBottom: 12,
+  },
+
+  userWrapper: {
+    alignItems: "flex-end",
+  },
+
+  assistantWrapper: {
+    alignItems: "flex-start",
+  },
+
+  messageActions: {
+    flexDirection: "row",
+    marginTop: 4,
+  },
+
+  messageActionsUser: {
+    justifyContent: "flex-end",
+  },
+
+  messageActionsAssistant: {
+    justifyContent: "flex-start",
+  },
+
+  actionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 6,
+  },
+
+  actionBtnText: {
+    fontSize: 12,
+    color: "#888",
+    marginLeft: 4,
+  },
+
+  // ── Hold-to-copy popup (shown on long-press of a bubble) ─────────────────
+  copyPopup: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#333",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    marginBottom: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  copyPopupText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+
+  suggestionContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#FFF",
+    borderTopWidth: 1,
+    borderTopColor: "#ECECEC",
+  },
+
+  suggestionChip: {
+    backgroundColor: "#F3F4F8",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+
+  suggestionChipDisabled: {
+    opacity: 0.5,
+  },
+
+  relatedQuestionsGroup: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    maxWidth: "90%",
+    marginTop: 8,
+  },
+
+  relatedQuestionChip: {
+    backgroundColor: "#F3F4F8",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+
+  relatedQuestionText: {
+    fontSize: 13,
+    color: "#3629B7",
+  },
+
+  suggestionText: {
+    fontSize: 13,
+    color: "#3629B7",
+  },
+
+  bubble: {
+    maxWidth: "90%",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    overflow: 'hidden',   // ✅ ngăn nội dung tràn ra ngoài
+    flexShrink: 1,        // ✅ co lại vừa đủ
+
+  },
+
+  userBubble: {
+    backgroundColor: "#3629B7",
+  },
+
+  assistantBubble: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#ECECEC",
+  },
+
+  outOfScopeBubble: {
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+
+  outOfScopeLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+
+  outOfScopeLabelText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#B45309",
+    marginLeft: 4,
+    textTransform: "uppercase",
+  },
+
+  messageText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#111",
+  },
+
+  inputContainer: {
+    backgroundColor: "#FFF",
+    borderTopWidth: 1,
+    borderTopColor: "#ECECEC",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+  },
+
+  UserContainer: {
+    display: "flex",
+    padding: 5,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "column"
+  },
+
+  sendBtn: {
+    alignSelf: "center",
+    borderColor: "#fffffff",
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    borderRadius: 5,
+    paddingVertical: 7,
+    backgroundColor: "#3629B7"
+  },
+
+  sendBtnDisabled: {
+    backgroundColor: "#A79EDB",
+  },
+
+  input: {
+    flex: 1,
+    maxHeight: 120,
+    backgroundColor: "#F3F4F8",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 10,
+    color: "#111827",
+  },
+
+  inputDisabled: {
+    opacity: 0.6,
+  },
+
+  // ── Thinking / loading-context indicator ─────────────────────────────────
+  thinkingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  thinkingLabel: {
+    fontSize: 13,
+    color: "#777",
+    marginRight: 8,
+    fontStyle: "italic",
+  },
+  thinkingDots: {
+    flexDirection: "row",
+  },
+  thinkingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#3629B7",
+    marginHorizontal: 2,
+  },
+
+  // ── Yes/No decision chips (replaces the old confirm/dismiss card+buttons) ────
+  decisionRow: {
+    flexDirection: "row",
+    marginTop: 8,
+  },
+  decisionChipNo: {
+    backgroundColor: "#F3F4F8",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+  },
+  decisionChipNoText: {
+    color: "#666",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  decisionChipYes: {
+    backgroundColor: "#3629B7",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  decisionChipYesText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+});

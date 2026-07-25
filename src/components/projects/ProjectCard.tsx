@@ -144,12 +144,14 @@ export default function ProjectCard({
           </Text>
         </View>
 
-        <Text style={[styles.timeLeftText, isCompleted && styles.completedText]}>
-          {project.monthsLeft}{" "}
-          {project.monthsLeft > 1
-            ? t("project.month_remaining_other")
-            : t("project.month_remaining_one")}
-        </Text>
+        {!isCompleted && (
+          <Text style={styles.timeLeftText}>
+            {project.monthsLeft}{" "}
+            {project.monthsLeft > 1
+              ? t("project.month_remaining_other")
+              : t("project.month_remaining_one")}
+          </Text>
+        )}
       </View>
     </Pressable>
   );

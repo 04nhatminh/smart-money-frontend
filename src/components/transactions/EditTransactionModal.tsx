@@ -415,8 +415,8 @@ export function EditTransactionModal({
           onSaved?.();
           onClose();
         }}
-        title={t("transaction.saveSuccess")}
-        description={t("transaction.saveSuccessDesc")}
+        title={t("transaction.updateSuccess")}
+        description={t("transaction.updateSuccessDesc")}
         buttonText={t("common.done")}
       />
 

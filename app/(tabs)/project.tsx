@@ -71,6 +71,36 @@ function GroupCard({ group, onPress }: { group: GroupListItemResponse; onPress: 
           {group.description ? (
             <Text style={groupStyles.cardDesc} numberOfLines={1}>{group.description}</Text>
           ) : null}
+          {group.groupProjectStatus === "ACTIVE" ? (
+            <View style={groupStyles.projectBadgeActive}>
+              <Ionicons name="rocket-outline" size={12} color="#047857" />
+              <Text style={groupStyles.projectBadgeActiveText}>Dự án đang chạy</Text>
+            </View>
+          ) : group.groupProjectStatus === "PENDING_SPONSORSHIP" ? (
+            <View style={groupStyles.projectBadgePending}>
+              <Ionicons name="time-outline" size={12} color="#B45309" />
+              <Text style={groupStyles.projectBadgePendingText}>Chờ khảo sát tài trợ</Text>
+            </View>
+          ) : group.groupProjectStatus === "COMPLETED" ? (
+            <View style={groupStyles.projectBadgeCompleted}>
+              <Ionicons name="checkmark-circle-outline" size={12} color="#1D4ED8" />
+              <Text style={groupStyles.projectBadgeCompletedText}>Dự án đã hoàn thành</Text>
+            </View>
+          ) : group.groupProjectStatus === "DISSOLVED" ? (
+            <View style={groupStyles.projectBadgeDissolved}>
+              <Ionicons name="close-circle-outline" size={12} color="#BE123C" />
+              <Text style={groupStyles.projectBadgeDissolvedText}>Dự án đã giải thể</Text>
+            </View>
+          ) : group.groupProjectStatus === "EXPIRED" || group.groupProjectStatus === "SPONSORSHIP_FAILED" ? (
+            <View style={groupStyles.projectBadgeInactive}>
+              <Ionicons name="alert-circle-outline" size={12} color="#4B5563" />
+              <Text style={groupStyles.projectBadgeInactiveText}>Dự án đã kết thúc</Text>
+            </View>
+          ) : (
+            <View style={groupStyles.projectBadgeInactive}>
+              <Text style={groupStyles.projectBadgeInactiveText}>Chưa có dự án</Text>
+            </View>
+          )}
         </View>
         <View style={groupStyles.badges}>
           {isAdmin && (
@@ -265,7 +295,12 @@ export default function ProjectScreen() {
               style={[styles.filterIconButton, statusFilter !== "ALL" && styles.filterIconButtonActive]}
               onPress={() => setOpenStatusFilterModal(true)}
             >
-              <Ionicons name="funnel" size={24} color="#FFFFFF" />
+              <Ionicons
+                name={statusFilter !== "ALL" ? "options" : "options-outline"}
+                size={20}
+                color={statusFilter !== "ALL" ? "#FFFFFF" : "#3629B7"}
+              />
+              {statusFilter !== "ALL" && <View style={styles.filterActiveDot} />}
             </Pressable>
           )}
           </View>
@@ -426,6 +461,41 @@ const createGroupStyles = (theme: Theme, accent: string, surface: string) =>
     cardInfo: { flex: 1 },
     cardName: { fontSize: 16, fontWeight: "700", color: theme.text },
     cardDesc: { fontSize: 12, color: theme.subtext, marginTop: 2 },
+
+    // Badge trạng thái dự án của nhóm: tint pastel nhận diện cố định (nền sáng
+    // + chữ đậm cùng tông với icon) — đọc tốt ở cả 3 theme nên giữ nguyên,
+    // cùng quy ước với GROUP_STATUS_COLORS phía trên.
+    projectBadgeActive: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      backgroundColor: "#D1FAE5", borderRadius: 8,
+      paddingHorizontal: 6, paddingVertical: 2, marginTop: 4,
+    },
+    projectBadgeActiveText: { fontSize: 11, fontWeight: "600", color: "#047857" },
+    projectBadgePending: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      backgroundColor: "#FEF3C7", borderRadius: 8,
+      paddingHorizontal: 6, paddingVertical: 2, marginTop: 4,
+    },
+    projectBadgePendingText: { fontSize: 11, fontWeight: "600", color: "#B45309" },
+    projectBadgeCompleted: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      backgroundColor: "#DBEAFE", borderRadius: 8,
+      paddingHorizontal: 6, paddingVertical: 2, marginTop: 4,
+    },
+    projectBadgeCompletedText: { fontSize: 11, fontWeight: "600", color: "#1D4ED8" },
+    projectBadgeDissolved: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      backgroundColor: "#FFE4E6", borderRadius: 8,
+      paddingHorizontal: 6, paddingVertical: 2, marginTop: 4,
+    },
+    projectBadgeDissolvedText: { fontSize: 11, fontWeight: "600", color: "#BE123C" },
+    projectBadgeInactive: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      backgroundColor: "#F3F4F6", borderRadius: 8,
+      paddingHorizontal: 6, paddingVertical: 2, marginTop: 4,
+    },
+    projectBadgeInactiveText: { fontSize: 11, fontWeight: "600", color: "#4B5563" },
+
     badges: { flexDirection: "row", gap: 6, alignItems: "center" },
     adminBadge: { backgroundColor: accent + "15", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
     adminBadgeText: { fontSize: 10, fontWeight: "700", color: accent },

@@ -34,6 +34,7 @@ import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { useLanguage } from "../../src/i18n/LanguageProvider";
 import { useThemeMode } from "../../src/theme/ThemeProvider";
 import { Theme, ThemeMode } from "../../src/theme/tokens";
+import { t } from "../../src/i18n";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -48,6 +49,7 @@ type CategoryProportion = {
   category: string;
   count: number;
   percentage: number;
+  amount?: number;
 };
 
 type AnalyticsResponseData = {
@@ -84,6 +86,8 @@ const CATEGORY_COLOR_MAP: Record<string, string> = {
   BONUS: "#00E676",
   INVESTMENT: "#00B0FF",
   GIFT: "#FF3D00",
+  PROJECT_CONTRIBUTION: "#6366F1",
+  PROJECT_REFUND: "#10B981",
   OTHER: "#757575",
 };
 
@@ -184,9 +188,14 @@ function formatVND(value: number, isVi: boolean): string {
   const suffixM = isVi ? "tr" : "M";
   const suffixK = isVi ? "k" : "K";
 
-  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}${suffixB}`;
-  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}${suffixM}`;
-  if (abs >= 1_000) return `${(value / 1_000).toFixed(0)}${suffixK}`;
+  const formatNum = (val: number) => {
+    const formatted = val.toFixed(1);
+    return formatted.endsWith(".0") ? val.toFixed(0) : formatted;
+  };
+
+  if (abs >= 1_000_000_000) return `${formatNum(value / 1_000_000_000)}${suffixB}`;
+  if (abs >= 1_000_000) return `${formatNum(value / 1_000_000)}${suffixM}`;
+  if (abs >= 1_000) return `${formatNum(value / 1_000)}${suffixK}`;
   return `${value}`;
 }
 
@@ -317,7 +326,7 @@ export default function AnalyticsScreen() {
 
   const { width } = useWindowDimensions();
   const sectionInnerWidth = width - 64; // Total width inside section card
-  const yAxisWidth = 52; // Fixed width for Y axis sidebar
+  const yAxisWidth = 60; // Fixed width for Y axis sidebar
   const scrollAreaWidth = Math.max(100, sectionInnerWidth - yAxisWidth);
 
   const monthOptions = useMemo(() => getPreviousTwelveMonths(isVi), [isVi]);
@@ -467,7 +476,7 @@ export default function AnalyticsScreen() {
     return activeCategoryProportions.map((cat, idx) => ({
       ...cat,
       color: getCategoryColor(cat.category, idx),
-      estimatedExpense: kpis.totalExpense * (cat.percentage / 100),
+      estimatedExpense: cat.amount ?? (kpis.totalExpense * (cat.percentage / 100)),
     }));
   }, [activeCategoryProportions, kpis.totalExpense]);
 
@@ -531,7 +540,7 @@ export default function AnalyticsScreen() {
     () =>
       activeCategoryProportions.map((item) => ({
         x: item.category,
-        y: Number(item.count) || 0,
+        y: Number(item.percentage) || 0,
       })),
     [activeCategoryProportions]
   );
@@ -688,7 +697,7 @@ export default function AnalyticsScreen() {
                   domain={{ y: yDomain }}
                   domainPadding={{ y: [0, 45] }}
                   height={275}
-                  padding={{ top: 48, bottom: 40, left: 44, right: 0 }}
+                  padding={{ top: 48, bottom: 40, left: 54, right: 0 }}
                 >
                   <VictoryAxis
                     dependentAxis
@@ -878,7 +887,7 @@ export default function AnalyticsScreen() {
                       />
                       <View style={styles.categoryMeta}>
                         <Text style={[styles.categoryText, isSelected && styles.categoryTextActive]} numberOfLines={1}>
-                          {item.category}
+                          {t(`category.${item.category}`, { defaultValue: item.category })}
                         </Text>
                         <View style={styles.categoryBottom}>
                           <Text style={[styles.categoryPercent, { color: item.color }]}>

@@ -387,12 +387,14 @@ export default function ProjectDetailScreen() {
                 <Ionicons name="person-add-outline" size={22} color="#FFFFFF" />
               </Pressable>
             )}
-            <Pressable
-              style={styles.editButton}
-              onPress={() => setEditModalVisible(true)}
-            >
-              <Ionicons name="create-outline" size={24} color="#FFFFFF" />
-            </Pressable>
+            {project.status === "ACTIVE" && (
+              <Pressable
+                style={styles.editButton}
+                onPress={() => setEditModalVisible(true)}
+              >
+                <Ionicons name="create-outline" size={24} color="#FFFFFF" />
+              </Pressable>
+            )}
           </View>
         </View>
       </View>
@@ -536,25 +538,31 @@ export default function ProjectDetailScreen() {
                 {project.durationMonths ? `${project.durationMonths} ${project.durationMonths > 1 ? t("project.months") : t("project.month")}` : "N/A"}
               </Text>
             </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t("project.current_month")}</Text>
-              <Text style={[styles.metaValue, isCompleted && styles.completedTextBlur]}>
-                {project.currentMonth ? `${project.currentMonth}/${project.monthsLeft || 'N/A'}` : "N/A"}
-              </Text>
-            </View>
+            {!isCompleted && (
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>{t("project.current_month")}</Text>
+                <Text style={styles.metaValue}>
+                  {project.currentMonth
+                    ? `${project.currentMonth}/${project.durationMonths || project.currentMonth}`
+                    : "N/A"}
+                </Text>
+              </View>
+            )}
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t("project.money_owed")}</Text>
               <Text style={[styles.metaValue, project.moneyOwed && project.moneyOwed > 0 ? styles.owedText : null]}>
                 {project.moneyOwed !== undefined ? `${formatCurrencyVND(project.moneyOwed)} ${project.currency}` : "N/A"}
               </Text>
             </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t("project.months_left")}</Text>
-              <Text style={styles.metaValue}>
-                {project.monthsLeft !== undefined ? `${project.monthsLeft} ${project.monthsLeft > 1 ? t("project.months") : t("project.month")}` : "N/A"}
-              </Text>
-            </View>
-            {paceMonthsLeft != null && (
+            {!isCompleted && (
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>{t("project.months_left")}</Text>
+                <Text style={styles.metaValue}>
+                  {project.monthsLeft !== undefined ? `${project.monthsLeft} ${project.monthsLeft > 1 ? t("project.months") : t("project.month")}` : "N/A"}
+                </Text>
+              </View>
+            )}
+            {!isCompleted && paceMonthsLeft != null && (
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>{t("project.pace_months_left")}</Text>
                 <Text style={[styles.metaValue, paceStatus === "BEHIND" && styles.owedText]}>

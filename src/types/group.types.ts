@@ -128,6 +128,7 @@ export type GroupListItemResponse = {
   status: GroupStatus;
   memberCount: number;
   adminId: string;
+  hasActiveProject?: boolean;
   groupProjectId?: string | null;
   groupProjectName?: string | null;
   groupProjectStatus?: string | null;

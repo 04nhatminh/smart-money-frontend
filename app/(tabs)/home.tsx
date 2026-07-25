@@ -815,7 +815,12 @@ export default function HomePage() {
             <Text style={dynamicStyles.transactionDate}>{item.date}</Text>
           </View>
         </View>
-        <Text style={[dynamicStyles.transactionAmount, { color: isExpense ? '#F44336' : '#4CAF50' }]}>
+        <Text
+          style={[dynamicStyles.transactionAmount, { color: isExpense ? '#F44336' : '#4CAF50' }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+        >
           {formattedAmount}
         </Text>
       </View>
@@ -1110,3 +1115,274 @@ export default function HomePage() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+    paddingTop: 30,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  avatarContainer: {
+    marginLeft: 0,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  avatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#3629B7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  greetingContainer: {
+    marginBottom: 16,
+    paddingBottom: 4,
+    minHeight: 80,
+  },
+  greeting: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#222',
+    marginBottom: 4,
+  },
+  insightItem: {
+    paddingVertical: 4,
+  },
+  insightText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111', // Màu tím đậm
+  },
+  notificationBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  balanceCard: {
+    backgroundColor: '#3629B7',
+    borderRadius: 26,
+    paddingVertical: 22,
+    paddingHorizontal: 20,
+    marginBottom: 18,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  balanceHeader: {
+    marginBottom: 22,
+  },
+  moodContainer: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moodImage: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
+  },
+  balanceAmount: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: -0.8,
+    marginBottom: 4,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#ebfff3',
+  },
+  balanceDate: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#ebfff3',
+  },
+  balanceSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  balanceSummaryItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  summaryIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    flexShrink: 0,
+  },
+  summaryTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  summaryLabel: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: '#64748B',
+    marginBottom: 1,
+  },
+  summaryAmount: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  summaryDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 6,
+  },
+  section: {
+    marginBottom: 25,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#3629B7',
+    fontWeight: '600',
+  },
+  budgetsHorizontalList: {
+    paddingVertical: 10,
+    paddingRight: 20,
+  },
+  categoryItem: {
+    alignItems: 'center',
+    marginRight: 20,
+  },
+  budgetIconInner: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  categoryName: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+    marginTop: 6,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  transactionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  transactionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  transactionName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 2,
+  },
+  transactionDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+});
