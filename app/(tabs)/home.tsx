@@ -554,7 +554,12 @@ export default function HomePage() {
             <Text style={styles.transactionDate}>{item.date}</Text>
           </View>
         </View>
-        <Text style={[styles.transactionAmount, { color: isExpense ? '#F44336' : '#4CAF50' }]}>
+        <Text
+          style={[styles.transactionAmount, { color: isExpense ? '#F44336' : '#4CAF50' }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+        >
           {formattedAmount}
         </Text>
       </View>
@@ -665,18 +670,32 @@ export default function HomePage() {
           <View style={styles.balanceCard}>
             <View style={styles.balanceHeader}>
               <Text style={styles.balanceDate}>This month</Text>
-              <Text style={styles.balanceAmount}>{formatVND(monthlyTotalIncome - monthlyTotalExpense)}</Text>
+              <Text
+                style={styles.balanceAmount}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.5}
+              >
+                {formatVND(monthlyTotalIncome - monthlyTotalExpense)}
+              </Text>
               <Text style={styles.balanceLabel}>Total Balance</Text>
             </View>
 
             <View style={styles.balanceSummaryRow}>
               <View style={styles.balanceSummaryItem}>
                 <View style={styles.summaryIconBox}>
-                  <Ionicons name="arrow-down" size={16} color="#16A34A" />
+                  <Ionicons name="arrow-down" size={14} color="#16A34A" />
                 </View>
-                <View>
+                <View style={styles.summaryTextContainer}>
                   <Text style={styles.summaryLabel}>Income</Text>
-                  <Text style={styles.summaryAmount}>{formatVND(monthlyTotalIncome)}</Text>
+                  <Text
+                    style={styles.summaryAmount}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.35}
+                  >
+                    {formatVND(monthlyTotalIncome)}
+                  </Text>
                 </View>
               </View>
 
@@ -684,11 +703,18 @@ export default function HomePage() {
 
               <View style={styles.balanceSummaryItem}>
                 <View style={styles.summaryIconBox}>
-                  <Ionicons name="arrow-up" size={16} color="#DC2626" />
+                  <Ionicons name="arrow-up" size={14} color="#DC2626" />
                 </View>
-                <View>
+                <View style={styles.summaryTextContainer}>
                   <Text style={styles.summaryLabel}>Expense</Text>
-                  <Text style={styles.summaryAmount}>{formatVND(monthlyTotalExpense)}</Text>
+                  <Text
+                    style={styles.summaryAmount}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.35}
+                  >
+                    {formatVND(monthlyTotalExpense)}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -982,39 +1008,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
   },
   balanceSummaryItem: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    overflow: 'hidden',
   },
   summaryIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 6,
+    flexShrink: 0,
+  },
+  summaryTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '500',
     color: '#64748B',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   summaryAmount: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#0F172A',
   },
   summaryDivider: {
     width: 1,
-    height: 36,
+    height: 32,
     backgroundColor: '#E2E8F0',
-    marginHorizontal: 12,
+    marginHorizontal: 6,
   },
   section: {
     marginBottom: 25,
