@@ -1,16 +1,7 @@
-import * as Notifications from "expo-notifications";
 import { NativeModules, NativeEventEmitter, Alert } from "react-native";
 import EventEmitter from "eventemitter3";
 import AIAPI from "../api/ai.api";
-import TransactionApi from "../api/transaction.api";
-import { waitForAIResult } from "../services/aiWebSocketHelper";
-import { tokenStorage } from "../storage/tokenStorage";
-import authApi from "../api/auth.api";
-import { TransactionType } from "../types/transaction.types";
-import { formatDateTime } from "../utils/dateFormatter";
 import PendingStorage, { pendingEventBus, ProcessingEvent, ProcessingStatus } from "../storage/pendingTransactionStorage";
-import TransactionParser from "../utils/transactionParser";
-import { normalizeAIResult } from "../utils/normalizeAIResult";
 import DeduplicationService from "../utils/DeduplicationService";
 
 const { NotificationModule } = NativeModules;
@@ -281,17 +272,17 @@ export class NotificationListenerService {
     if (normalized.includes("giam gia") && normalized.includes("giao dich")) {
       score -= 10; // Phạt thêm để đẩy xuống dưới ngưỡng
     }
-console.log(JSON.stringify(normalized));
+    console.log(JSON.stringify(normalized));
 
-console.log(
-    "signed",
-    signedMoneyRegex.test(normalized)
-);
+    console.log(
+      "signed",
+      signedMoneyRegex.test(normalized)
+    );
 
-console.log(
-    "money",
-    this.MONEY_REGEX.test(normalized)
-);
+    console.log(
+      "money",
+      this.MONEY_REGEX.test(normalized)
+    );
     console.log(`📊 Score for "${text.substring(0, 40)}...": ${score}`);
     return score;
   }
@@ -435,69 +426,8 @@ console.log(
       const jobId = submitRes.data.jobId;
       console.log("📨 Submitted to AI server, jobId:", jobId);
 
-      const aiResult = await waitForAIResult(jobId);
+      PendingStorage.bindJob(jobId, pendingTx.id);
 
-      let finalResult = aiResult?.data || aiResult; // WS có thể trả thẳng data hoặc object {status, data}
-
-      console.log(finalResult)
-
-      if (aiResult.status === "TIMEOUT") {
-        console.log("⚠️ WS timeout → polling backend");
-
-        const fallback = await this.pollResult(jobId);
-
-        console.log("📡 Polling result:", fallback);
-
-        if (!fallback || fallback.status !== "SUCCESS") {
-          throw new Error("AI result not available");
-        }
-
-        finalResult = fallback.data; // 👈 LẤY DATA
-      }
-
-      console.log("AI RESULT =", aiResult);
-      console.log("FINAL RESULT =", finalResult);
-      console.log("TYPE =", typeof finalResult);
-
-      const normalized = normalizeAIResult(finalResult);
-
-      if (normalized.transactions.length === 0) {
-        throw new Error("No transaction returned from AI");
-      }
-
-      await PendingStorage.remove(pendingTx.id);
-
-      for (const tx of normalized.transactions) {
-        const amount = TransactionParser.parseAmount(tx.expense);
-
-        if (amount === null || amount <= 0) {
-          console.warn("Skip invalid transaction:", tx);
-          continue;
-        }
-
-        const candidateDate = normalized.date || formatDateTime(new Date());
-        const candidate = {
-          amount,
-          category: tx.category,
-          type: tx.type as TransactionType,
-          groupText: tx.description,
-          date: candidateDate,
-          source: "notification" as const,
-        };
-
-        if (DeduplicationService.findDuplicate(candidate)) {
-          console.log("⏭️ Duplicate transaction skipped", {
-            amount,
-            description: tx.description,
-            category: tx.category,
-          });
-          continue;
-        }
-
-        DeduplicationService.markProcessed(candidate);
-
-        await PendingStorage.add(candidate);
-      }
 
     } catch (error: any) {
       console.error("❌ Error processing AI result:", error);

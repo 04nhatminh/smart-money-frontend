@@ -5,7 +5,6 @@ import authService from "../auth/authService";
 import AuthApi from "../api/auth.api";
 import { UserResponse, UpdateUserRequest } from "../types/auth.types";
 import { initWebSocket, disconnectWebSocket } from "../services/websocket";
-import { resumeUnfinishedJobs } from "../services/backgroundAIHandler";
 
 type AuthContextType = {
   isLoading: boolean;
@@ -79,9 +78,6 @@ const checkAuthStatus = async () => {
         }
       }
 
-      // 🔄 Resume unfinished AI jobs
-      await resumeUnfinishedJobs();
-
       return;
     }
 
@@ -112,9 +108,6 @@ const checkAuthStatus = async () => {
               console.error("❌ [AuthProvider] WebSocket init failed:", err);
             }
           }
-
-          // 🔄 Resume unfinished AI jobs
-          await resumeUnfinishedJobs();
 
           return;
         }
@@ -168,8 +161,6 @@ const checkAuthStatus = async () => {
           }
         }
 
-        // 🔄 Resume unfinished AI jobs
-        await resumeUnfinishedJobs();
       }
       else {
         setIsSignedIn(false);

@@ -3,6 +3,7 @@ import SockJS from "sockjs-client";
 import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
 
 import { handleIncomingNotification } from "../notification/notificationHandler";
+import PendingStorage from "../storage/pendingTransactionStorage";
 
 import {
   BudgetAllocationAIMessage,
@@ -10,6 +11,12 @@ import {
   BudgetAllocationResult,
   RawBudgetAllocationAIMessage,
 } from "../types/project.types";
+import { normalizeAIResult } from "../utils/normalizeAIResult";
+import DeduplicationService from "../utils/DeduplicationService";
+import TransactionParser from "../utils/transactionParser";
+import { formatDateTime } from "../utils/dateFormatter";
+import { TransactionType } from "../types/transaction.types";
+import { CloudinaryService } from "./cloudinary.service";
 
 // ==============================
 // STATE
@@ -29,7 +36,7 @@ let notificationSub: StompSubscription | null = null;
 let aiUserSub: StompSubscription | null = null;
 
 const pendingJobMessages = new Map<string, any>();
-
+const processingJobs = new Set<string>();
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 const buildWsUrl = (baseUrl?: string): string | null => {
@@ -69,18 +76,18 @@ const normalizeBudgetAllocationCategories = (
   return categories.map((item: any) => ({
     category: String(
       item?.category ??
-        item?.categoryName ??
-        item?.name ??
-        "OTHER"
+      item?.categoryName ??
+      item?.name ??
+      "OTHER"
     ),
     amount: Number(
       item?.amount ??
-        item?.allocatedAmount ??
-        item?.allocated_amount ??
-        item?.amountLimit ??
-        item?.budget ??
-        item?.limit ??
-        0
+      item?.allocatedAmount ??
+      item?.allocated_amount ??
+      item?.amountLimit ??
+      item?.budget ??
+      item?.limit ??
+      0
     ),
     percentage:
       item?.percentage != null
@@ -120,9 +127,9 @@ const normalizeBudgetAllocationResult = (
   return {
     totalBudget: Number(
       source?.totalBudget ??
-        source?.total_budget ??
-        source?.totalAmount ??
-        categories.reduce((sum, item) => sum + item.amount, 0)
+      source?.total_budget ??
+      source?.totalAmount ??
+      categories.reduce((sum, item) => sum + item.amount, 0)
     ),
     currency: source?.currency ?? rawData?.currency ?? "VND",
     categories,
@@ -191,8 +198,8 @@ export const initWebSocket = async (userId: string): Promise<Client> => {
 
       connectHeaders: token
         ? {
-            Authorization: `Bearer ${token}`,
-          }
+          Authorization: `Bearer ${token}`,
+        }
         : {},
 
       reconnectDelay: 5000,
@@ -291,12 +298,109 @@ const subscribeUserAI = () => {
 
   aiUserSub = stompClient.subscribe(
     `/topic/ai/user/${currentUserId}`,
-    (msg: IMessage) => {
+    async (msg: IMessage) => {
+      let jobId: string | null = null;
+
       try {
         const data = JSON.parse(msg.body);
-        const jobId = data.jobId;
 
-        console.log("🎯 AI result for job:", jobId);
+        jobId = data?.jobId;
+
+        if (!jobId) {
+          console.warn("Missing jobId");
+          return;
+        }
+
+        if (processingJobs.has(jobId)) {
+          console.log("⏭️ Job already processing:", jobId);
+          return;
+        }
+
+        processingJobs.add(jobId);
+
+        const pendingId = PendingStorage.getPendingId(jobId);
+        let source: "camera" | "voice" | "notification" = "notification";
+
+        if (pendingId) {
+
+          const pending = PendingStorage.find(pendingId);
+
+          if (pending) {
+
+            source = pending.source;
+          }
+        }
+
+        const normalized = normalizeAIResult(data);
+
+        console.log("Normalized AI result:", JSON.stringify(normalized, null, 2));
+
+
+
+        if (pendingId) {
+          const pending = PendingStorage.find(pendingId);
+
+          if (pending?.cloudinaryPublicId) {
+            await CloudinaryService.deleteImage(
+              pending.cloudinaryPublicId,
+              pending.cloudinaryResourceType!
+            );
+          }
+
+          await PendingStorage.remove(pendingId);
+          PendingStorage.unbindJob(jobId);
+        }
+
+        for (const tx of normalized.transactions) {
+          const amount = TransactionParser.parseAmount(tx.expense);
+
+          console.log("check")
+
+          if (amount === null || amount <= 0) {
+            continue;
+          }
+
+          const candidateDate = normalized.date || formatDateTime(new Date());
+
+          const candidate = {
+            amount,
+            category: tx.category,
+            type: tx.type as TransactionType,
+            groupText: tx.description,
+            date: candidateDate,
+            source,
+            jobId
+          };
+
+          // 1. Duplicate trong bộ nhớ
+          if (DeduplicationService.findDuplicate(candidate)) {
+            console.log("⏭️ Duplicate (memory)");
+            continue;
+          }
+
+          // 2. Duplicate với PendingStorage
+          const pendingItems = PendingStorage.getAll();
+
+          const duplicated = pendingItems.some(item => {
+            return (
+              item.amount === candidate.amount &&
+              item.type === candidate.type &&
+              Math.abs(
+                new Date(item.date).getTime() -
+                new Date(candidate.date).getTime()
+              ) < 60 * 1000
+            );
+          });
+
+          if (duplicated) {
+            console.log("⏭️ Duplicate (pending storage)");
+            continue;
+          }
+
+          DeduplicationService.markProcessed(candidate);
+
+          await PendingStorage.add(candidate);
+        }
 
         const callback = jobCallbacks.get(jobId);
         if (callback) {
@@ -307,6 +411,11 @@ const subscribeUserAI = () => {
         }
       } catch (err) {
         console.error("❌ Parse error", err);
+      }
+      finally {
+        if (jobId) {
+          processingJobs.delete(jobId);
+        }
       }
     }
   );
@@ -322,7 +431,7 @@ export const subscribeJob = async (
 
   if (!currentUserId) {
     console.warn("⚠️ No userId");
-    return () => {};
+    return () => { };
   }
 
   // ✅ ĐẢM BẢO WS READY
@@ -330,20 +439,20 @@ export const subscribeJob = async (
 
   if (jobCallbacks.has(jobId)) {
     console.log("⚠️ Already subscribed:", jobId);
-    return () => {};
+    return () => { };
   }
 
   jobCallbacks.set(jobId, onResult);
 
-    const pending = pendingJobMessages.get(jobId);
+  const pending = pendingJobMessages.get(jobId);
 
-    if (pending) {
-        pendingJobMessages.delete(jobId);
+  if (pending) {
+    pendingJobMessages.delete(jobId);
 
-        console.log("⚡ Deliver cached result:", jobId);
+    console.log("⚡ Deliver cached result:", jobId);
 
-        onResult(pending);
-    }
+    onResult(pending);
+  }
 
   console.log("✅ Registered callback for job:", jobId);
 
@@ -351,6 +460,49 @@ export const subscribeJob = async (
     jobCallbacks.delete(jobId);
     console.log("🧹 Unregistered callback for job:", jobId);
   };
+};
+
+export const waitForAIResult = async (
+  jobId: string,
+  timeoutMs: number = 10000
+): Promise<{ status: "SUCCESS" | "TIMEOUT"; data?: any }> => {
+  return new Promise((resolve) => {
+    let settled = false;
+    let unsubscribe: (() => void) | null = null;
+
+    const clearSubscription = () => {
+      if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+      }
+    };
+
+    const settle = (status: "SUCCESS" | "TIMEOUT", data?: any) => {
+      if (settled) return;
+
+      settled = true;
+      clearTimeout(timeoutId);
+      clearSubscription();
+      resolve({ status, data });
+    };
+
+    const timeoutId = setTimeout(() => {
+      console.log("⚠️ WS timeout → fallback polling");
+      settle("TIMEOUT");
+    }, timeoutMs);
+
+    subscribeJob(jobId, (data) => {
+      console.log("🔥 WS CALLBACK:", data);
+      settle("SUCCESS", data);
+    })
+      .then((unsub) => {
+        unsubscribe = unsub;
+      })
+      .catch((err) => {
+        console.error("❌ Subscription error:", err);
+        settle("TIMEOUT");
+      });
+  });
 };
 
 export const subscribeBudgetJob = async (
@@ -455,7 +607,7 @@ export const subscribeToTopic = (
 ): (() => void) => {
   if (!stompClient || !isConnected) {
     console.warn("⚠️ WebSocket not connected, cannot subscribe to:", topic);
-    return () => {};
+    return () => { };
   }
 
   console.log("📡 Subscribing to topic:", topic);
