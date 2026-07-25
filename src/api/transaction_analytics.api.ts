@@ -11,6 +11,7 @@ export type CategoryProportion = {
   category: string;
   count: number;
   percentage: number;
+  amount?: number;
 };
 
 export type AnalyticsRequest = {
