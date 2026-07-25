@@ -60,15 +60,34 @@ export const projectListStyles = StyleSheet.create({
   },
 
   filterIconButton: {
-    width: 28,
-    height: 28,
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    position: "relative",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
 
   filterIconButtonActive: {
-    backgroundColor: "#F1F0FF",
-    borderRadius: 14,
+    backgroundColor: "#3629B7",
+  },
+
+  filterActiveDot: {
+    position: "absolute",
+    top: 7,
+    right: 7,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#10B981",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
   },
 
   content: {

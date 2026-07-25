@@ -277,7 +277,12 @@ export default function ProjectScreen() {
               style={[styles.filterIconButton, statusFilter !== "ALL" && styles.filterIconButtonActive]}
               onPress={() => setOpenStatusFilterModal(true)}
             >
-              <Ionicons name="funnel" size={24} color="#FFFFFF" />
+              <Ionicons
+                name={statusFilter !== "ALL" ? "options" : "options-outline"}
+                size={20}
+                color={statusFilter !== "ALL" ? "#FFFFFF" : "#3629B7"}
+              />
+              {statusFilter !== "ALL" && <View style={styles.filterActiveDot} />}
             </Pressable>
           )}
           </View>
