@@ -582,6 +582,7 @@ export default function AIScreen() {
             }
             multiline
             editable={!loading && !awaitingDecision}
+            placeholderTextColor="#9CA3AF"
             style={[styles.input, (loading || awaitingDecision) && styles.inputDisabled]}
           />
           <TouchableOpacity
@@ -853,7 +854,7 @@ const styles = StyleSheet.create({
   UserContainer: {
     display: "flex",
     padding: 5,
-    backgroundColor: "#ffffff53",
+    backgroundColor: "#FFFFFF",
     flexDirection: "column"
   },
 
@@ -875,10 +876,13 @@ const styles = StyleSheet.create({
     flex: 1,
     maxHeight: 120,
     backgroundColor: "#F3F4F8",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
     borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginRight: 10,
+    color: "#111827",
   },
 
   inputDisabled: {
