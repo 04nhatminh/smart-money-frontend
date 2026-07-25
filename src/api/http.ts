@@ -26,6 +26,19 @@ interface CustomAxiosRequestConfig extends AxiosRequestConfig {
   _retry?: boolean;
 }
 
+type SessionExpiredHandler = () => void;
+let sessionExpiredHandler: SessionExpiredHandler | null = null;
+
+export const setSessionExpiredHandler = (handler: SessionExpiredHandler) => {
+  sessionExpiredHandler = handler;
+};
+
+export const notifySessionExpired = () => {
+  if (sessionExpiredHandler) {
+    sessionExpiredHandler();
+  }
+};
+
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
 
@@ -36,6 +49,53 @@ const subscribeTokenRefresh = (cb: (token: string) => void) => {
 const onRefreshed = (token: string) => {
   refreshSubscribers.forEach(cb => cb(token));
   refreshSubscribers = [];
+};
+
+export const refreshToken = async (): Promise<string> => {
+  if (isRefreshing) {
+    return new Promise((resolve, reject) => {
+      subscribeTokenRefresh((token: string) => {
+        if (token) {
+          resolve(token);
+        } else {
+          reject(new Error("Refresh token failed"));
+        }
+      });
+    });
+  }
+
+  isRefreshing = true;
+
+  try {
+    const storedRefreshToken = await tokenStorage.getRefreshToken();
+
+    if (!storedRefreshToken || !storedRefreshToken.trim()) {
+      await tokenStorage.clear();
+      notifySessionExpired();
+      throw new Error("Refresh token is required");
+    }
+
+    const response = await refreshHttp.post("/api/v1/auth/refresh-token", {
+      refreshToken: storedRefreshToken,
+    });
+
+    const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+
+    await tokenStorage.setAccessToken(accessToken);
+    if (newRefreshToken) {
+      await tokenStorage.setRefreshToken(newRefreshToken);
+    }
+    onRefreshed(accessToken);
+    isRefreshing = false;
+
+    return accessToken;
+  } catch (err) {
+    isRefreshing = false;
+    onRefreshed("");
+    await tokenStorage.clear();
+    notifySessionExpired();
+    throw err;
+  }
 };
 
 // Request interceptor - Thêm token vào headers
@@ -59,8 +119,6 @@ http.interceptors.request.use(
   }
 );
 
-
-
 // Response interceptor - Xử lý refresh token khi hết hạn
 http.interceptors.response.use(
   (response) => response,
@@ -74,46 +132,14 @@ http.interceptors.response.use(
         originalRequest.headers?.authorization;
 
     if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest && hasAuthorization) {
-      if (isRefreshing) {
-        return new Promise(resolve => {
-          subscribeTokenRefresh((token: string) => {
-            originalRequest.headers = originalRequest.headers || {};
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            resolve(http(originalRequest));
-          });
-        });
-      }
-
       originalRequest._retry = true;
-      isRefreshing = true;
 
       try {
-        const refreshToken = await tokenStorage.getRefreshToken();
-
-        if (!refreshToken || !refreshToken.trim()) {
-          await tokenStorage.clear();
-          throw new Error("Refresh token is required");
-        }
-
-        const response = await refreshHttp.post("/api/v1/auth/refresh-token", {
-          refreshToken,
-        });
-
-        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
-
-        await tokenStorage.setAccessToken(accessToken);
-        if (newRefreshToken) {   // ✅ chỉ set nếu có
-          await tokenStorage.setRefreshToken(newRefreshToken);
-        }
-        onRefreshed(accessToken);
-        isRefreshing = false;
-
+        const newAccessToken = await refreshToken();
         originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return http(originalRequest);
       } catch (err) {
-        isRefreshing = false;
-        await tokenStorage.clear();
         return Promise.reject(err);
       }
     }
