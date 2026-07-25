@@ -128,6 +128,9 @@ export type GroupListItemResponse = {
   status: GroupStatus;
   memberCount: number;
   adminId: string;
+  groupProjectId?: string | null;
+  groupProjectName?: string | null;
+  groupProjectStatus?: string | null;
 };
 
 export type UpdateAutoSponsorshipRequest = {
