@@ -21,15 +21,47 @@ export type PendingTransaction = {
   category: string;
   type: "INCOME" | "EXPENSE";
   date: string;
-  source: "camera" | "voice" | "notification"; 
+  source: "camera" | "voice" | "notification";
   groupId?: string;
   groupText?: string;
   processingStatus?: ProcessingStatus;
   processingError?: string;
+
+  // AI Job
+  jobId?: string;
+
+  // Cloudinary
+  cloudinaryPublicId?: string;
+  cloudinaryResourceType?: "image" | "voice";
 };
 
 class PendingStorage {
   private queue: PendingTransaction[] = [];
+
+  private jobMap = new Map<string, string>();
+
+  bindJob(
+    jobId: string,
+    pendingId: string,
+    cloudinaryPublicId?: string,
+    cloudinaryResourceType?: "image" | "voice"
+  ) {
+    this.jobMap.set(jobId, pendingId);
+
+    this.update(pendingId, {
+      jobId,
+      cloudinaryPublicId,
+      cloudinaryResourceType,
+    });
+  }
+
+  getPendingId(jobId: string) {
+    return this.jobMap.get(jobId);
+  }
+
+  unbindJob(jobId: string) {
+    this.jobMap.delete(jobId);
+  }
 
   async load() {
     try {
@@ -51,8 +83,10 @@ class PendingStorage {
   }
 
   getAll() {
-    return [...this.queue]; 
+    return [...this.queue];
   }
+
+
 
   async add(tx: Omit<PendingTransaction, "id">) {
     const newTx: PendingTransaction = {
@@ -90,7 +124,7 @@ class PendingStorage {
     pendingEventBus.emit("updated");
   }
 
-  
+
 }
 
 export default new PendingStorage();

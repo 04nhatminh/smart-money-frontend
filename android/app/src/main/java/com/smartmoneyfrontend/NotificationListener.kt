@@ -50,21 +50,27 @@ class NotificationListener : NotificationListenerService() {
             val bundleArray = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
 
             val text = when {
-                bundleArray != null -> {
-                    Notification.MessagingStyle.Message
-                        .getMessagesFromBundleArray(bundleArray)
-                        .joinToString("\n") { it.text?.toString().orEmpty() }
-                }
-
                 !extras.getCharSequence(Notification.EXTRA_BIG_TEXT).isNullOrBlank() ->
                     extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
 
-                else ->
-                    extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
-            }
+                !extras.getCharSequence(Notification.EXTRA_TEXT).isNullOrBlank() ->
+                    extras.getCharSequence(Notification.EXTRA_TEXT).toString()
 
-            Log.d(TAG, "TITLE = $title")
-            Log.d(TAG, "TEXT  = $text")
+                bundleArray != null ->
+                    Notification.MessagingStyle.Message
+                        .getMessagesFromBundleArray(bundleArray)
+                        .lastOrNull()
+                        ?.text
+                        ?.toString()
+                        .orEmpty()
+
+                else -> ""
+            }
+            
+            Log.d(TAG, "ID = ${sbn.id}")
+            Log.d(TAG, "TAG = ${sbn.tag}")
+            Log.d(TAG, "GROUP = ${sbn.notification.group}")
+            Log.d(TAG, "IS_GROUP = ${sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0}")
 
             Log.d(TAG, "📩 Notification: $title | $text")
 

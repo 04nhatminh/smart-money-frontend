@@ -10,7 +10,7 @@ import { CloudinaryService } from "../../../services/cloudinary.service";
 import WaitScreen from "../../../../app/(wait)/wait";
 import { userStorage } from "../../../storage/userStorage";
 import PendingStorage from "../../../storage/pendingTransactionStorage";
-import { handleAIResultInBackground, handleFullAIFlowInBackground } from "../../../services/backgroundAIHandler";
+import { handleFullAIFlowInBackground } from "../../../services/backgroundAIHandler";
 
 type Props = {
   visible: boolean;
