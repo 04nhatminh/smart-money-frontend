@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     View,
     Text,
@@ -29,6 +29,8 @@ import FinancialSetupModal from "../../src/components/financialSetup/FinancialSe
 import { t } from "../../src/i18n";
 import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/dataRefreshEmitter";
 import { useLanguage } from "../../src/i18n/LanguageProvider";
+import { useThemeMode } from "../../src/theme/ThemeProvider";
+import { Theme, ThemeMode } from "../../src/theme/tokens";
 
 const getAlertLabel = (alertLevel: string) => {
     switch (alertLevel) {
@@ -59,6 +61,15 @@ const categoryIconMap: { [key: string]: { icon: string; color: string; displayNa
 export default function BudgetListPage() {
     useLanguage(); // re-render on EN/VI switch
     const router = useRouter();
+    const { theme, mode } = useThemeMode();
+    // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+    const accent = mode === "dark" ? theme.link : theme.primary;
+    // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+    const surface = mode === "green" ? "#FFFFFF" : theme.card;
+    const styles = useMemo(
+        () => createStyles(theme, mode, accent, surface),
+        [theme, mode, accent, surface]
+    );
     const [budgets, setBudgets] = useState<BudgetItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -169,7 +180,7 @@ export default function BudgetListPage() {
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                         <Text style={styles.viewDetailText}>{t("budget.view_detail")}</Text>
-                        <Ionicons name="chevron-forward" size={16} color="#4B3FD6" />
+                        <Ionicons name="chevron-forward" size={16} color={accent} />
                     </TouchableOpacity>
                 </View>
                 <View style={styles.cardHeader}>
@@ -225,7 +236,7 @@ export default function BudgetListPage() {
         if (setupLoading) {
             return (
                 <View style={styles.profileCard}>
-                    <ActivityIndicator size="small" color="#4B3FD6" />
+                    <ActivityIndicator size="small" color={theme.primary} />
                 </View>
             );
         }
@@ -235,7 +246,7 @@ export default function BudgetListPage() {
                 <View style={styles.profileCard}>
                     <View style={styles.profileCardHeader}>
                         <View style={styles.profileCardTitleRow}>
-                            <Ionicons name="wallet-outline" size={22} color="#4B3FD6" />
+                            <Ionicons name="wallet-outline" size={22} color={accent} />
                             <Text style={styles.profileCardTitle}>
                                 {t("financialSetup.card_title")}
                             </Text>
@@ -293,7 +304,7 @@ export default function BudgetListPage() {
             <View style={styles.profileCard}>
                 <View style={styles.profileCardHeader}>
                     <View style={styles.profileCardTitleRow}>
-                        <Ionicons name="wallet-outline" size={22} color="#4B3FD6" />
+                        <Ionicons name="wallet-outline" size={22} color={accent} />
                         <Text style={styles.profileCardTitle}>
                             {t("financialSetup.card_title")}
                         </Text>
@@ -302,7 +313,7 @@ export default function BudgetListPage() {
                         style={styles.editBtn}
                         onPress={() => setShowEditSetup(true)}
                     >
-                        <Ionicons name="pencil-outline" size={16} color="#4B3FD6" />
+                        <Ionicons name="pencil-outline" size={16} color={accent} />
                         <Text style={styles.editBtnText}>{t("common.edit")}</Text>
                     </TouchableOpacity>
                 </View>
@@ -325,18 +336,18 @@ export default function BudgetListPage() {
                 {/* Sticky Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#333" />
+                        <Ionicons name="arrow-back" size={24} color={theme.text} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>{t("budget.tab_title")}</Text>
                     <TouchableOpacity
                         onPress={() => router.push('/(tabs)/budget-allocation')}
                         style={styles.generateButton}
                     >
-                        <Ionicons name="sparkles" size={18} color="#3629B7" />
+                        <Ionicons name="sparkles" size={18} color={accent} />
                     </TouchableOpacity>
                 </View>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#3629B7" />
+                    <ActivityIndicator size="large" color={theme.primary} />
                 </View>
                 <AppBottomBar
                     onCameraOpen={() => setCameraVisible(true)}
@@ -349,19 +360,19 @@ export default function BudgetListPage() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={theme.bg} />
 
                 {/* Sticky Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#333" />
+                        <Ionicons name="arrow-back" size={24} color={theme.text} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>{t("budget.tab_title")}</Text>
                     <TouchableOpacity
                         onPress={() => router.push('/(tabs)/budget-allocation')}
                         style={styles.generateButton}
                     >
-                        <Ionicons name="sparkles" size={18} color="#3629B7" />
+                        <Ionicons name="sparkles" size={18} color={accent} />
                     </TouchableOpacity>
                 </View>
 
@@ -372,8 +383,8 @@ export default function BudgetListPage() {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={handleRefresh}
-                            colors={['#3629B7']}
-                            tintColor="#3629B7"
+                            colors={[theme.primary]}
+                            tintColor={theme.primary}
                         />
                     }
                 >
@@ -386,7 +397,7 @@ export default function BudgetListPage() {
                             </>
                         ) : (
                             <View style={styles.emptyContainer}>
-                                <Ionicons name="wallet-outline" size={60} color="#CCC" />
+                                <Ionicons name="wallet-outline" size={60} color={theme.subtext} />
                                 <Text style={styles.emptyText}>{t("budget.no_budgets_yet")}</Text>
                                 <Text style={styles.emptySubText}>{t("budget.use_ai_to_create_first_budget")}</Text>
                                 <TouchableOpacity
@@ -438,10 +449,11 @@ export default function BudgetListPage() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string) =>
+    StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8F9FA',
+        backgroundColor: theme.bg,
     },
     header: {
         flexDirection: "row",
@@ -450,20 +462,20 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingTop: 16,
         paddingBottom: 16,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: surface,
         borderBottomWidth: 1,
-        borderBottomColor: "#F0F0F0",
+        borderBottomColor: theme.border,
         marginTop: 10,
     },
     backButton: {
         padding: 8,
         borderRadius: 20,
-        backgroundColor: "#F5F5F5",
+        backgroundColor: theme.inputBg,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: "700",
-        color: "#333",
+        color: theme.text,
     },
     scrollView: {
         flex: 1,
@@ -479,7 +491,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     budgetCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: surface,
         borderRadius: 16,
         marginBottom: 16,
         overflow: 'hidden',
@@ -505,7 +517,7 @@ const styles = StyleSheet.create({
     viewDetailText: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#4B3FD6',
+        color: accent,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -515,7 +527,7 @@ const styles = StyleSheet.create({
         paddingTop: 4,
         paddingBottom: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
+        borderBottomColor: theme.border,
     },
     categoryInfo: {
         flexDirection: 'row',
@@ -536,7 +548,7 @@ const styles = StyleSheet.create({
     categoryName: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#333',
+        color: theme.text,
         marginBottom: 4,
     },
     alertBadge: {
@@ -554,12 +566,12 @@ const styles = StyleSheet.create({
     remainingAmount: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#333',
+        color: theme.text,
         marginBottom: 2,
     },
     remainingLabel: {
         fontSize: 12,
-        color: '#999',
+        color: theme.subtext,
     },
     cardBody: {
         paddingHorizontal: 16,
@@ -576,18 +588,18 @@ const styles = StyleSheet.create({
     },
     statLabel: {
         fontSize: 12,
-        color: '#999',
+        color: theme.subtext,
         marginBottom: 4,
     },
     statValue: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#333',
+        color: theme.text,
     },
     divider: {
         width: 1,
         height: 40,
-        backgroundColor: '#F0F0F0',
+        backgroundColor: theme.border,
     },
     emptyContainer: {
         justifyContent: 'center',
@@ -597,12 +609,12 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#666',
+        color: theme.subtext,
         marginTop: 16,
     },
     emptySubText: {
         fontSize: 14,
-        color: '#999',
+        color: theme.subtext,
         marginTop: 8,
         textAlign: 'center',
     },
@@ -610,7 +622,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: '#3629B7',
+        backgroundColor: theme.primary,
         paddingHorizontal: 20,
         paddingVertical: 12,
         borderRadius: 25,
@@ -625,12 +637,12 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#EFEAF8',
+        backgroundColor: accent + '20',
         alignItems: 'center',
         justifyContent: 'center',
     },
     profileCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: surface,
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
@@ -654,13 +666,13 @@ const styles = StyleSheet.create({
     profileCardTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#111111',
+        color: theme.text,
     },
     editBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: '#EFEAF8',
+        backgroundColor: accent + '20',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 20,
@@ -668,7 +680,7 @@ const styles = StyleSheet.create({
     editBtnText: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#4B3FD6',
+        color: accent,
     },
     profileGrid: {
         flexDirection: 'row',
@@ -676,7 +688,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     profileGridItem: {
-        backgroundColor: '#F5F3FF',
+        backgroundColor: accent + '15',
         borderRadius: 10,
         paddingHorizontal: 10,
         paddingVertical: 6,
@@ -684,7 +696,7 @@ const styles = StyleSheet.create({
     profileGridLabel: {
         fontSize: 10,
         fontWeight: '600',
-        color: '#9CA3AF',
+        color: theme.subtext,
         textTransform: 'uppercase',
         letterSpacing: 0.4,
         marginBottom: 2,
@@ -692,11 +704,11 @@ const styles = StyleSheet.create({
     profileGridValue: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#4B3FD6',
+        color: accent,
     },
     profileEmptyText: {
         fontSize: 14,
-        color: '#6B7280',
+        color: theme.subtext,
         marginBottom: 12,
     },
     profileSetupBtn: {
@@ -704,7 +716,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 6,
         alignSelf: 'flex-start',
-        backgroundColor: '#4B3FD6',
+        backgroundColor: theme.primary,
         paddingHorizontal: 16,
         paddingVertical: 9,
         borderRadius: 20,

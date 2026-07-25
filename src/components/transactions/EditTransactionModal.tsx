@@ -14,7 +14,7 @@ import { t } from "../../i18n";
 
 import { InputField } from "../InputField";
 import { ButtonSave } from "../ButtonSave";
-import { transactionStyles as styles } from "../../styles/transactionStyles";
+import { useTransactionStyles } from "../../styles/transactionStyles";
 import { CategoryPicker } from "./CategoryPicker";
 import transactionApi from "../../api/transaction.api";
 import {
@@ -49,6 +49,7 @@ export function EditTransactionModal({
   onClose,
   onSaved,
 }: EditTransactionModalProps) {
+  const { styles, theme } = useTransactionStyles();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -233,7 +234,7 @@ export function EditTransactionModal({
         presentationStyle="pageSheet"
         onRequestClose={handleRequestClose}
       >
-        <SafeAreaView style={{ flex: 1 }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
           <ScrollView
             style={styles.container}
             contentContainerStyle={{ paddingBottom: 24 }}
@@ -249,12 +250,12 @@ export function EditTransactionModal({
                 alignItems: "center",
               }}
             >
-              <Text style={{ fontSize: 25, fontWeight: "700", marginBottom: 4 }}>
+              <Text style={{ fontSize: 25, fontWeight: "700", marginBottom: 4, color: theme.text }}>
                 {t("transaction.editTitle")}
               </Text>
 
               <Pressable onPress={handleRequestClose}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={theme.text} />
               </Pressable>
             </View>
 
@@ -266,8 +267,8 @@ export function EditTransactionModal({
                   alignItems: "center",
                 }}
               >
-                <ActivityIndicator size="large" />
-                <Text style={{ marginTop: 12 }}>{t("common.loading")}</Text>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={{ marginTop: 12, color: theme.text }}>{t("common.loading")}</Text>
               </View>
             ) : (
               <>
@@ -282,7 +283,7 @@ export function EditTransactionModal({
                       setHasChanges(true);
                     }}
                   >
-                    <Text style={styles.typeText}>
+                    <Text style={[styles.typeText, type === "EXPENSE" && styles.typeTextActive]}>
                       {t("transaction.expense")}
                     </Text>
                   </Pressable>
@@ -297,7 +298,7 @@ export function EditTransactionModal({
                       setHasChanges(true);
                     }}
                   >
-                    <Text style={styles.typeText}>
+                    <Text style={[styles.typeText, type === "INCOME" && styles.typeTextActive]}>
                       {t("transaction.income")}
                     </Text>
                   </Pressable>
@@ -343,14 +344,14 @@ export function EditTransactionModal({
                       style={styles.dateInput}
                       onPress={() => setShowDatePicker(true)}
                     >
-                      <Text>{formatDateToDDMMYYYY(date)}</Text>
+                      <Text style={styles.dateText}>{formatDateToDDMMYYYY(date)}</Text>
                     </Pressable>
 
                     <Pressable
                       style={styles.timeInput}
                       onPress={() => setShowTimePicker(true)}
                     >
-                      <Text>{formatTime(date)}</Text>
+                      <Text style={styles.dateText}>{formatTime(date)}</Text>
                     </Pressable>
                   </View>
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -34,9 +34,20 @@ import {
   statusReasonStyles,
 } from "../../../src/utils/projectTracking";
 import { t } from "../../../src/i18n";
+import { useThemeMode } from "../../../src/theme/ThemeProvider";
+import { Theme, ThemeMode } from "../../../src/theme/tokens";
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { theme, mode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" ? "#FFFFFF" : theme.card;
+  const styles = useMemo(
+    () => createStyles(theme, mode, accent, surface),
+    [theme, mode, accent, surface]
+  );
 
   const [project, setProject] = useState<ProjectDetailResponse | null>(null);
   const [tracking, setTracking] = useState<ProjectTrackingResponse | null>(null);
@@ -248,7 +259,7 @@ export default function ProjectDetailScreen() {
   if (loading && !project) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3F2CCB" />
+        <ActivityIndicator size="large" color={theme.primary} />
         <Text style={styles.loadingText}>{t("project.loading_detail")}</Text>
       </SafeAreaView>
     );
@@ -393,8 +404,8 @@ export default function ProjectDetailScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={["#3F2CCB"]}
-            tintColor="#3F2CCB"
+            colors={[theme.primary]}
+            tintColor={theme.primary}
           />
         }
       >
@@ -604,7 +615,7 @@ export default function ProjectDetailScreen() {
               <View key={history.id || history.createdAt} style={styles.historyItem}>
                 <View style={styles.historyHeader}>
                   <View style={styles.historyDateBox}>
-                    <MaterialCommunityIcons name="calendar-month" size={18} color="#3F2CCB" />
+                    <MaterialCommunityIcons name="calendar-month" size={18} color={accent} />
                     <Text style={styles.historyMonthText}>
                       {t("project.month")} {history.month}/{history.year}
                     </Text>
@@ -662,7 +673,7 @@ export default function ProjectDetailScreen() {
             })
           ) : (
             <View style={styles.emptyHistoryBox}>
-              <MaterialCommunityIcons name="history" size={32} color="#9CA3AF" />
+              <MaterialCommunityIcons name="history" size={32} color={theme.subtext} />
               <Text style={styles.emptyHistoryText}>{t("project.no_history")}</Text>
             </View>
           )}
@@ -703,7 +714,7 @@ export default function ProjectDetailScreen() {
               ))
             ) : (
               <View style={styles.emptyHistoryBox}>
-                <Ionicons name="people-outline" size={32} color="#9CA3AF" />
+                <Ionicons name="people-outline" size={32} color={theme.subtext} />
                 <Text style={styles.emptyHistoryText}>No group members joined yet.</Text>
               </View>
             )}
@@ -775,21 +786,22 @@ export default function ProjectDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F6F6F8",
+    backgroundColor: theme.bg,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F6F6F8",
+    backgroundColor: theme.bg,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#6B7280",
+    color: theme.subtext,
     fontWeight: "500",
   },
   errorContainer: {
@@ -797,7 +809,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#F6F6F8",
+    backgroundColor: theme.bg,
   },
   errorText: {
     marginTop: 12,
@@ -809,7 +821,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: "#3F2CCB",
+    backgroundColor: theme.primary,
     borderRadius: 12,
   },
   backLinkText: {
@@ -818,7 +830,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   header: {
-    backgroundColor: "#3F2CCB",
+    backgroundColor: theme.primary,
     paddingHorizontal: 20,
     paddingTop: 56,
     paddingBottom: 20,
@@ -860,7 +872,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: surface,
     borderRadius: 20,
     padding: 18,
     marginBottom: 16,
@@ -890,12 +902,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   personalChip: {
-    backgroundColor: "#EEF0FF",
-    borderColor: "#6C63FF",
+    backgroundColor: accent + "15",
+    borderColor: accent,
     borderWidth: 1,
   },
   personalChipText: {
-    color: "#5B5BD6",
+    color: accent,
   },
   groupChip: {
     backgroundColor: "#FFF0F3",
@@ -916,7 +928,7 @@ const styles = StyleSheet.create({
   },
   targetLabel: {
     fontSize: 12,
-    color: "#6B7280",
+    color: theme.subtext,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -924,13 +936,13 @@ const styles = StyleSheet.create({
   targetValue: {
     fontSize: 28,
     fontWeight: "900",
-    color: "#0F172A",
+    color: theme.text,
     marginTop: 4,
     marginBottom: 18,
   },
   reservingSubline: {
     fontSize: 13,
-    color: "#64748B",
+    color: theme.subtext,
     fontWeight: "600",
     marginTop: -12,
     marginBottom: 16,
@@ -943,7 +955,7 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 14,
-    color: "#475569",
+    color: theme.subtext,
     fontWeight: "600",
   },
   progressPercent: {
@@ -956,7 +968,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: theme.inputBg,
     overflow: "hidden",
     marginBottom: 18,
   },
@@ -978,7 +990,7 @@ const styles = StyleSheet.create({
   detailsGrid: {
     flexDirection: "row",
     borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
+    borderTopColor: theme.border,
     paddingTop: 14,
   },
   detailCol: {
@@ -987,30 +999,30 @@ const styles = StyleSheet.create({
   },
   gridLabel: {
     fontSize: 12,
-    color: "#64748B",
+    color: theme.subtext,
     fontWeight: "500",
     marginBottom: 4,
   },
   gridValue: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#0F172A",
+    color: theme.text,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#0F172A",
+    color: theme.text,
     marginBottom: 12,
   },
   descriptionText: {
     fontSize: 14,
-    color: "#475569",
+    color: theme.subtext,
     lineHeight: 22,
   },
   historyItem: {
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: theme.border,
   },
   historyHeader: {
     flexDirection: "row",
@@ -1026,7 +1038,7 @@ const styles = StyleSheet.create({
   historyMonthText: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#1F2937",
+    color: theme.text,
   },
   historySavingText: {
     fontSize: 15,
@@ -1034,7 +1046,7 @@ const styles = StyleSheet.create({
     color: "#10B981",
   },
   historyDetails: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: theme.inputBg,
     borderRadius: 12,
     padding: 10,
     gap: 6,
@@ -1045,12 +1057,12 @@ const styles = StyleSheet.create({
   },
   historySubLabel: {
     fontSize: 12,
-    color: "#64748B",
+    color: theme.subtext,
   },
   historySubValue: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#334155",
+    color: theme.text,
   },
   penaltyLabel: {
     color: "#EF4444",
@@ -1075,11 +1087,11 @@ const styles = StyleSheet.create({
   },
   emptyHistoryText: {
     fontSize: 14,
-    color: "#9CA3AF",
+    color: theme.subtext,
   },
   metaInfoGrid: {
     borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
+    borderTopColor: theme.border,
     marginTop: 14,
     paddingTop: 14,
     gap: 10,
@@ -1091,13 +1103,13 @@ const styles = StyleSheet.create({
   },
   metaLabel: {
     fontSize: 13,
-    color: "#64748B",
+    color: theme.subtext,
     fontWeight: "500",
   },
   metaValue: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#0F172A",
+    color: theme.text,
   },
   completedTextBlur: {
     opacity: 0.35,
@@ -1217,7 +1229,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#3F2CCB",
+    backgroundColor: theme.primary,
     borderRadius: 14,
     paddingVertical: 14,
     marginTop: 16,
@@ -1233,7 +1245,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: theme.border,
   },
   memberInfo: {
     flexDirection: "row",
@@ -1244,23 +1256,23 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#EEF0FF",
+    backgroundColor: accent + "20",
     justifyContent: "center",
     alignItems: "center",
   },
   memberAvatarText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#3F2CCB",
+    color: accent,
   },
   memberEmail: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#0F172A",
+    color: theme.text,
   },
   memberShare: {
     fontSize: 12,
-    color: "#64748B",
+    color: theme.subtext,
     marginTop: 2,
   },
   progressBadge: {

@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ProjectListItemResponse } from "../../types/project.types";
-import { projectListStyles as styles } from "../../styles/projectListStyles";
+import { useProjectListStyles } from "../../styles/projectListStyles";
 import { formatCurrencyVND, getSafeProgress } from "../../utils/project";
 import { t } from "../../i18n";
 
@@ -44,6 +44,8 @@ export default function ProjectCard({
   project,
   onPress,
 }: Props) {
+  const { styles } = useProjectListStyles();
+
   const priorityStyleMap = {
     HIGH: {
       card: styles.highPriorityCard,
@@ -121,9 +123,10 @@ export default function ProjectCard({
       </View>
 
       {moneyOwed > 0 && (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 }}>
+        <View style={styles.debtRow}>
+          {/* Đỏ cảnh báo nợ: màu semantic cố định — giữ nguyên ở cả 3 theme. */}
           <Ionicons name="alert-circle-outline" size={13} color="#DC2626" />
-          <Text style={{ fontSize: 12, fontWeight: "700", color: "#DC2626" }}>
+          <Text style={styles.debtText}>
             {formatCurrencyVND(moneyOwed)} debt
           </Text>
         </View>

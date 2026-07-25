@@ -4,7 +4,7 @@ import {
   ProjectAdvisorResponse,
   SavingPlanMode,
 } from "../../types/project.types";
-import { savingPlanStyles as styles } from "../../styles/savingPlanStyles";
+import { useSavingPlanStyles } from "../../styles/savingPlanStyles";
 import { i18n, t } from "../../i18n";
 
 export type SavingPlanAction = "CONFIRM_AI_PLAN" | "KEEP_ORIGINAL_PLAN" | null;
@@ -35,6 +35,7 @@ export default function SavingPlanModeStep({
   onConfirmAdvisorPlan,
   onKeepOriginalPlan,
 }: Props) {
+  const { styles } = useSavingPlanStyles();
   const showAISection = !!mode;
 
   const isConfirmingAIPlan = loadingAction === "CONFIRM_AI_PLAN";

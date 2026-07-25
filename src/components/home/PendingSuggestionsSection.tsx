@@ -40,15 +40,20 @@ export default function PendingSuggestionsSection() {
 
   const chip = statusChipStyle("PENDING", mode === "dark");
 
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" ? "#FFFFFF" : theme.card;
+
   const header = (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{t("suggestion.home_section_title")}</Text>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>{t("suggestion.home_section_title")}</Text>
       {suggestions.length > 1 ? (
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => router.push("/suggestions" as any)}
         >
-          <Text style={styles.seeAllText}>{t("suggestion.see_all")}</Text>
+          <Text style={[styles.seeAllText, { color: accent }]}>{t("suggestion.see_all")}</Text>
         </TouchableOpacity>
       ) : null}
     </View>
@@ -63,7 +68,7 @@ export default function PendingSuggestionsSection() {
           activeOpacity={0.85}
           style={[
             styles.card,
-            { backgroundColor: theme.card, borderColor: theme.border },
+            { backgroundColor: surface, borderColor: theme.border },
           ]}
           onPress={() => router.push("/suggestions" as any)}
         >
@@ -94,7 +99,7 @@ export default function PendingSuggestionsSection() {
         activeOpacity={0.85}
         style={[
           styles.card,
-          { backgroundColor: theme.card, borderColor: theme.border },
+          { backgroundColor: surface, borderColor: theme.border },
         ]}
         onPress={() => router.push(`/suggestions/${only.id}` as any)}
       >
@@ -135,12 +140,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#0F172A",
   },
   seeAllText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#2563EB",
   },
   card: {
     flexDirection: "row",

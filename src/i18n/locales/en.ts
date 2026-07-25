@@ -180,7 +180,11 @@ export default {
     usable_income_positive: "Usable income must be a positive number",
     usable_exceed_net: "Usable income cannot exceed net income",
     income_saved: "Income profile saved successfully!",
-    income_save_failed: "Failed to save income profile"
+    income_save_failed: "Failed to save income profile",
+    theme: 'Theme',
+    theme_light: 'Light',
+    theme_dark: 'Dark',
+    theme_green: 'Green',
   },
   notification: {
     notifications: "Notifications",
@@ -652,6 +656,7 @@ export default {
     financial_profile_empty: "No financial profile set up yet.",
     set_up_profile: "Set Up Profile",
     no_budgets_yet: "No budgets yet",
+    loading_budgets: "Loading budgets...",
     use_ai_to_create_first_budget: "Use AI to create your first budget allocation",
     generate_budget: "Generate Budget",
     remaining: "Remaining",

@@ -3,9 +3,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useThemeMode } from "../theme/ThemeProvider";
 import { useEffect, useRef } from "react";
 
+// Legacy: toggle 2 chế độ light/dark từ trước khi có 3 theme. Hiện không được
+// import ở đâu — bộ chọn theme chính thức nằm trong SettingsModal của profile.
 export function ThemeSwitch() {
-  const { mode, toggleMode, theme } = useThemeMode();
+  const { mode, setMode, theme } = useThemeMode();
   const isLight = mode === "light";
+  const toggleMode = () => setMode(isLight ? "dark" : "light");
   const translateX = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

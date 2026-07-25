@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -27,6 +27,8 @@ import { useLanguage } from "../../../src/i18n/LanguageProvider";
 import transactionApi from "../../../src/api/transaction.api";
 import { TransactionResponse } from "../../../src/types/transaction.types";
 import { TransactionItem } from "../../../src/components/transactions/TransactionItem";
+import { useThemeMode } from "../../../src/theme/ThemeProvider";
+import { Theme, ThemeMode } from "../../../src/theme/tokens";
 
 const getAlertLabel = (alertLevel: string) => {
     switch (alertLevel) {
@@ -69,6 +71,15 @@ const getAlertLevelStyle = (alertLevel: string) => {
 export default function BudgetDetailScreen() {
     useLanguage(); // re-render on EN/VI switch
     const { id } = useLocalSearchParams<{ id: string }>();
+    const { theme, mode } = useThemeMode();
+    // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+    const accent = mode === "dark" ? theme.link : theme.primary;
+    // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+    const surface = mode === "green" ? "#FFFFFF" : theme.card;
+    const styles = useMemo(
+        () => createStyles(theme, mode, accent, surface),
+        [theme, mode, accent, surface]
+    );
 
     const [budget, setBudget] = useState<BudgetItem | null>(null);
     const [loading, setLoading] = useState(true);
@@ -167,13 +178,13 @@ export default function BudgetDetailScreen() {
             <SafeAreaView style={styles.container}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#333" />
+                        <Ionicons name="arrow-back" size={24} color={theme.text} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>{t("budget.detail_title")}</Text>
                     <View style={styles.editButton} />
                 </View>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#3629B7" />
+                    <ActivityIndicator size="large" color={theme.primary} />
                     <Text style={styles.loadingText}>{t("budget.loading_detail")}</Text>
                 </View>
             </SafeAreaView>
@@ -185,7 +196,7 @@ export default function BudgetDetailScreen() {
             <SafeAreaView style={styles.container}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#333" />
+                        <Ionicons name="arrow-back" size={24} color={theme.text} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>{t("budget.detail_title")}</Text>
                     <View style={styles.editButton} />
@@ -212,18 +223,18 @@ export default function BudgetDetailScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={theme.bg} />
 
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#333" />
+                    <Ionicons name="arrow-back" size={24} color={theme.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{t("budget.detail_title")}</Text>
                 <TouchableOpacity
                     onPress={() => setEditModalVisible(true)}
                     style={styles.editButton}
                 >
-                    <Ionicons name="pencil-outline" size={18} color="#4B3FD6" />
+                    <Ionicons name="pencil-outline" size={18} color={accent} />
                 </TouchableOpacity>
             </View>
 
@@ -283,7 +294,7 @@ export default function BudgetDetailScreen() {
                         <Text style={styles.sectionTitle}>{t("budget.transactions_title")}</Text>
 
                         {transactionsLoading ? (
-                            <ActivityIndicator size="small" color="#3629B7" style={styles.transactionsLoading} />
+                            <ActivityIndicator size="small" color={theme.primary} style={styles.transactionsLoading} />
                         ) : transactions.length > 0 ? (
                             <View style={styles.transactionsList}>
                                 {transactions.map((transaction) => (
@@ -340,10 +351,11 @@ export default function BudgetDetailScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string) =>
+    StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8F9FA',
+        backgroundColor: theme.bg,
     },
     header: {
         flexDirection: "row",
@@ -352,27 +364,27 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingTop: 16,
         paddingBottom: 16,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: surface,
         borderBottomWidth: 1,
-        borderBottomColor: "#F0F0F0",
+        borderBottomColor: theme.border,
     },
     backButton: {
         width: 40,
         height: 40,
         padding: 8,
         borderRadius: 20,
-        backgroundColor: "#F5F5F5",
+        backgroundColor: theme.inputBg,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: "700",
-        color: "#333",
+        color: theme.text,
     },
     editButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#EFEAF8',
+        backgroundColor: accent + '20',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -393,7 +405,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 12,
         fontSize: 14,
-        color: '#666',
+        color: theme.subtext,
     },
     notFoundText: {
         marginTop: 12,
@@ -405,7 +417,7 @@ const styles = StyleSheet.create({
         marginTop: 20,
         paddingHorizontal: 24,
         paddingVertical: 12,
-        backgroundColor: '#3629B7',
+        backgroundColor: theme.primary,
         borderRadius: 25,
     },
     goBackButtonText: {
@@ -414,7 +426,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     card: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: surface,
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
@@ -430,7 +442,7 @@ const styles = StyleSheet.create({
         paddingBottom: 16,
         marginBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
+        borderBottomColor: theme.border,
     },
     iconContainer: {
         width: 68,
@@ -446,7 +458,7 @@ const styles = StyleSheet.create({
     categoryName: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#333',
+        color: theme.text,
         marginBottom: 6,
     },
     alertBadge: {
@@ -461,7 +473,7 @@ const styles = StyleSheet.create({
     },
     monthText: {
         fontSize: 12,
-        color: '#999',
+        color: theme.subtext,
     },
     statsRow: {
         flexDirection: 'row',
@@ -470,7 +482,7 @@ const styles = StyleSheet.create({
         paddingBottom: 16,
         marginBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
+        borderBottomColor: theme.border,
     },
     statItem: {
         flex: 1,
@@ -478,18 +490,18 @@ const styles = StyleSheet.create({
     },
     statLabel: {
         fontSize: 12,
-        color: '#999',
+        color: theme.subtext,
         marginBottom: 4,
     },
     statValue: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#333',
+        color: theme.text,
     },
     divider: {
         width: 1,
         height: 40,
-        backgroundColor: '#F0F0F0',
+        backgroundColor: theme.border,
     },
     metaRow: {
         flexDirection: 'row',
@@ -498,18 +510,18 @@ const styles = StyleSheet.create({
     },
     metaLabel: {
         fontSize: 13,
-        color: '#64748B',
+        color: theme.subtext,
         fontWeight: '500',
     },
     metaValue: {
         fontSize: 13,
         fontWeight: '700',
-        color: '#333',
+        color: theme.text,
     },
     sectionTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#333',
+        color: theme.text,
         marginBottom: 4,
     },
     transactionsList: {
@@ -520,7 +532,7 @@ const styles = StyleSheet.create({
     },
     noTransactionsText: {
         fontSize: 13,
-        color: '#999',
+        color: theme.subtext,
         textAlign: 'center',
         paddingVertical: 20,
     },

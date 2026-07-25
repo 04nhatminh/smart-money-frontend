@@ -17,7 +17,9 @@ type Props = {
 };
 
 export function RecordingScreen({ onRecordingComplete, onCancel }: Props) {
-  const { theme } = useThemeMode();
+  const { theme, mode } = useThemeMode();
+  // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -148,7 +150,7 @@ export function RecordingScreen({ onRecordingComplete, onCancel }: Props) {
       </View>
 
       {/* Recording Area */}
-      <View style={[styles.recordingArea, { backgroundColor: theme.card }]}>
+      <View style={[styles.recordingArea, { backgroundColor: surface }]}>
         <Text style={[styles.instruction, { color: theme.text }]}>
           {isRecording ? "Recording..." : "Tap to start recording"}
         </Text>
@@ -197,7 +199,7 @@ export function RecordingScreen({ onRecordingComplete, onCancel }: Props) {
       {/* Cancel Button */}
       <View style={styles.actions}>
         <Pressable
-          style={[styles.cancelButton, { borderColor: theme.border }]}
+          style={[styles.cancelButton, { borderColor: theme.border, backgroundColor: theme.inputBg }]}
           onPress={onCancel}
         >
           <Text style={[styles.cancelText, { color: theme.text }]}>
@@ -279,7 +281,6 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F2F1F9",
     borderWidth: 1,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },

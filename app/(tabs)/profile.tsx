@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -65,7 +65,42 @@ const ProfileScreen: React.FC = () => {
     onCameraOpen: () => setCameraVisible(true),
   });
   const { lang, setLang } = useLanguage();
-  const { mode, toggleMode } = useThemeMode();
+  const { mode, setMode, theme } = useThemeMode();
+
+  // ==================== DYNAMIC STYLES ====================
+  // Card surfaces: theme "green" có token card màu xanh đậm (dành cho accent
+  // như credit card ở home) nên surface của profile dùng trắng cho dễ đọc.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    scrollView: { flex: 1 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    loadingText: { marginTop: 10, fontSize: 16, color: '#FFFFFF', fontWeight: '500' },
+    errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+    errorText: { marginTop: 20, fontSize: 18, color: '#FFFFFF', textAlign: 'center', fontWeight: '600' },
+    retryButton: { marginTop: 20, paddingHorizontal: 30, paddingVertical: 12, backgroundColor: '#FFFFFF', borderRadius: 25 },
+    retryButtonText: { color: theme.primary, fontSize: 16, fontWeight: '600' },
+    avatarUpdateOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    avatarUpdateBox: {
+      backgroundColor: surface,
+      borderRadius: 15,
+      padding: 30,
+      justifyContent: 'center',
+      alignItems: 'center',
+      minWidth: 200,
+    },
+    avatarUpdateText: {
+      marginTop: 15,
+      fontSize: 16,
+      color: theme.text,
+      fontWeight: '500',
+    },
+  }), [theme, mode]);
 
   // Load user data từ context
   const loadUserData = async () => {
@@ -255,7 +290,7 @@ const ProfileScreen: React.FC = () => {
 
   if (isLoggingOut || (loading && !user)) {
     return (
-      <LinearGradient colors={['#3629B7', '#5655B9']} style={styles.loadingContainer}>
+      <LinearGradient colors={[theme.primary, theme.link]} style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FFFFFF" />
         <Text style={styles.loadingText}>{t('profile.loading_profile')}</Text>
       </LinearGradient>
@@ -264,7 +299,7 @@ const ProfileScreen: React.FC = () => {
 
   if (!user) {
     return (
-      <LinearGradient colors={['#3629B7', '#5655B9']} style={styles.errorContainer}>
+      <LinearGradient colors={[theme.primary, theme.link]} style={styles.errorContainer}>
         <Ionicons name="person-circle-outline" size={100} color="#FFFFFF" />
         <Text style={styles.errorText}>{t('profile.no_user_data')}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadUserData}>
@@ -284,8 +319,8 @@ const ProfileScreen: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#3629B7']}
-            tintColor="#3629B7"
+            colors={[theme.primary]}
+            tintColor={theme.primary}
           />
         }
       >
@@ -330,7 +365,7 @@ const ProfileScreen: React.FC = () => {
         lang={lang}
         onLangChange={setLang}
         mode={mode}
-        onModeToggle={toggleMode}
+        onThemeChange={setMode}
       />
 
       <EditProfileModal
@@ -376,7 +411,7 @@ const ProfileScreen: React.FC = () => {
       >
         <View style={styles.avatarUpdateOverlay}>
           <View style={styles.avatarUpdateBox}>
-            <ActivityIndicator size="large" color="#3629B7" />
+            <ActivityIndicator size="large" color={theme.primary} />
             <Text style={styles.avatarUpdateText}>{t('profile.avatar_updating')}</Text>
           </View>
         </View>
@@ -384,36 +419,5 @@ const ProfileScreen: React.FC = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F1F9' },
-  scrollView: { flex: 1 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, fontSize: 16, color: '#FFFFFF', fontWeight: '500' },
-  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  errorText: { marginTop: 20, fontSize: 18, color: '#FFFFFF', textAlign: 'center', fontWeight: '600' },
-  retryButton: { marginTop: 20, paddingHorizontal: 30, paddingVertical: 12, backgroundColor: '#FFFFFF', borderRadius: 25 },
-  retryButtonText: { color: '#3629B7', fontSize: 16, fontWeight: '600' },
-  avatarUpdateOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarUpdateBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    padding: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 200,
-  },
-  avatarUpdateText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: '#3629B7',
-    fontWeight: '500',
-  },
-});
 
 export default ProfileScreen;

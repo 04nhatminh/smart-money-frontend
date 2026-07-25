@@ -5,7 +5,7 @@ import { ButtonSave } from "../ButtonSave";
 import SuccessModal from "../SuccessModal";
 import ConfirmExitModal from "../ConfirmExitModal";
 
-import { projectStyles as styles } from "../../styles/projectStyles";
+import { useProjectStyles } from "../../styles/projectStyles";
 import { useEditProject } from "../../hooks/useEditProject";
 import { ProjectDetailResponse } from "../../types/project.types";
 import ProjectFormFields from "./ProjectFormFields";
@@ -24,6 +24,7 @@ export default function EditProjectModal({
   onClose,
   onUpdated,
 }: Props) {
+  const { styles } = useProjectStyles();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
 

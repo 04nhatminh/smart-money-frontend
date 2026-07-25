@@ -1,6 +1,6 @@
 import React from "react";
 import { Modal, Pressable, Text, View } from "react-native";
-import { projectListStyles as styles } from "../../styles/projectListStyles";
+import { useProjectListStyles } from "../../styles/projectListStyles";
 import { ProjectStatusFilter } from "../../types/project.types";
 import { t } from "../../i18n";
 
@@ -17,6 +17,8 @@ export default function ProjectStatusFilterModal({
   onClose,
   onChange,
 }: Props) {
+  const { styles } = useProjectListStyles();
+
   const options: { label: string; value: ProjectStatusFilter }[] = [
     { label: t("project.status_active"), value: "ACTIVE" },
     { label: t("project.status_completed"), value: "COMPLETED" },

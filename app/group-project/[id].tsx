@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -24,6 +24,8 @@ import { formatCurrencyVND } from "../../src/utils/project";
 import { getGroupProjectErrorMessage } from "../../src/utils/groupProjectErrors";
 import PriorityPickerModal from "../../src/components/groups/PriorityPickerModal";
 import { groupStorage } from "../../src/storage/groupStorage";
+import { useThemeMode } from "../../src/theme/ThemeProvider";
+import { Theme, ThemeMode } from "../../src/theme/tokens";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   ACTIVE: { bg: "#D1FAE5", text: "#065F46" },
@@ -41,7 +43,10 @@ const SUB_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   EXPIRED: { bg: "#FEE2E2", text: "#991B1B" },
 };
 
-function ProgressBar({ percent }: { percent: number }) {
+// Styles được truyền từ component cha (factory theo theme) để sub-component module-level dùng chung.
+type Styles = ReturnType<typeof createStyles>;
+
+function ProgressBar({ percent, styles }: { percent: number; styles: Styles }) {
   const safe = Math.min(100, Math.max(0, percent));
   return (
     <View style={styles.progressBg}>
@@ -54,10 +59,14 @@ function MemberRow({
   member,
   isCurrentUser,
   onPress,
+  styles,
+  accent,
 }: {
   member: GroupProjectMemberDetail;
   isCurrentUser: boolean;
   onPress: () => void;
+  styles: Styles;
+  accent: string;
 }) {
   const statusStyle = SUB_STATUS_COLORS[member.projectStatus] ?? SUB_STATUS_COLORS.ACTIVE;
   // EXPIRED and ABANDONED members have dropped out — dim them.
@@ -67,7 +76,7 @@ function MemberRow({
   return (
     <Pressable style={[styles.memberRow, isCurrentUser && styles.memberRowHighlight, isDroppedOut && styles.memberRowAbandoned]} onPress={onPress}>
       <View style={styles.memberAvatar}>
-        <Ionicons name="person" size={16} color="#3629B7" />
+        <Ionicons name="person" size={16} color={accent} />
       </View>
       <View style={styles.memberInfo}>
         <View style={styles.memberTopRow}>
@@ -78,7 +87,7 @@ function MemberRow({
             <Text style={[styles.subStatusText, { color: statusStyle.text }]}>{member.projectStatus}</Text>
           </View>
         </View>
-        <ProgressBar percent={member.progressPercent} />
+        <ProgressBar percent={member.progressPercent} styles={styles} />
         <View style={styles.memberAmountRow}>
           <Text style={styles.memberAmountText}>
             {formatCurrencyVND(memberNetSaved)} / {formatCurrencyVND(member.targetAmount)}
@@ -99,6 +108,15 @@ function MemberRow({
 export default function GroupProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { theme, mode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" ? "#FFFFFF" : theme.card;
+  const styles = useMemo(
+    () => createStyles(theme, mode, accent, surface),
+    [theme, mode, accent, surface]
+  );
 
   const [project, setProject] = useState<GroupProjectDetailResponse | null>(null);
   const [groupAdminId, setGroupAdminId] = useState<string | null>(null);
@@ -230,7 +248,7 @@ export default function GroupProjectDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#3629B7" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
     );
   }
@@ -360,7 +378,7 @@ export default function GroupProjectDetailScreen() {
         {/* Aggregate Progress */}
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Aggregate Progress</Text>
-          <ProgressBar percent={aggregateProgress} />
+          <ProgressBar percent={aggregateProgress} styles={styles} />
           <View style={styles.aggregateRow}>
             <Text style={styles.aggregateAmount}>
               {formatCurrencyVND(project.aggregateMoneySaved)} / {formatCurrencyVND(requiredTarget)} VND
@@ -374,11 +392,11 @@ export default function GroupProjectDetailScreen() {
           )}
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
-              <Ionicons name="calendar-outline" size={14} color="#64748B" />
+              <Ionicons name="calendar-outline" size={14} color={theme.subtext} />
               <Text style={styles.metaText}>{monthsLeft} month{monthsLeft !== 1 ? "s" : ""} left</Text>
             </View>
             <View style={styles.metaItem}>
-              <Ionicons name="people-outline" size={14} color="#64748B" />
+              <Ionicons name="people-outline" size={14} color={theme.subtext} />
               <Text style={styles.metaText}>{formatCurrencyVND(project.totalCapacity)} VND/month total</Text>
             </View>
           </View>
@@ -402,6 +420,8 @@ export default function GroupProjectDetailScreen() {
               key={m.userId}
               member={m}
               isCurrentUser={m.userId === currentUserId}
+              styles={styles}
+              accent={accent}
               onPress={() => {
                 if (m.userId === currentUserId && m.personalProjectId) {
                   router.push(`/(tabs)/project/${m.personalProjectId}` as any);
@@ -441,12 +461,14 @@ export default function GroupProjectDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F6F6F8" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F6F6F8" },
-  errorText: { fontSize: 15, color: "#6B7280" },
+// Factory style theo theme: header brand giữ chữ/icon trắng, badge trạng thái giữ màu ngữ nghĩa.
+const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string) =>
+  StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.bg },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.bg },
+  errorText: { fontSize: 15, color: theme.subtext },
   header: {
-    backgroundColor: "#3629B7",
+    backgroundColor: theme.primary,
     paddingHorizontal: 20, paddingTop: 56, paddingBottom: 20,
     borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
     flexDirection: "row", alignItems: "center", gap: 10,
@@ -461,7 +483,7 @@ const styles = StyleSheet.create({
   statusChipText: { fontSize: 11, fontWeight: "700" },
   scrollContent: { padding: 20, paddingBottom: 60, gap: 14 },
   card: {
-    backgroundColor: "#FFFFFF", borderRadius: 18, padding: 18,
+    backgroundColor: surface, borderRadius: 18, padding: 18,
     shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
@@ -475,46 +497,46 @@ const styles = StyleSheet.create({
   },
   celebrationTitle: { fontSize: 18, fontWeight: "900", color: "#92400E", marginBottom: 6 },
   celebrationText: { fontSize: 13, color: "#78350F", textAlign: "center", lineHeight: 20 },
-  sectionLabel: { fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 12 },
-  progressBg: { height: 10, backgroundColor: "#E5E7EB", borderRadius: 999, overflow: "hidden", marginBottom: 8 },
-  progressFill: { height: "100%", backgroundColor: "#3629B7", borderRadius: 999 },
+  sectionLabel: { fontSize: 13, fontWeight: "600", color: theme.subtext, marginBottom: 12 },
+  progressBg: { height: 10, backgroundColor: theme.border, borderRadius: 999, overflow: "hidden", marginBottom: 8 },
+  progressFill: { height: "100%", backgroundColor: accent, borderRadius: 999 },
   aggregateRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-  aggregateAmount: { fontSize: 13, color: "#0F172A", fontWeight: "600" },
-  aggregatePercent: { fontSize: 18, fontWeight: "900", color: "#3629B7" },
-  originalGoalText: { fontSize: 11, color: "#94A3B8", marginBottom: 10 },
+  aggregateAmount: { fontSize: 13, color: theme.text, fontWeight: "600" },
+  aggregatePercent: { fontSize: 18, fontWeight: "900", color: accent },
+  originalGoalText: { fontSize: 11, color: theme.subtext, marginBottom: 10 },
   metaRow: { flexDirection: "row", gap: 16, flexWrap: "wrap" },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  metaText: { fontSize: 12, color: "#64748B" },
+  metaText: { fontSize: 12, color: theme.subtext },
   joinBtn: {
-    backgroundColor: "#3629B7", borderRadius: 16, height: 50,
+    backgroundColor: theme.primary, borderRadius: 16, height: 50,
     flexDirection: "row", justifyContent: "center", alignItems: "center",
     shadowColor: "#3629B7", shadowOpacity: 0.2, shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   joinBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
-  emptyText: { fontSize: 13, color: "#9CA3AF", textAlign: "center", paddingVertical: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: theme.text },
+  emptyText: { fontSize: 13, color: theme.subtext, textAlign: "center", paddingVertical: 12 },
   memberRow: {
-    backgroundColor: "#FFFFFF", borderRadius: 14, padding: 14,
+    backgroundColor: surface, borderRadius: 14, padding: 14,
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  memberRowHighlight: { borderWidth: 1.5, borderColor: "#3629B7" },
+  memberRowHighlight: { borderWidth: 1.5, borderColor: accent },
   memberRowAbandoned: { opacity: 0.4 },
   memberAvatar: {
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: "#EEF0FF", justifyContent: "center", alignItems: "center",
+    backgroundColor: accent + "20", justifyContent: "center", alignItems: "center",
     marginTop: 2,
   },
   memberInfo: { flex: 1 },
   memberTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  memberName: { flex: 1, fontSize: 13, fontWeight: "600", color: "#0F172A" },
+  memberName: { flex: 1, fontSize: 13, fontWeight: "600", color: theme.text },
   subStatusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginLeft: 8 },
   subStatusText: { fontSize: 10, fontWeight: "700" },
   memberAmountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
-  memberAmountText: { fontSize: 11, color: "#64748B" },
-  memberPercentText: { fontSize: 11, fontWeight: "700", color: "#3629B7" },
+  memberAmountText: { fontSize: 11, color: theme.subtext },
+  memberPercentText: { fontSize: 11, fontWeight: "700", color: accent },
   memberDebtRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   memberDebtText: { fontSize: 11, fontWeight: "700", color: "#DC2626" },
   dissolveBtn: {

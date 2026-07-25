@@ -1,346 +1,373 @@
 import { StyleSheet } from "react-native";
+import { useMemo } from "react";
+import { useThemeMode } from "../theme/ThemeProvider";
+import { Theme, ThemeMode } from "../theme/tokens";
 
-export const projectStyles = StyleSheet.create({
-  keyboardContainer: {
-    width: "100%",
-    flex: 1,
-  },
+// ==================== DYNAMIC STYLES ====================
+// Styles dùng chung cho các modal/step tạo & sửa project,
+// build lại theo theme hiện tại (light / dark / green).
+export function useProjectStyles() {
+  const { theme, mode } = useThemeMode();
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.18)",
-    justifyContent: "flex-start",
-  },
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" ? "#FFFFFF" : theme.card;
 
-  modalContainer: {
-    flex: 1,
-    marginTop: 28,
-    width: "100%",
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: "hidden",
-  },
+  const styles = useMemo(
+    () => createProjectStyles(theme, mode, accent, surface),
+    [theme, mode]
+  );
 
-  modalScrollView: {
-    flex: 1,
-  },
+  return { styles, theme, mode, accent, surface };
+}
 
-  scrollContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
+const createProjectStyles = (
+  theme: Theme,
+  mode: ThemeMode,
+  accent: string,
+  surface: string
+) =>
+  StyleSheet.create({
+    keyboardContainer: {
+      width: "100%",
+      flex: 1,
+    },
 
-  title: {
-    marginTop: 10,
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#111111",
-    marginBottom: 20,
-  },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.18)",
+      justifyContent: "flex-start",
+    },
 
-  typeRow: {
-    flexDirection: "row",
-    marginBottom: 20
-  },
+    modalContainer: {
+      flex: 1,
+      marginTop: 28,
+      width: "100%",
+      backgroundColor: surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      overflow: "hidden",
+    },
 
-   typeBtn: {
-    flex: 1,
-    backgroundColor: "#E5E5EA",
-    padding: 12,
-    borderRadius: 20,
-    alignItems: "center",
-    marginRight: 10
-  },
+    modalScrollView: {
+      flex: 1,
+    },
 
-  typeBtnActive: {
-    backgroundColor: "#4B3FD6",
-  },
+    scrollContainer: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 40,
+    },
 
-  typeBtnDisabled: {
-    backgroundColor: "#F0F0F0",
-  },
+    title: {
+      marginTop: 10,
+      fontSize: 32,
+      fontWeight: "700",
+      color: theme.text,
+      marginBottom: 20,
+    },
 
-  typeButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#333333",
-  },
+    typeRow: {
+      flexDirection: "row",
+      marginBottom: 20
+    },
 
-  typeButtonTextActive: {
-    color: "#FFFFFF",
-  },
+    typeBtn: {
+      flex: 1,
+      backgroundColor: theme.inputBg,
+      padding: 12,
+      borderRadius: 20,
+      alignItems: "center",
+      marginRight: 10
+    },
 
-  typeButtonTextDisabled: {
-    color: "#A0A0A0",
-  },
+    typeBtnActive: {
+      backgroundColor: theme.primary,
+    },
 
-  formCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 15,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
+    typeBtnDisabled: {
+      backgroundColor: theme.inputBg,
+      opacity: 0.6,
+    },
 
-  helperText: {
-    fontSize: 12,
-    color: "#6B5CF6",
-    marginTop: -8,
-    marginBottom: 12,
-    marginLeft: 4,
-  },
+    typeButtonText: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: theme.text,
+    },
 
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-    marginTop: 8,
-  },
+    typeButtonTextActive: {
+      color: "#FFFFFF",
+    },
 
-  cancelButton: {
-    flex: 1,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "#EFEAF8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    typeButtonTextDisabled: {
+      color: theme.subtext,
+    },
 
-  cancelButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333333",
-  },
+    formCard: {
+      backgroundColor: surface,
+      borderRadius: 18,
+      padding: 15,
+      shadowColor: "#000",
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
 
-  createButton: {
-    flex: 1,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "#4B3FD6",
-  },
+    helperText: {
+      fontSize: 12,
+      color: accent,
+      marginTop: -8,
+      marginBottom: 12,
+      marginLeft: 4,
+    },
 
-  name: {
-    fontSize: 14, 
-    fontWeight: "600", 
-    marginBottom: 12,
-    color: "#979797"
-  },
+    buttonRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 12,
+      marginTop: 8,
+    },
 
-  warningBox: {
-    backgroundColor: "#FFF4E5",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
+    cancelButton: {
+      flex: 1,
+      height: 46,
+      borderRadius: 12,
+      backgroundColor: theme.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  warningText: {
-    color: "#C26D00",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "500",
-  },
+    cancelButtonText: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.text,
+    },
 
-  priorityContainer: {
-    gap: 12,
+    createButton: {
+      flex: 1,
+      height: 46,
+      borderRadius: 12,
+      backgroundColor: theme.primary,
+    },
 
-    marginBottom: 12,
-  },
+    name: {
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 12,
+      color: theme.subtext
+    },
 
-  priorityCard: {
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    borderRadius: 18,
-    padding: 10,
-    backgroundColor: "#FFFFFF",
-  },
+    warningBox: {
+      backgroundColor: "#FFF4E5",
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginBottom: 12,
+    },
 
-  priorityCardActive: {
-    borderColor: "#5B67F1",
-    backgroundColor: "#EEF1FF",
-  },
+    warningText: {
+      color: "#C26D00",
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "500",
+    },
 
-  priorityCardDisabled: {
-    backgroundColor: "#F5F5F5",
-    borderColor: "#E4E4E4",
-  },
+    priorityContainer: {
+      gap: 12,
 
-  priorityHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
+      marginBottom: 12,
+    },
 
-  priorityTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#111827",
-  },
+    priorityCard: {
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      borderRadius: 18,
+      padding: 10,
+      backgroundColor: surface,
+    },
 
-  priorityTitleActive: {
-    color: "#4254D0",
-  },
+    priorityCardActive: {
+      borderColor: accent,
+      backgroundColor: accent + "15",
+    },
 
-  priorityTitleDisabled: {
-    color: "#9CA3AF",
-  },
+    priorityCardDisabled: {
+      backgroundColor: theme.inputBg,
+      borderColor: theme.border,
+    },
 
-  priorityDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#6B7280",
-  },
+    priorityHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 6,
+    },
 
-  priorityDescriptionDisabled: {
-    color: "#B0B0B0",
-  },
+    priorityTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: theme.text,
+    },
 
-  usedBadge: {
-    backgroundColor: "#E5E7EB",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
+    priorityTitleActive: {
+      color: accent,
+    },
 
-  usedBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
+    priorityTitleDisabled: {
+      color: theme.subtext,
+    },
 
-  highPriorityCard: {
-    borderLeftWidth: 5,
-    borderLeftColor: "#EF4444",
-  },
+    priorityDescription: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: theme.subtext,
+    },
 
-  mediumPriorityCard: {
-    borderLeftWidth: 5,
-    borderLeftColor: "#F59E0B",
-  },
+    priorityDescriptionDisabled: {
+      color: theme.subtext,
+    },
 
-  lowPriorityCard: {
-    borderLeftWidth: 5,
-    borderLeftColor: "#10B981",
-  },
+    usedBadge: {
+      backgroundColor: theme.inputBg,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
 
-  priorityChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
+    usedBadgeText: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: theme.subtext,
+    },
 
-  priorityChipText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
+    highPriorityCard: {
+      borderLeftWidth: 5,
+      borderLeftColor: "#EF4444",
+    },
 
-  highPriorityChip: {
-    backgroundColor: "#FEE2E2",
-  },
+    mediumPriorityCard: {
+      borderLeftWidth: 5,
+      borderLeftColor: "#F59E0B",
+    },
 
-  highPriorityText: {
-    color: "#DC2626",
-  },
+    lowPriorityCard: {
+      borderLeftWidth: 5,
+      borderLeftColor: "#10B981",
+    },
 
-  mediumPriorityChip: {
-    backgroundColor: "#FEF3C7",
-  },
+    priorityChip: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+    },
 
-  mediumPriorityText: {
-    color: "#D97706",
-  },
+    priorityChipText: {
+      fontSize: 12,
+      fontWeight: "700",
+    },
 
-  lowPriorityChip: {
-    backgroundColor: "#D1FAE5",
-  },
+    highPriorityChip: {
+      backgroundColor: "#FEE2E2",
+    },
 
-  lowPriorityText: {
-    color: "#059669",
-  },
+    highPriorityText: {
+      color: "#DC2626",
+    },
 
-  switchGroup: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 16,
-    marginBottom: 8,
-  },
+    mediumPriorityChip: {
+      backgroundColor: "#FEF3C7",
+    },
 
-  switchLabelCol: {
-    flex: 1,
-    paddingRight: 16,
-  },
+    mediumPriorityText: {
+      color: "#D97706",
+    },
 
-  switchLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111827",
-  },
+    lowPriorityChip: {
+      backgroundColor: "#D1FAE5",
+    },
 
-  switchSubLabel: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "#6B7280",
-    lineHeight: 18,
-  },
+    lowPriorityText: {
+      color: "#059669",
+    },
+
+    switchGroup: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: 16,
+      marginBottom: 8,
+    },
+
+    switchLabelCol: {
+      flex: 1,
+      paddingRight: 16,
+    },
+
+    switchLabel: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.text,
+    },
+
+    switchSubLabel: {
+      marginTop: 4,
+      fontSize: 12,
+      color: theme.subtext,
+      lineHeight: 18,
+    },
 
     popupOverlay: {
-    position: "absolute",
+      position: "absolute",
 
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
 
-    backgroundColor: "rgba(0,0,0,0.45)",
+      backgroundColor: "rgba(0,0,0,0.45)",
 
-    justifyContent: "center",
-    alignItems: "center",
+      justifyContent: "center",
+      alignItems: "center",
 
-    zIndex: 9999,
-  },
+      zIndex: 9999,
+    },
 
-  popupCard: {
-    width: "85%",
-    backgroundColor: "#FFFFFF",
+    popupCard: {
+      width: "85%",
+      backgroundColor: surface,
 
-    borderRadius: 24,
+      borderRadius: 24,
 
-    padding: 24,
-  },
+      padding: 24,
+    },
 
-  popupTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    popupTitle: {
+      fontSize: 18,
+      fontWeight: "700",
 
-    color: "#111827",
+      color: theme.text,
 
-    marginBottom: 12,
-  },
+      marginBottom: 12,
+    },
 
-  popupMessage: {
-    fontSize: 14,
+    popupMessage: {
+      fontSize: 14,
 
-    lineHeight: 22,
+      lineHeight: 22,
 
-    color: "#6B7280",
+      color: theme.subtext,
 
-    marginBottom: 24,
-  },
+      marginBottom: 24,
+    },
 
-  popupActions: {
-    flexDirection: "row",
+    popupActions: {
+      flexDirection: "row",
 
-    gap: 12,
-  },
+      gap: 12,
+    },
 
-
-
-});
+  });

@@ -13,6 +13,7 @@ import {
   BudgetAllocationBasis,
   BudgetAllocationPlanResponse,
 } from "../../types/budget_allocation.types";
+import { useThemeMode } from "../../theme/ThemeProvider";
 import { i18n, t } from "../../i18n";
 
 export type ApplyItem = { category: BudgetCategory; amountLimit: number };
@@ -60,6 +61,203 @@ export default function BudgetPlanReview({
   applying = false,
   onApply,
 }: Props) {
+  const { theme, mode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    wrap: {
+      marginTop: 16,
+      gap: 12,
+    },
+    summaryCard: {
+      backgroundColor: accent + "15",
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: accent + "20",
+      padding: 14,
+      gap: 8,
+    },
+    summaryRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    summaryLabel: {
+      fontSize: 13,
+      color: theme.subtext,
+    },
+    summaryValue: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: theme.text,
+    },
+    savingsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: 4,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: accent + "20",
+    },
+    savingsLabelWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    savingsLabel: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#059669",
+    },
+    savingsValue: {
+      fontSize: 16,
+      fontWeight: "800",
+      color: "#059669",
+    },
+    savingsHint: {
+      fontSize: 12,
+      color: theme.subtext,
+      lineHeight: 17,
+    },
+    coldStartCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#E0F2FE",
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    coldStartText: {
+      fontSize: 13,
+      color: "#075985",
+      flex: 1,
+      lineHeight: 18,
+    },
+    editHint: {
+      fontSize: 13,
+      color: theme.subtext,
+      marginTop: 4,
+    },
+    itemRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    itemRowDropped: {
+      opacity: 0.6,
+    },
+    itemMain: {
+      flex: 1,
+      minWidth: 0,
+    },
+    itemTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    itemName: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: theme.text,
+    },
+    itemNameDropped: {
+      textDecorationLine: "line-through",
+      color: theme.subtext,
+    },
+    badge: {
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    badgeText: {
+      fontSize: 11,
+      fontWeight: "700",
+    },
+    fixedNote: {
+      marginTop: 4,
+      fontSize: 12,
+      color: theme.subtext,
+    },
+    itemRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      flexShrink: 0,
+    },
+    amountInput: {
+      minWidth: 96,
+      textAlign: "right",
+      fontSize: 14,
+      fontWeight: "700",
+      color: accent,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      backgroundColor: surface,
+    },
+    restoreBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      flexShrink: 0,
+    },
+    restoreText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: accent,
+    },
+    applyBtn: {
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: theme.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 8,
+    },
+    applyBtnDisabled: {
+      opacity: 0.5,
+    },
+    applyBtnText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
+    blockedCard: {
+      marginTop: 16,
+      backgroundColor: "#FEF2F2",
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: "#FECACA",
+      padding: 16,
+      alignItems: "center",
+      gap: 8,
+    },
+    blockedTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: "#991B1B",
+      textAlign: "center",
+    },
+    blockedDesc: {
+      fontSize: 13,
+      color: "#B91C1C",
+      textAlign: "center",
+      lineHeight: 19,
+    },
+  }), [theme, mode]);
+
   const formatter = useMemo(
     () => new Intl.NumberFormat(i18n.locale === "vi" ? "vi-VN" : "en-US"),
     []
@@ -207,7 +405,7 @@ export default function BudgetPlanReview({
                 onPress={() => toggleDrop(a.category)}
                 hitSlop={8}
               >
-                <Ionicons name="add-circle-outline" size={18} color="#4B3FD6" />
+                <Ionicons name="add-circle-outline" size={18} color={accent} />
                 <Text style={styles.restoreText}>
                   {t("budget.restore_category")}
                 </Text>
@@ -227,7 +425,7 @@ export default function BudgetPlanReview({
                   hitSlop={8}
                   disabled={applying}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#9CA3AF" />
+                  <Ionicons name="trash-outline" size={18} color={theme.subtext} />
                 </Pressable>
               </View>
             )}
@@ -248,194 +446,3 @@ export default function BudgetPlanReview({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    marginTop: 16,
-    gap: 12,
-  },
-  summaryCard: {
-    backgroundColor: "#F8F7FF",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E9E5FF",
-    padding: 14,
-    gap: 8,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  summaryLabel: {
-    fontSize: 13,
-    color: "#6B7280",
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  savingsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 4,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#E9E5FF",
-  },
-  savingsLabelWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  savingsLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#059669",
-  },
-  savingsValue: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#059669",
-  },
-  savingsHint: {
-    fontSize: 12,
-    color: "#6B7280",
-    lineHeight: 17,
-  },
-  coldStartCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#E0F2FE",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  coldStartText: {
-    fontSize: 13,
-    color: "#075985",
-    flex: 1,
-    lineHeight: 18,
-  },
-  editHint: {
-    fontSize: 13,
-    color: "#6B7280",
-    marginTop: 4,
-  },
-  itemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-  },
-  itemRowDropped: {
-    opacity: 0.6,
-  },
-  itemMain: {
-    flex: 1,
-    minWidth: 0,
-  },
-  itemTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  itemName: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  itemNameDropped: {
-    textDecorationLine: "line-through",
-    color: "#9CA3AF",
-  },
-  badge: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  fixedNote: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "#6B7280",
-  },
-  itemRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flexShrink: 0,
-  },
-  amountInput: {
-    minWidth: 96,
-    textAlign: "right",
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#4B3FD6",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
-  },
-  restoreBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    flexShrink: 0,
-  },
-  restoreText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#4B3FD6",
-  },
-  applyBtn: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#3F2CCB",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-  },
-  applyBtnDisabled: {
-    opacity: 0.5,
-  },
-  applyBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  blockedCard: {
-    marginTop: 16,
-    backgroundColor: "#FEF2F2",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    padding: 16,
-    alignItems: "center",
-    gap: 8,
-  },
-  blockedTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#991B1B",
-    textAlign: "center",
-  },
-  blockedDesc: {
-    fontSize: 13,
-    color: "#B91C1C",
-    textAlign: "center",
-    lineHeight: 19,
-  },
-});
