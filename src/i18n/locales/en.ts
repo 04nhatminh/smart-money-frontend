@@ -271,6 +271,8 @@ export default {
     income: "Income",
     saveSuccess: "Transaction added successfully",
     saveSuccessDesc: "Your transaction has been saved successfully.",
+    updateSuccess: "Transaction updated successfully",
+    updateSuccessDesc: "Your transaction has been updated successfully.",
     confirmExit: "The transaction isn't saved.",
     confirmExitDesc: "Are you sure you want to exit?",
     amountRequired: "Amount is required",

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import AppBottomBar from "../../src/components/AppBottomBar";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
 import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceInputModal";
@@ -62,10 +62,12 @@ export default function TransactionListScreen() {
 
   const { createFromReceipt, createFromVoice } = useCreateTransaction();
 
-  // Fetch transactions whenever filters change
-  useEffect(() => {
-    fetchTransactions();
-  }, [filters, currentPage]);
+  // Fetch transactions whenever screen comes into focus or filters change
+  useFocusEffect(
+    useCallback(() => {
+      fetchTransactions();
+    }, [filters, currentPage])
+  );
 
   const fetchTransactions = async () => {
     setIsLoadingTransactions(true);

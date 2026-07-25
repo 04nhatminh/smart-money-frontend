@@ -272,6 +272,8 @@ export default {
     income: "Thu nhập",
     saveSuccess: "Thêm giao dịch thành công",
     saveSuccessDesc: "Giao dịch đã được lưu thành công.",
+    updateSuccess: "Cập nhật giao dịch thành công",
+    updateSuccessDesc: "Giao dịch đã được cập nhật thành công.",
     confirmExit: "Giao dịch chưa được lưu",
     confirmExitDesc: "Mọi thay đổi sẽ bị mất nếu bạn thoát bây giờ.",
     amountRequired: "Vui lòng nhập số tiền",
