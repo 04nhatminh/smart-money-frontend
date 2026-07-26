@@ -538,6 +538,21 @@ const pollRecoveredJob = async (jobId: string, pendingId: string) => {
   }
 };
 
+// Watchdog cho job vừa submit: WS được ưu tiên xử lý trước (grace period),
+// quá hạn không thấy kết quả thì tự poll getResult → force getJobResult → failed.
+// Gọi ngay sau bindJob để không phụ thuộc user đang mở màn hình nào.
+export const watchPendingJob = (
+  jobId: string,
+  pendingId: string,
+  graceMs = 15000
+) => {
+  setTimeout(() => {
+    pollRecoveredJob(jobId, pendingId).catch((err) =>
+      console.error("❌ watchPendingJob error:", err)
+    );
+  }, graceMs);
+};
+
 const recoverPendingJobs = async () => {
   try {
     await PendingStorage.load();
