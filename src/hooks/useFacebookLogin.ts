@@ -76,7 +76,7 @@ export const useFacebookLogin = () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: Linking.createURL("/"), // Trả về app sau khi đăng nhập
+          redirectTo: Linking.createURL("/"), 
         },
       });
 
