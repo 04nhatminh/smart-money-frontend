@@ -206,10 +206,6 @@ export default function CreateGroupProjectModal({
     }
   };
 
-  const bypassDateGate = process.env.EXPO_PUBLIC_BYPASS_DATE_GATE === "true";
-  const today = new Date().getDate();
-  const outsideWindow = !bypassDateGate && (today < 1 || today > 7);
-
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
@@ -230,15 +226,6 @@ export default function CreateGroupProjectModal({
               Target and deadline are fixed after creation and cannot be changed.
             </Text>
           </View>
-
-          {outsideWindow && (
-            <View style={[styles.warningBanner, { backgroundColor: "#FEE2E2" }]}>
-              <Ionicons name="calendar-outline" size={14} color="#991B1B" />
-              <Text style={[styles.warningText, { color: "#991B1B" }]}>
-                Group projects can only be created on days 1–7 of each month.
-              </Text>
-            </View>
-          )}
 
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={styles.label}>Project Name *</Text>
@@ -295,10 +282,10 @@ export default function CreateGroupProjectModal({
               style={({ pressed }) => [
                 styles.createBtn,
                 pressed && { opacity: 0.85 },
-                (loading || outsideWindow) && styles.btnDisabled,
+                loading && styles.btnDisabled,
               ]}
               onPress={handleCreate}
-              disabled={loading || outsideWindow}
+              disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
