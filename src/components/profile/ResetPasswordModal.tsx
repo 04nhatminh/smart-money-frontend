@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { InputField } from '../InputField';
 import authService from '../../auth/authService';
 import { t } from '../../i18n';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useThemeMode } from '../../theme/ThemeProvider';
 type Step = 'confirm' | 'otp' | 'reset';
 
 interface ResetPasswordModalProps {
@@ -37,6 +38,113 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { lang } = useLanguage();
+  const { theme, mode } = useThemeMode();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    blurContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: surface,
+      borderTopLeftRadius: 30,
+      borderTopRightRadius: 30,
+      paddingHorizontal: 24,
+      paddingTop: 24,
+      maxHeight: '90%',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 24,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: mode === 'dark' ? theme.text : theme.primary,
+    },
+    content: {
+      alignItems: 'center',
+      paddingVertical: 32,
+    },
+    icon: {
+      marginBottom: 16,
+    },
+    message: {
+      fontSize: 16,
+      color: theme.text,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    form: {
+      maxHeight: '60%',
+      marginBottom: 16,
+    },
+    formGroup: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: mode === 'dark' ? theme.text : theme.primary,
+      marginBottom: 8,
+    },
+    hint: {
+      fontSize: 12,
+      color: theme.subtext,
+      marginTop: 8,
+    },
+    footer: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingVertical: 24,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    button: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelButton: {
+      backgroundColor: theme.inputBg,
+      borderWidth: 2,
+      borderColor: accent,
+    },
+    cancelButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: accent,
+    },
+    confirmButton: {
+      backgroundColor: theme.primary,
+    },
+    confirmButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+  }), [theme, mode]);
+
   // Load user email when modal becomes visible
   useEffect(() => {
     if (visible) {
@@ -142,7 +250,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
   const renderConfirmStep = () => (
     <>
       <View style={styles.content}>
-        <Ionicons name="lock-closed-outline" size={48} color="#3629B7" style={styles.icon} />
+        <Ionicons name="lock-closed-outline" size={48} color={accent} style={styles.icon} />
         <Text style={styles.message}>
           {t('profile.confirm_password_change', { email })}
         </Text>
@@ -175,12 +283,12 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       <View style={styles.header}>
         {step !== 'confirm' && (
           <TouchableOpacity onPress={handleBack} disabled={loading}>
-            <Ionicons name="arrow-back" size={24} color="#3629B7" />
+            <Ionicons name="arrow-back" size={24} color={accent} />
           </TouchableOpacity>
         )}
         <Text style={styles.title}>{t('profile.verify_otp')}</Text>
         <TouchableOpacity onPress={handleClose} disabled={loading}>
-          <Ionicons name="close" size={28} color="#3629B7" />
+          <Ionicons name="close" size={28} color={accent} />
         </TouchableOpacity>
       </View>
 
@@ -226,11 +334,11 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
     <>
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} disabled={loading}>
-          <Ionicons name="arrow-back" size={24} color="#3629B7" />
+          <Ionicons name="arrow-back" size={24} color={accent} />
         </TouchableOpacity>
         <Text style={styles.title}>{t('profile.reset_password')}</Text>
         <TouchableOpacity onPress={handleClose} disabled={loading}>
-          <Ionicons name="close" size={28} color="#3629B7" />
+          <Ionicons name="close" size={28} color={accent} />
         </TouchableOpacity>
       </View>
 
@@ -297,103 +405,3 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  blurContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F1F9',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#3629B7',
-  },
-  content: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  icon: {
-    marginBottom: 16,
-  },
-  message: {
-    fontSize: 16,
-    color: '#333333',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  form: {
-    maxHeight: '60%',
-    marginBottom: 16,
-  },
-  formGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3629B7',
-    marginBottom: 8,
-  },
-  hint: {
-    fontSize: 12,
-    color: '#666666',
-    marginTop: 8,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#F2F1F9',
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#F2F1F9',
-    borderWidth: 2,
-    borderColor: '#3629B7',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#3629B7',
-  },
-  confirmButton: {
-    backgroundColor: '#3629B7',
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-});

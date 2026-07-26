@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
-import { projectStyles as styles } from "../../styles/projectStyles";
+import { useProjectStyles } from "../../styles/projectStyles";
 import { ProjectType } from "../../types/project.types";
 import { t } from "../../i18n";
 
@@ -10,6 +10,8 @@ type Props = {
 };
 
 export default function ProjectTypeTabs({ value, onChange }: Props) {
+  const { styles } = useProjectStyles();
+
   return (
     <View style={styles.typeRow}>
       <Pressable

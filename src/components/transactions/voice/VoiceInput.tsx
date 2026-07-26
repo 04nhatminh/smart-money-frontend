@@ -43,7 +43,9 @@ export function VoiceInput({
   isSubmitting = false,
   errorMessage,
 }: Props) {
-  const { theme } = useThemeMode();
+  const { theme, mode } = useThemeMode();
+  // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
   const [transaction, setTransaction] = useState<TransactionRequest>(MOCK_VOICE_TRANSACTION);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -96,7 +98,7 @@ export function VoiceInput({
         {/* Microphone Section */}
         
           <Pressable 
-            style={[styles.micCard, { backgroundColor: theme.card }]}
+            style={[styles.micCard, { backgroundColor: surface }]}
             onPress={onRetakeAudio}
           >
             <Ionicons name="mic-circle-outline" size={64} color={theme.primary}
@@ -107,7 +109,7 @@ export function VoiceInput({
           </Pressable>
           
         {/* Transaction Details */}
-        <View style={[styles.detailsCard, { backgroundColor: theme.card }]}>
+        <View style={[styles.detailsCard, { backgroundColor: surface }]}>
           {/* Type */}
           <View style={styles.detailsHeader}>
             <View />
@@ -138,7 +140,7 @@ export function VoiceInput({
                       {
                         backgroundColor: 
                           transaction.type === type ? 
-                             type === "EXPENSE" ? "#FCA5A5" : "#86EFAC" :  "#F3F4F6" 
+                             type === "EXPENSE" ? "#FCA5A5" : "#86EFAC" :  theme.inputBg 
                       },
                     ]}
                   >
@@ -150,7 +152,7 @@ export function VoiceInput({
                               ? type === "EXPENSE"
                                 ? "#991B1B"
                                 : "#166534"
-                              : "#6B7280",
+                              : theme.subtext,
                         },
                     ]}>
                       {type}
@@ -301,7 +303,7 @@ export function VoiceInput({
             borderColor: theme.border,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "#F2F1F9",
+            backgroundColor: theme.inputBg,
           }}
         >
           <Text style={{ color: theme.text, fontWeight: "600" }}>Retake</Text>

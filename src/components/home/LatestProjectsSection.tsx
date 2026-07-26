@@ -6,8 +6,10 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { useMemo } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useThemeMode } from '../../theme/ThemeProvider';
 
 export type LatestProjectItem = {
   projectId: string;
@@ -25,6 +27,8 @@ type LatestProjectsSectionProps = {
   onAddPress?: () => void;
 };
 
+// Pastel nhận diện của thẻ project — nền sáng cố định, chữ đậm trên thẻ luôn
+// đọc được ở cả 3 theme nên giữ nguyên (tương tự balanceCard ở home).
 const cardColors = ['#FFC857', '#E7DAF7', '#D9F3EA', '#DDEBFF'];
 
 const formatMoney = (amount: number, currency: string) => {
@@ -36,6 +40,122 @@ export default function LatestProjectsSection({
   loading = false,
   onAddPress,
 }: LatestProjectsSectionProps) {
+  const { theme, mode } = useThemeMode();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+
+  const styles = useMemo(() => StyleSheet.create({
+    section: {
+      marginBottom: 22,
+    },
+
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: theme.text,
+    },
+
+    seeAllText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: accent,
+    },
+
+    projectList: {
+      gap: 14,
+      paddingRight: 4,
+    },
+
+    projectCard: {
+      width: 142,
+      height: 160,
+      borderRadius: 18,
+      padding: 16,
+      justifyContent: 'space-between',
+    },
+
+    addCard: {
+      width: 142,
+      height: 160,
+      borderRadius: 18,
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: theme.border,
+      backgroundColor: theme.inputBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    projectIconBox: {
+      width: 46,
+      height: 46,
+      borderRadius: 14,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+
+    projectAmount: {
+      fontSize: 16,
+      fontWeight: '900',
+      color: '#020617',
+    },
+
+    projectName: {
+      marginTop: 4,
+      fontSize: 13,
+      fontWeight: '500',
+      color: '#475569',
+    },
+
+    loadingBox: {
+      height: 120,
+      borderRadius: 18,
+      backgroundColor: theme.inputBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    emptyCard: {
+      backgroundColor: theme.inputBg,
+      borderRadius: 18,
+      paddingVertical: 22,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+
+    emptyTitle: {
+      marginTop: 8,
+      fontSize: 15,
+      fontWeight: '800',
+      color: theme.text,
+    },
+
+    emptyText: {
+      marginTop: 4,
+      fontSize: 13,
+      color: theme.subtext,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+  }), [theme, mode]);
+
   if (loading) {
     return (
       <View style={styles.section}>
@@ -44,7 +164,7 @@ export default function LatestProjectsSection({
         </View>
 
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="small" color="#0F172A" />
+          <ActivityIndicator size="small" color={theme.text} />
         </View>
       </View>
     );
@@ -88,7 +208,7 @@ export default function LatestProjectsSection({
                 style={styles.addCard}
                 onPress={onAddPress}
               >
-                <MaterialCommunityIcons name="plus" size={32} color="#64748B" />
+                <MaterialCommunityIcons name="plus" size={32} color={theme.subtext} />
               </TouchableOpacity>
             );
           }
@@ -130,114 +250,3 @@ export default function LatestProjectsSection({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  section: {
-    marginBottom: 22,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-
-  seeAllText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-
-  projectList: {
-    gap: 14,
-    paddingRight: 4,
-  },
-
-  projectCard: {
-    width: 142,
-    height: 160,
-    borderRadius: 18,
-    padding: 16,
-    justifyContent: 'space-between',
-  },
-
-  addCard: {
-    width: 142,
-    height: 160,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  projectIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-
-  projectAmount: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#020617',
-  },
-
-  projectName: {
-    marginTop: 4,
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#475569',
-  },
-
-  loadingBox: {
-    height: 120,
-    borderRadius: 18,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  emptyCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 18,
-    paddingVertical: 22,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-
-  emptyTitle: {
-    marginTop: 8,
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-
-  emptyText: {
-    marginTop: 4,
-    fontSize: 13,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-});

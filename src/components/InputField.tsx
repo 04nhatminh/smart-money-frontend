@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { View, TextInput, Pressable, StyleSheet, TextInputProps, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeMode } from '../theme/ThemeProvider';
 
 interface InputFieldProps extends TextInputProps {
     iconName?: any;
@@ -38,6 +39,76 @@ export const InputField: React.FC<InputFieldProps> = ({
     const externalOnFocus = rest.onFocus;
     const externalOnBlur = rest.onBlur;
 
+    const { theme, mode } = useThemeMode();
+
+    // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+    const accent = mode === 'dark' ? theme.link : theme.primary;
+    // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+    const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+
+    const styles = useMemo(() => StyleSheet.create({
+        field: {
+            marginBottom: 12,
+        },
+        inputRow: {
+            height: 46,
+            borderRadius: 20,
+            backgroundColor: surface,
+            borderWidth: 1.5,
+            borderColor: theme.border,
+            paddingHorizontal: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+        },
+        inputRowMultiline: {
+            minHeight: 80,
+            height: 100,
+            alignItems: 'flex-start',
+            paddingTop: 14,
+        },
+        inputRowFocused: {
+            borderColor: accent,
+        },
+        inputRowError: {
+            borderColor: '#EF4444',
+        },
+        inputRowDisabled: {
+            backgroundColor: theme.inputBg,
+            opacity: 0.6,
+        },
+        input: {
+            flex: 1,
+            color: theme.text,
+            fontSize: 14,
+            paddingVertical: 8,
+        },
+        inputMultiline: {
+            minHeight: 70,
+            paddingTop: 0,
+        },
+        iconTop: {
+            marginTop: 2,
+        },
+        inputFull: {
+            marginHorizontal: 0,
+        },
+        eyeButton: {
+            paddingLeft: 4,
+        },
+        rightText: {
+            fontSize: 14,
+            fontWeight: '500',
+            color: theme.subtext,
+        },
+        errorText: {
+            fontSize: 12,
+            color: '#EF4444',
+            marginTop: 6,
+            marginLeft: 4,
+        }
+    }), [theme, mode]);
+
     const isPassword = secureTextEntry;
     const showRightText = rightText && !isPassword;
 
@@ -62,7 +133,7 @@ export const InputField: React.FC<InputFieldProps> = ({
                     <Ionicons
                         name={iconName}
                         size={18}
-                        color={isFocused ? '#CBCBCBa' : '#E5E5EA'}
+                        color={isFocused ? accent : theme.subtext}
                         style={multiline ? styles.iconTop : undefined}
                     />
                 )}
@@ -71,9 +142,9 @@ export const InputField: React.FC<InputFieldProps> = ({
                 <TextInput
                     ref={inputRef}
                     placeholder={placeholder}
-                    placeholderTextColor="#E5E5EA"
+                    placeholderTextColor={theme.subtext}
                     style={[
-                        styles.input, 
+                        styles.input,
                         multiline && styles.inputMultiline,
                         customStyle,
                     ]}
@@ -111,7 +182,7 @@ export const InputField: React.FC<InputFieldProps> = ({
                         <Ionicons
                             name={hidePassword ? 'eye-off-outline' : 'eye-outline'}
                             size={18}
-                            color={isFocused ? '#CBCBCB' : '#E5E5EA'}
+                            color={isFocused ? accent : theme.subtext}
                         />
                     </Pressable>
                 )}
@@ -121,66 +192,3 @@ export const InputField: React.FC<InputFieldProps> = ({
         </View>
     );
 };
-
-const styles = StyleSheet.create({
-    field: {
-        marginBottom: 12,
-    },
-    inputRow: {
-        height: 46,
-        borderRadius: 20,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1.5,
-        borderColor: '#E5E5EA',
-        paddingHorizontal: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    inputRowMultiline: {
-        minHeight: 80,
-        height: 100,
-        alignItems: 'flex-start',
-        paddingTop: 14,
-    },
-    inputRowFocused: {
-        borderColor: '#CBCBCB',
-    },
-    inputRowError: {
-        borderColor: '#EF4444',
-    },
-    inputRowDisabled: {
-        backgroundColor: '#F2F1F9',
-        opacity: 0.6,
-    },
-    input: {
-        flex: 1,
-        color: '#1F2937',
-        fontSize: 14,
-        paddingVertical: 8,
-    },
-    inputMultiline: {
-        minHeight: 70,
-        paddingTop: 0,
-    },
-    iconTop: {
-        marginTop: 2,
-    },
-    inputFull: {
-        marginHorizontal: 0,
-    },
-    eyeButton: {
-        paddingLeft: 4,
-    },
-    rightText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#CACACA',
-    },
-    errorText: {
-        fontSize: 12,
-        color: '#EF4444',
-        marginTop: 6,
-        marginLeft: 4,
-    }
-});

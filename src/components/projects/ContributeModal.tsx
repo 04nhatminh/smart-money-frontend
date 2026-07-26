@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -17,6 +17,7 @@ import {
   formatNumberWithDots,
   parseCurrencyToNumber,
 } from "../../utils/project";
+import { useThemeMode } from "../../theme/ThemeProvider";
 import { t } from "../../i18n";
 
 type Props = {
@@ -39,6 +40,127 @@ export default function ContributeModal({
   onClose,
   onContributed,
 }: Props) {
+  const { theme, mode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      justifyContent: "flex-end",
+    },
+    sheet: {
+      backgroundColor: theme.bg,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 20,
+      paddingBottom: 32,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 6,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: theme.text,
+    },
+    subtitle: {
+      fontSize: 13,
+      color: theme.subtext,
+      marginBottom: 16,
+    },
+    remainingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: surface,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      marginBottom: 16,
+    },
+    remainingLabel: {
+      fontSize: 13,
+      color: theme.subtext,
+      fontWeight: "500",
+    },
+    remainingValue: {
+      fontSize: 15,
+      color: theme.text,
+      fontWeight: "700",
+    },
+    fieldLabel: {
+      fontSize: 13,
+      color: theme.text,
+      fontWeight: "600",
+      marginBottom: 6,
+      marginLeft: 4,
+    },
+
+    // Nút điền nhanh + hộp gợi ý vượt mức: tint xanh dương info cố định (nền
+    // sáng + chữ xanh đậm cùng tông icon) — đọc tốt ở cả 3 theme nên giữ nguyên.
+    quickFillButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: "#EFF6FF",
+      borderWidth: 1,
+      borderColor: "#BFDBFE",
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    quickFillText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: "#2563EB",
+    },
+    exceedingContainer: {
+      backgroundColor: "#EFF6FF",
+      borderWidth: 1,
+      borderColor: "#BFDBFE",
+      borderRadius: 12,
+      padding: 12,
+      marginTop: -8,
+      marginBottom: 12,
+    },
+    exceedingText: {
+      fontSize: 12,
+      color: "#1E40AF",
+      fontWeight: "500",
+      marginBottom: 8,
+    },
+    adjustButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      backgroundColor: "#FFFFFF",
+      borderWidth: 1,
+      borderColor: "#93C5FD",
+      borderRadius: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+    },
+    adjustButtonText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#2563EB",
+    },
+
+    actions: {
+      flexDirection: "row",
+      gap: 12,
+      marginTop: 12,
+    },
+  }), [theme, mode]);
+
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +235,7 @@ export default function ContributeModal({
           <View style={styles.header}>
             <Text style={styles.title}>{t("project.contribute_title")}</Text>
             <Pressable onPress={onClose} hitSlop={10}>
-              <Ionicons name="close" size={24} color="#6B7280" />
+              <Ionicons name="close" size={24} color={theme.subtext} />
             </Pressable>
           </View>
 
@@ -200,114 +322,3 @@ export default function ContributeModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: "#F6F6F8",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: 32,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1F2937",
-  },
-  subtitle: {
-    fontSize: 13,
-    color: "#6B7280",
-    marginBottom: 16,
-  },
-  remainingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  remainingLabel: {
-    fontSize: 13,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  remainingValue: {
-    fontSize: 15,
-    color: "#1F2937",
-    fontWeight: "700",
-  },
-  quickFillButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  quickFillText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2563EB",
-  },
-  exceedingContainer: {
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    borderRadius: 12,
-    padding: 12,
-    marginTop: -8,
-    marginBottom: 12,
-  },
-  exceedingText: {
-    fontSize: 12,
-    color: "#1E40AF",
-    fontWeight: "500",
-    marginBottom: 8,
-  },
-  adjustButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#93C5FD",
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  adjustButtonText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#2563EB",
-  },
-  fieldLabel: {
-    fontSize: 13,
-    color: "#374151",
-    fontWeight: "600",
-    marginBottom: 6,
-    marginLeft: 4,
-  },
-  actions: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 12,
-  },
-});

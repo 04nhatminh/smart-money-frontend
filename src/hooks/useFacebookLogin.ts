@@ -83,7 +83,6 @@ export const useFacebookLogin = () => {
       if (error) throw error;
 
       if (data?.url) {
-        // Mở trình duyệt với URL đăng nhập Facebook
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
         console.log("OAuth result =", result);
         // Xử lý kết quả (tuỳ chọn)

@@ -275,7 +275,7 @@ export default function AuthScreen() {
             if (res.success) {
                 console.log('✅ Reset password OTP verified');
                 setShowResetPassword(true);
-                await setPendingVerifyEmail(null);
+                await setPendingVerifyEmail(email);
                 setShowOTPModal(false);
                 setSuccess(t("auth.email_verified"));
             } else {

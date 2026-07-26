@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { t } from '../../i18n';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useThemeMode } from '../../theme/ThemeProvider';
 
 interface NotificationsModalProps {
   visible: boolean;
@@ -40,6 +41,75 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   };
 
   const { lang } = useLanguage();
+  const { theme, mode } = useThemeMode();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    blurContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: surface,
+      borderTopLeftRadius: 30,
+      borderTopRightRadius: 30,
+      paddingHorizontal: 24,
+      paddingTop: 24,
+      paddingBottom: 32,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 24,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: mode === 'dark' ? theme.text : theme.primary,
+    },
+    content: {
+      alignItems: 'center',
+      paddingVertical: 16,
+    },
+    icon: {
+      marginBottom: 16,
+    },
+    description: {
+      fontSize: 16,
+      color: theme.text,
+      textAlign: 'center',
+      lineHeight: 24,
+      marginBottom: 24,
+    },
+    toggleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      width: '100%',
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      backgroundColor: theme.inputBg,
+      borderRadius: 12,
+    },
+    toggleLabel: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: theme.text,
+    },
+  }), [theme, mode]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -53,13 +123,13 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             <View style={styles.header}>
               <Text style={styles.title}>{t('notification.notifications')}</Text>
               <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={28} color="#3629B7" />
+                <Ionicons name="close" size={28} color={accent} />
               </TouchableOpacity>
             </View>
 
             {/* Content */}
             <View style={styles.content}>
-              <Ionicons name="notifications-outline" size={48} color="#3629B7" style={styles.icon} />
+              <Ionicons name="notifications-outline" size={48} color={accent} style={styles.icon} />
 
               <Text style={styles.description}>
                 {t('notification.notification_description')}
@@ -74,15 +144,15 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   value={enabled}
                   onValueChange={handleToggle}
                   disabled={loading} // ✅ disable khi đang call API
-                  trackColor={{ false: '#E0E0E0', true: '#3629B7' }}
+                  trackColor={{ false: theme.border, true: theme.primary }}
                   thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
-                  ios_backgroundColor="#E0E0E0"
+                  ios_backgroundColor={theme.border}
                 />
               </View>
 
               {/* Loading indicator */}
               {loading && (
-                <Text style={{ marginTop: 10, color: '#999' }}>
+                <Text style={{ marginTop: 10, color: theme.subtext }}>
                   {t('common.loading')}
                 </Text>
               )}
@@ -93,68 +163,5 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  blurContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 32,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F1F9',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#3629B7',
-  },
-  content: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  icon: {
-    marginBottom: 16,
-  },
-  description: {
-    fontSize: 16,
-    color: '#333333',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: '#F2F1F9',
-    borderRadius: 12,
-  },
-  toggleLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#3629B7',
-  },
-});
 
 export default NotificationsModal;

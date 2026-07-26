@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { InputField } from "../InputField";
-import { projectStyles as styles } from "../../styles/projectStyles";
+import { useProjectStyles } from "../../styles/projectStyles";
 import { t } from "../../i18n";
 import { CreateProjectFormErrors } from "../../types/project.types";
 import { ProjectPriority, PROJECT_PRIORITIES } from "../../types/project.types";
@@ -54,6 +54,8 @@ export default function ProjectFormFields({
   onDescriptionBlur,
   availablePriorities,
 }: Props) {
+  const { styles } = useProjectStyles();
+
   return (
     <>
       <Text style={styles.name}>{t("project.name")}</Text>

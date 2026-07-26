@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import { GroupAPI } from "../../api/group.api";
 import { ProjectAPI } from "../../api/project.api";
 import { GroupProjectDetailResponse, GroupProjectPriority } from "../../types/group.types";
 import { getGroupProjectErrorMessage } from "../../utils/groupProjectErrors";
+import { useThemeMode } from "../../theme/ThemeProvider";
 
 type Props = {
   visible: boolean;
@@ -35,10 +36,49 @@ export default function PriorityPickerModal({
   onClose,
   onJoined,
 }: Props) {
+  const { theme, mode } = useThemeMode();
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+
   const [selected, setSelected] = useState<GroupProjectPriority | null>(null);
   const [loading, setLoading] = useState(false);
   const [takenPriorities, setTakenPriorities] = useState<Set<GroupProjectPriority>>(new Set());
   const [checkingPriorities, setCheckingPriorities] = useState(false);
+
+  const styles = useMemo(() => StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+    sheet: {
+      backgroundColor: surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+      padding: 24, paddingBottom: 40,
+    },
+    handle: { width: 40, height: 4, backgroundColor: theme.border, borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+    title: { fontSize: 20, fontWeight: "800", color: theme.text },
+    subtitle: { fontSize: 13, color: theme.subtext, lineHeight: 20, marginBottom: 20 },
+    tilesRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
+    checkingRow: { height: 100, alignItems: "center", justifyContent: "center", marginBottom: 24 },
+    tile: {
+      flex: 1, borderRadius: 16, padding: 14, borderWidth: 2,
+      alignItems: "center", minHeight: 100, justifyContent: "center",
+    },
+    tileTaken: { opacity: 0.5 },
+    takenBadge: {
+      position: "absolute", top: 6, right: 6,
+      backgroundColor: theme.border, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2,
+    },
+    takenBadgeText: { fontSize: 9, fontWeight: "700", color: theme.subtext },
+    tileLabel: { fontSize: 16, fontWeight: "800", marginBottom: 4 },
+    tileDesc: { fontSize: 11, color: theme.subtext, textAlign: "center", lineHeight: 15 },
+    checkIcon: { position: "absolute", bottom: 8, right: 8 },
+    confirmBtn: {
+      height: 52, backgroundColor: theme.primary, borderRadius: 16,
+      justifyContent: "center", alignItems: "center",
+      shadowColor: "#3629B7", shadowOpacity: 0.25, shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 }, elevation: 3,
+    },
+    btnDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
+    confirmBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  }), [theme, mode]);
 
   // A priority is "taken" when THIS user already has another active project using
   // it — each of the user's active projects must hold a distinct priority level.
@@ -109,7 +149,7 @@ export default function PriorityPickerModal({
           <View style={styles.header}>
             <Text style={styles.title}>Choose Priority</Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Ionicons name="close" size={24} color={theme.subtext} />
             </Pressable>
           </View>
 
@@ -119,7 +159,7 @@ export default function PriorityPickerModal({
 
           {checkingPriorities ? (
             <View style={styles.checkingRow}>
-              <ActivityIndicator color="#3629B7" />
+              <ActivityIndicator color={theme.primary} />
             </View>
           ) : (
           <View style={styles.tilesRow}>
@@ -131,7 +171,7 @@ export default function PriorityPickerModal({
                   key={p.value}
                   style={[
                     styles.tile,
-                    { backgroundColor: isSelected ? p.bg : "#F8FAFC", borderColor: isSelected ? p.color : "#E2E8F0" },
+                    { backgroundColor: isSelected ? p.bg : theme.inputBg, borderColor: isSelected ? p.color : theme.border },
                     isTaken && styles.tileTaken,
                   ]}
                   onPress={() => !isTaken && setSelected(p.value)}
@@ -143,7 +183,16 @@ export default function PriorityPickerModal({
                     </View>
                   )}
                   <Text style={[styles.tileLabel, { color: isTaken ? "#9CA3AF" : p.color }]}>{p.label}</Text>
-                  <Text style={[styles.tileDesc, isTaken && { color: "#9CA3AF" }]}>{p.description}</Text>
+                  {/* Khi được chọn, ô có nền tint sáng cố định nên chữ mô tả giữ màu tối cố định. */}
+                  <Text
+                    style={[
+                      styles.tileDesc,
+                      isSelected && { color: "#64748B" },
+                      isTaken && { color: "#9CA3AF" },
+                    ]}
+                  >
+                    {p.description}
+                  </Text>
                   {isSelected && (
                     <Ionicons name="checkmark-circle" size={18} color={p.color} style={styles.checkIcon} />
                   )}
@@ -173,38 +222,3 @@ export default function PriorityPickerModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  sheet: {
-    backgroundColor: "#FFFFFF", borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    padding: 24, paddingBottom: 40,
-  },
-  handle: { width: 40, height: 4, backgroundColor: "#E2E8F0", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  title: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
-  subtitle: { fontSize: 13, color: "#64748B", lineHeight: 20, marginBottom: 20 },
-  tilesRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
-  checkingRow: { height: 100, alignItems: "center", justifyContent: "center", marginBottom: 24 },
-  tile: {
-    flex: 1, borderRadius: 16, padding: 14, borderWidth: 2,
-    alignItems: "center", minHeight: 100, justifyContent: "center",
-  },
-  tileTaken: { opacity: 0.5 },
-  takenBadge: {
-    position: "absolute", top: 6, right: 6,
-    backgroundColor: "#E5E7EB", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2,
-  },
-  takenBadgeText: { fontSize: 9, fontWeight: "700", color: "#6B7280" },
-  tileLabel: { fontSize: 16, fontWeight: "800", marginBottom: 4 },
-  tileDesc: { fontSize: 11, color: "#64748B", textAlign: "center", lineHeight: 15 },
-  checkIcon: { position: "absolute", bottom: 8, right: 8 },
-  confirmBtn: {
-    height: 52, backgroundColor: "#3629B7", borderRadius: 16,
-    justifyContent: "center", alignItems: "center",
-    shadowColor: "#3629B7", shadowOpacity: 0.25, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 }, elevation: 3,
-  },
-  btnDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
-  confirmBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
-});

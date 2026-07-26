@@ -26,7 +26,9 @@ const GUIDE_ASPECT = 1.4; // frameGuide aspectRatio 1 / 1.4  (height = width * 1
 const GUIDE_PADDING_BOTTOM = 40; // frameGuideContainer paddingBottom
 
 export function CameraScreen({ onCapture, onClose }: Props) {
-  const { theme } = useThemeMode();
+  const { theme, mode } = useThemeMode();
+  // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [isRecording, setIsRecording] = useState(false);
@@ -57,7 +59,7 @@ export function CameraScreen({ onCapture, onClose }: Props) {
               <Text style={styles.permissionBtnText}>{t("camera.grant_permission")}</Text>
             </Pressable>
             <Pressable
-              style={[styles.permissionBtn, { backgroundColor: theme.card }]}
+              style={[styles.permissionBtn, { backgroundColor: surface }]}
               onPress={handlePickFromLibrary}
             >
               <Text style={[styles.permissionBtnText, { color: theme.text }]}>
@@ -213,7 +215,7 @@ export function CameraScreen({ onCapture, onClose }: Props) {
         {/* Gallery Button */}
         <Pressable
           onPress={handlePickFromLibrary}
-          style={[styles.galleryBtn, { backgroundColor: theme.card }]}
+          style={[styles.galleryBtn, { backgroundColor: surface }]}
         >
           <Ionicons name="image-outline" size={24} color={theme.primary} />
         </Pressable>

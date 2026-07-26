@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useThemeMode } from '../../theme/ThemeProvider';
 
 interface StatCardProps {
   icon: string;
@@ -20,9 +21,48 @@ export const StatCard: React.FC<StatCardProps> = ({
   label,
 }) => {
   const { lang } = useLanguage();
+  const { theme, mode } = useThemeMode();
+
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface
+  // của thẻ thống kê dùng trắng cho dễ đọc.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  const styles = useMemo(() => StyleSheet.create({
+    statsCard: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 16,
+      marginHorizontal: 4,
+      borderRadius: 16,
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    statIcon: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    statValue: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: mode === 'dark' ? theme.text : theme.primary,
+      marginBottom: 2,
+    },
+    statLabel: {
+      fontSize: 11,
+      color: theme.subtext,
+      textAlign: 'center',
+    },
+  }), [theme, mode]);
+
   return (
     <LinearGradient
-      colors={['#FFFFFF', '#F2F1F9']}
+      colors={[surface, theme.inputBg]}
       style={styles.statsCard}
     >
       <View style={[styles.statIcon, { backgroundColor }]}>
@@ -33,37 +73,3 @@ export const StatCard: React.FC<StatCardProps> = ({
     </LinearGradient>
   );
 };
-
-const styles = StyleSheet.create({
-  statsCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-    marginHorizontal: 4,
-    borderRadius: 16,
-    shadowColor: '#3629B7',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  statIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#3629B7',
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#5655B9',
-    textAlign: 'center',
-  },
-});

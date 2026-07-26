@@ -10,6 +10,7 @@ import {
   FlatList,
   StatusBar,
   RefreshControl,
+  ImageBackground,
   Animated,
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +23,6 @@ import { NotificationListModal } from "../../src/components/notification/Notific
 import { initWebSocket } from "../../src/services/websocket";
 import AppBottomBar from "../../src/components/AppBottomBar";
 import { AddTransactionModal } from "../../src/components/transactions/AddTransactionModal";
-import AIInsightList from "../../src/components/assistant/AIInsightList";
 import { CameraModal } from "../../src/components/transactions/camera/CameraModal";
 import { VoiceInputModal } from "../../src/components/transactions/voice/VoiceInputModal";
 import { TransactionRequest, Receipt, TransactionResponse } from "../../src/types/transaction.types";
@@ -45,6 +45,7 @@ import transactionApi from "../../src/api/transaction.api";
 import { CircularProgress } from "../../src/components/CircularProgress";
 import { formatVND } from "../../src/utils/formatCurrency";
 import { useAuth } from "../../src/context/AuthContext";
+import { useThemeMode } from "../../src/theme/ThemeProvider";
 import analyticsAPI from "../../src/api/transaction_analytics.api";
 import { t } from "../../src/i18n";
 
@@ -59,6 +60,12 @@ const categoryIconMap: { [key: string]: { icon: string; color: string; displayNa
   EDUCATION: { icon: 'book', color: '#3629B7', displayName: 'Education' },
   SHOPPING: { icon: 'bag', color: '#4CAF50', displayName: 'Shopping' },
   OTHER: { icon: 'ellipsis-horizontal', color: '#757575', displayName: 'Other' },
+};
+
+const creditCardImages = {
+  light: require('../../assets/creditcard_light.jpg'),
+  dark: require('../../assets/creditcard_dark.jpg'),
+  green: require('../../assets/creditcard_green.jpg'), // hoặc tạo riêng
 };
 
 const getTransactionCategoryInfo = (category: string) => {
@@ -82,8 +89,16 @@ const getTransactionCategoryInfo = (category: string) => {
 };
 
 const moodIcons = {
-  Positive: require('../../assets/happy_face.png'),
-  Negative: require('../../assets/sad_face.png'),
+  Positive: {
+    light: require('../../assets/happy_face_light.png'),
+    dark: require('../../assets/happy_face_dark.png'),
+    green: require('../../assets/happy_face_light.png'), // hoặc tạo riêng
+  },
+  Negative: {
+    light: require('../../assets/sad_face_light.png'),
+    dark: require('../../assets/sad_face_dark.png'),
+    green: require('../../assets/sad_face_light.png'),
+  },
 };
 
 export default function HomePage() {
@@ -105,6 +120,7 @@ export default function HomePage() {
   const [refreshing, setRefreshing] = useState(false);
   const { insight, loading: insightLoading, reload } = useAIInsight();
   const [unreadCount, setUnreadCount] = useState(0);
+  const { theme, mode } = useThemeMode(); // Lấy theme
 
   // Data state
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
@@ -136,6 +152,279 @@ export default function HomePage() {
     transactions: 0,
     analytics: 0,
   });
+
+  // ==================== DYNAMIC STYLES ====================
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  const dynamicStyles = useMemo(() => {
+    const { bg, card, text, subtext, border, primary, inputBg } = theme;
+
+    return StyleSheet.create({
+      safe: {
+        flex: 1,
+        backgroundColor: bg,
+      },
+      scrollView: {
+        flex: 1,
+        backgroundColor: bg,
+      },
+      container: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingBottom: 100,
+        paddingTop: 30,
+        backgroundColor: bg,
+      },
+      loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      loadingText: {
+        fontSize: 16,
+        color: text,
+      },
+      headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: 10,
+        paddingBottom: 6,
+      },
+      avatarContainer: {
+        marginLeft: 0,
+      },
+      avatar: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: primary, // dùng primary từ theme, hoặc giữ cứng '#3629B7'
+      },
+      avatarPlaceholder: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: primary, // dùng primary từ theme, hoặc giữ cứng '#3629B7'
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      avatarText: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#FFFFFF',
+      },
+      greetingContainer: {
+        marginBottom: 16,
+        paddingBottom: 4,
+        minHeight: 80,
+      },
+      greeting: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: text,
+        marginBottom: 4,
+      },
+      insightItem: {
+        paddingVertical: 4,
+      },
+      insightText: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: text,
+      },
+      notificationBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: inputBg || '#F5F5F5', // fallback
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+      },
+      notificationBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        minWidth: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: '#FF4444',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+      },
+      badgeText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: '700',
+      },
+      moodContainer: {
+        width: 44,
+        height: 44,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      moodImage: {
+        width: 32,
+        height: 32,
+        resizeMode: 'contain',
+      },
+      // Balance Card – GIỮ CỨNG MÀU HOME
+      balanceCard: {
+        borderRadius: 26,
+        paddingVertical: 22,
+        paddingHorizontal: 20,
+        marginBottom: 18,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        elevation: 4,
+        overflow: 'hidden',
+      },
+      balanceHeader: {
+        marginBottom: 22,
+      },
+      balanceAmount: {
+        fontSize: 34,
+        fontWeight: '900',
+        color: card,
+        letterSpacing: -0.8,
+        marginBottom: 4,
+      },
+      balanceLabel: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: card,
+      },
+      balanceDate: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: card,
+      },
+      balanceSummaryRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 18,
+        paddingVertical: 14,
+        paddingHorizontal: 14,
+      },
+      balanceSummaryItem: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+      },
+      summaryIconBox: {
+        width: 34,
+        height: 34,
+        borderRadius: 12,
+        backgroundColor: '#F8FAFC',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
+      },
+      summaryLabel: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#64748B',
+        marginBottom: 2,
+      },
+      summaryAmount: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#0F172A',
+      },
+      summaryDivider: {
+        width: 1,
+        height: 36,
+        backgroundColor: '#E2E8F0',
+        marginHorizontal: 12,
+      },
+      section: {
+        marginBottom: 25,
+      },
+      sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+      },
+      sectionTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: text,
+      },
+      seeAllText: {
+        fontSize: 14,
+        color: accent,
+        fontWeight: '600',
+      },
+      budgetsHorizontalList: {
+        paddingVertical: 10,
+        paddingRight: 20,
+      },
+      categoryItem: {
+        alignItems: 'center',
+        marginRight: 20,
+      },
+      budgetIconInner: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      categoryName: {
+        fontSize: 12,
+        color: subtext,
+        fontWeight: '500',
+        marginTop: 6,
+      },
+      transactionItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: border,
+      },
+      transactionLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+      },
+      transactionIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: inputBg || '#F5F5F5',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+      },
+      transactionName: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: text,
+        marginBottom: 2,
+      },
+      transactionDate: {
+        fontSize: 12,
+        color: subtext,
+      },
+      transactionAmount: {
+        fontSize: 16,
+        fontWeight: '600',
+      },
+      emptyText: {
+        fontSize: 14,
+        color: subtext,
+        textAlign: 'center',
+        paddingVertical: 20,
+      },
+    });
+  }, [theme, accent]);
 
   const shouldHideBottomBar =
     isProjectTypeSelectionVisible ||
@@ -177,8 +466,9 @@ export default function HomePage() {
 
   const moodIcon =
     currentInsight?.state === "Negative"
-      ? moodIcons.Negative
-      : moodIcons.Positive;
+      ? moodIcons.Negative[mode] || moodIcons.Negative.light  // fallback
+      : moodIcons.Positive[mode] || moodIcons.Positive.light;
+
   useEffect(() => {
     if (currentInsightIndex === null || currentInsightIndex >= allInsights.length) {
       return;
@@ -213,8 +503,6 @@ export default function HomePage() {
     return () => clearTimeout(timeout);
   }, [currentInsightIndex, allInsights]);
 
-
-
   // Các useEffect và hàm khác giữ nguyên
   useEffect(() => {
     const init = async () => {
@@ -223,7 +511,6 @@ export default function HomePage() {
       await loadTransactions();
       await fetchLatestProjects();
       await loadAnalyticsSummary();
-
     };
 
     init();
@@ -234,9 +521,6 @@ export default function HomePage() {
 
     notificationEmitter.on("NEW_NOTIFICATION", listener);
 
-    // AI chat can execute a real budget/project mutation on the user's behalf (confirm-then-execute
-    // via plain "yes"/"no") — there's no shared context/query cache for this data, so re-fetch here
-    // when that happens instead of showing stale numbers until the next manual reload.
     const refreshListener = () => {
       loadBudgets();
       fetchLatestProjects();
@@ -282,12 +566,8 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user) return;
-
     openRequiredSetupModal(user);
-  }, [
-    user?.id,
-    user?.financialSetupCompleted,
-  ]);
+  }, [user?.id, user?.financialSetupCompleted]);
 
   const handleFinancialSetupSuccess = async () => {
     setShowFinancialSetup(false);
@@ -313,23 +593,17 @@ export default function HomePage() {
 
     try {
       const data = await notificationService.getNotifications();
-
-      console.log("API data:", data);
-
-      setNotifications(data)
+      setNotifications(data);
 
       const unreadIds = data
         .filter(n => !n.read)
         .map(n => n.id);
-
-      console.log("Unread Ids:", unreadIds);
 
       if (unreadIds.length > 0) {
         await notificationService.markAllAsRead(unreadIds);
       }
 
       setUnreadCount(0);
-
     } catch (err) {
       console.log("error:", err);
     }
@@ -338,16 +612,13 @@ export default function HomePage() {
   const fetchLatestProjects = useCallback(async () => {
     try {
       setLatestProjectsLoading(true);
-
       const response = await ProjectAPI.getAll({
         status: "ACTIVE",
       });
-
       const list =
         response?.success && Array.isArray(response.data)
           ? response.data
           : [];
-
       setLatestProjects(list.slice(0, 3));
     } catch (error) {
       console.log("Fetch latest projects error:", error);
@@ -410,8 +681,6 @@ export default function HomePage() {
     }
   }, []);
 
-   // Expo Router giữ các tab đã mount. Vì vậy, mỗi lần Home được focus lại
-  // cần lấy lại dữ liệu để phản ánh thay đổi từ Project, Budget, Transaction...
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -422,29 +691,22 @@ export default function HomePage() {
         if (shouldRefresh(lastLoadedAtRef.current.user)) {
           tasks.push(loadUserData());
         }
-
         if (shouldRefresh(lastLoadedAtRef.current.projects)) {
           tasks.push(fetchLatestProjects());
         }
-
         if (shouldRefresh(lastLoadedAtRef.current.budgets)) {
           tasks.push(loadBudgets());
         }
-
         if (shouldRefresh(lastLoadedAtRef.current.transactions)) {
           tasks.push(loadTransactions());
         }
-
         if (shouldRefresh(lastLoadedAtRef.current.analytics)) {
           tasks.push(loadAnalyticsSummary());
         }
 
-        if (tasks.length === 0) {
-          return;
-        }
+        if (tasks.length === 0) return;
 
         await Promise.all(tasks);
-
         if (!active) return;
       };
 
@@ -464,13 +726,12 @@ export default function HomePage() {
     await loadTransactions();
     await loadAnalyticsSummary();
 
-    // Reconcile notification badge from server
     try {
       const serverNotifs = await notificationService.getNotifications();
       const serverUnread = serverNotifs.filter((n) => n.read === false).length;
       setUnreadCount(serverUnread);
     } catch {
-      // Non-critical; keep the existing badge count
+      // Non-critical
     }
 
     setRefreshing(false);
@@ -511,7 +772,7 @@ export default function HomePage() {
 
     return (
       <TouchableOpacity
-        style={styles.categoryItem}
+        style={dynamicStyles.categoryItem}
         onPress={() => router.push('/(tabs)/budgets')}
       >
         <CircularProgress
@@ -520,11 +781,11 @@ export default function HomePage() {
           strokeWidth={4}
           color={progressColor}
         >
-          <View style={[styles.budgetIconInner, { width: 44, height: 44, borderRadius: 22, backgroundColor: categoryInfo.color + '20' }]}>
+          <View style={[dynamicStyles.budgetIconInner, { backgroundColor: categoryInfo.color + '20' }]}>
             <Ionicons name={categoryInfo.icon as any} size={24} color={categoryInfo.color} />
           </View>
         </CircularProgress>
-        <Text style={styles.categoryName} numberOfLines={1}>
+        <Text style={dynamicStyles.categoryName} numberOfLines={1}>
           {categoryInfo.displayName}
         </Text>
       </TouchableOpacity>
@@ -537,25 +798,25 @@ export default function HomePage() {
     const formattedAmount = `${isExpense ? "-" : "+"}${formatVND(item.amount)}`;
 
     return (
-      <View style={styles.transactionItem}>
-        <View style={styles.transactionLeft}>
-          <View style={[styles.transactionIcon, { backgroundColor: categoryInfo.color + '15' }]}>
+      <View style={dynamicStyles.transactionItem}>
+        <View style={dynamicStyles.transactionLeft}>
+          <View style={[dynamicStyles.transactionIcon, { backgroundColor: categoryInfo.color + '15' }]}>
             <Ionicons name={categoryInfo.icon as any} size={20} color={categoryInfo.color} />
           </View>
           <View style={{ flex: 1, marginRight: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.transactionName} numberOfLines={1}>
+              <Text style={dynamicStyles.transactionName} numberOfLines={1}>
                 {item.description ? item.description : categoryInfo.displayName}
               </Text>
               {item.verified && (
                 <Ionicons name="checkmark-circle" size={14} color="#10B981" style={{ marginLeft: 4 }} />
               )}
             </View>
-            <Text style={styles.transactionDate}>{item.date}</Text>
+            <Text style={dynamicStyles.transactionDate}>{item.date}</Text>
           </View>
         </View>
         <Text
-          style={[styles.transactionAmount, { color: isExpense ? '#F44336' : '#4CAF50' }]}
+          style={[dynamicStyles.transactionAmount, { color: isExpense ? '#F44336' : '#4CAF50' }]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.65}
@@ -568,9 +829,9 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.loadingContainer}>
-          <Text>Loading...</Text>
+      <SafeAreaView style={dynamicStyles.safe}>
+        <View style={dynamicStyles.loadingContainer}>
+          <Text style={dynamicStyles.loadingText}>{t("common.loading")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -580,55 +841,56 @@ export default function HomePage() {
     router.push("/(transactions)/list");
   };
 
-  console.log(insight)
 
+
+  // ==================== RENDER ====================
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={dynamicStyles.safe}>
+      <StatusBar
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
 
       <ScrollView
-        style={styles.scrollView}
+        style={dynamicStyles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#3629B7']}
-            tintColor="#3629B7"
+            colors={[theme.primary]}
+            tintColor={theme.primary}
           />
         }
       >
-        <View style={styles.container}>
-          {/* Header row: notification button (left) and avatar (right) */}
-          <View style={styles.headerRow}>
+        <View style={dynamicStyles.container}>
+          {/* Header row */}
+          <View style={dynamicStyles.headerRow}>
             <TouchableOpacity
-              style={styles.notificationBtn}
+              style={dynamicStyles.notificationBtn}
               onPress={handleToggleNotification}
             >
-              <Ionicons name="notifications-outline" size={24} color="#333" />
+              <Ionicons name="notifications-outline" size={24} color={theme.text} />
               {unreadCount > 0 && (
-                <View style={styles.notificationBadge}>
-                  <Text style={styles.badgeText}>
+                <View style={dynamicStyles.notificationBadge}>
+                  <Text style={dynamicStyles.badgeText}>
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </Text>
                 </View>
               )}
             </TouchableOpacity>
 
-            <View style={styles.moodContainer}>
-              <Image
-                source={moodIcon}
-                style={styles.moodImage}
-              />
+            <View style={dynamicStyles.moodContainer}>
+              <Image source={moodIcon} style={dynamicStyles.moodImage} />
             </View>
 
             <TouchableOpacity onPress={() => router.push("/profile")}>
-              <View style={styles.avatarContainer}>
+              <View style={dynamicStyles.avatarContainer}>
                 {user?.avatar ? (
-                  <Image source={{ uri: user.avatar }} style={styles.avatar} />
+                  <Image source={{ uri: user.avatar }} style={dynamicStyles.avatar} />
                 ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>
+                  <View style={dynamicStyles.avatarPlaceholder}>
+                    <Text style={dynamicStyles.avatarText}>
                       {user?.fullName?.charAt(0) || 'U'}
                     </Text>
                   </View>
@@ -637,88 +899,77 @@ export default function HomePage() {
             </TouchableOpacity>
           </View>
 
-          {/* Phần hiển thị greeting + insight (dùng chung logic) */}
-          <View style={styles.greetingContainer}>
-            <Text style={styles.greeting}>
+          {/* Greeting + Insight */}
+          <View style={dynamicStyles.greetingContainer}>
+            <Text style={dynamicStyles.greeting}>
               {t("common.hi")} {user?.fullName || "User"}
             </Text>
 
             {currentInsightIndex !== null && allInsights[currentInsightIndex] ? (
               <Animated.View
                 style={[
-                  styles.insightItem,
+                  dynamicStyles.insightItem,
                   {
                     opacity: fadeAnim,
                     transform: [{ translateY: slideAnim }],
                   },
                 ]}
               >
-                <Text style={styles.insightText}>
+                <Text style={dynamicStyles.insightText}>
                   {allInsights[currentInsightIndex].text}
                 </Text>
               </Animated.View>
             ) : (
-              // Khi không còn insight nào (currentInsightIndex === null), có thể hiển thị placeholder hoặc để trống
-              // Ta có thể hiển thị một text mặc định hoặc không hiển thị gì
-              <Text style={styles.insightText}>
-                {/* Có thể hiển thị câu mặc định nếu muốn */}
-              </Text>
+              <Text style={dynamicStyles.insightText} />
             )}
           </View>
 
-          {/* Balance Card - Combined Detail Format */}
-          <View style={styles.balanceCard}>
-            <View style={styles.balanceHeader}>
-              <Text style={styles.balanceDate}>This month</Text>
-              <Text
-                style={styles.balanceAmount}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.5}
-              >
-                {formatVND(monthlyTotalIncome - monthlyTotalExpense)}
-              </Text>
-              <Text style={styles.balanceLabel}>Total Balance</Text>
-            </View>
+          {/* Balance Card - GIỮ CỨNG MÀU HOME */}
+          <ImageBackground
+            source={creditCardImages[mode] || creditCardImages.light}
+            style={dynamicStyles.balanceCard}
+            imageStyle={{ borderRadius: 26 }} // bo góc cho ảnh
+            resizeMode="cover"
+          >
+            <View>
 
-            <View style={styles.balanceSummaryRow}>
-              <View style={styles.balanceSummaryItem}>
-                <View style={styles.summaryIconBox}>
-                  <Ionicons name="arrow-down" size={14} color="#16A34A" />
-                </View>
-                <View style={styles.summaryTextContainer}>
-                  <Text style={styles.summaryLabel}>Income</Text>
-                  <Text
-                    style={styles.summaryAmount}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.35}
-                  >
-                    {formatVND(monthlyTotalIncome)}
-                  </Text>
-                </View>
+              <View style={dynamicStyles.balanceHeader}>
+                <Text style={dynamicStyles.balanceDate}>This month</Text>
+                <Text style={dynamicStyles.balanceAmount}>
+                  {formatVND(monthlyTotalIncome - monthlyTotalExpense)}
+                </Text>
+                <Text style={dynamicStyles.balanceLabel}>Total Balance</Text>
               </View>
 
-              <View style={styles.summaryDivider} />
-
-              <View style={styles.balanceSummaryItem}>
-                <View style={styles.summaryIconBox}>
-                  <Ionicons name="arrow-up" size={14} color="#DC2626" />
+              <View style={dynamicStyles.balanceSummaryRow}>
+                <View style={dynamicStyles.balanceSummaryItem}>
+                  <View style={dynamicStyles.summaryIconBox}>
+                    <Ionicons name="arrow-down" size={16} color="#16A34A" />
+                  </View>
+                  <View>
+                    <Text style={dynamicStyles.summaryLabel}>Income</Text>
+                    <Text style={dynamicStyles.summaryAmount}>
+                      {formatVND(monthlyTotalIncome)}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.summaryTextContainer}>
-                  <Text style={styles.summaryLabel}>Expense</Text>
-                  <Text
-                    style={styles.summaryAmount}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.35}
-                  >
-                    {formatVND(monthlyTotalExpense)}
-                  </Text>
+
+                <View style={dynamicStyles.summaryDivider} />
+
+                <View style={dynamicStyles.balanceSummaryItem}>
+                  <View style={dynamicStyles.summaryIconBox}>
+                    <Ionicons name="arrow-up" size={16} color="#DC2626" />
+                  </View>
+                  <View>
+                    <Text style={dynamicStyles.summaryLabel}>Expense</Text>
+                    <Text style={dynamicStyles.summaryAmount}>
+                      {formatVND(monthlyTotalExpense)}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
+          </ImageBackground>
 
           {/* Quick Feature Section */}
           <QuickFeatureSection
@@ -726,10 +977,8 @@ export default function HomePage() {
             onOpenClassify={() => { panelRef.current?.open(); }}
           />
 
-          {/* Adaptive-engine pending suggestions (actionable — sits above insights) */}
+          {/* Pending Suggestions & Insights */}
           <PendingSuggestionsSection />
-
-          {/* Adaptive-engine insights teaser */}
           <InsightsPreviewSection />
 
           {/* Latest Projects */}
@@ -740,16 +989,16 @@ export default function HomePage() {
           />
 
           {/* Budgets Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Budgets</Text>
+          <View style={dynamicStyles.section}>
+            <View style={dynamicStyles.sectionHeader}>
+              <Text style={dynamicStyles.sectionTitle}>Budgets</Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/budgets')}>
-                <Text style={styles.seeAllText}>See All</Text>
+                <Text style={dynamicStyles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>
 
             {budgetsLoading ? (
-              <Text style={styles.loadingText}>Loading budgets...</Text>
+              <Text style={dynamicStyles.loadingText}>{t("budget.loading_budgets")}</Text>
             ) : budgets.length > 0 ? (
               <FlatList
                 data={budgets}
@@ -757,24 +1006,24 @@ export default function HomePage() {
                 keyExtractor={item => item.budgetId}
                 horizontal={true}
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.budgetsHorizontalList}
+                contentContainerStyle={dynamicStyles.budgetsHorizontalList}
               />
             ) : (
-              <Text style={styles.emptyText}>No budgets yet</Text>
+              <Text style={dynamicStyles.emptyText}>{t("budget.no_budgets_yet")}</Text>
             )}
           </View>
 
           {/* Recent Transactions */}
-          <View style={[styles.section, { marginTop: 24 }]}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Transactions</Text>
+          <View style={[dynamicStyles.section, { marginTop: 24 }]}>
+            <View style={dynamicStyles.sectionHeader}>
+              <Text style={dynamicStyles.sectionTitle}>Recent Transactions</Text>
               <TouchableOpacity onPress={handleTransactionsListPress}>
-                <Text style={styles.seeAllText}>See All</Text>
+                <Text style={dynamicStyles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>
 
             {transactionsLoading ? (
-              <Text style={styles.loadingText}>Loading transactions...</Text>
+              <Text style={dynamicStyles.loadingText}>Loading transactions...</Text>
             ) : transactions.length > 0 ? (
               transactions.map(item => (
                 <TouchableOpacity
@@ -788,12 +1037,13 @@ export default function HomePage() {
                 </TouchableOpacity>
               ))
             ) : (
-              <Text style={styles.emptyText}>No transactions yet</Text>
+              <Text style={dynamicStyles.emptyText}>No transactions yet</Text>
             )}
           </View>
         </View>
       </ScrollView>
 
+      {/* Modals ... giữ nguyên */}
       <NotificationListModal
         visible={showNotification}
         onClose={() => {
@@ -802,9 +1052,7 @@ export default function HomePage() {
         }}
         notifications={notifications}
         loading={loadingNotification}
-        onResetUnread={() => {
-          setUnreadCount(0);
-        }}
+        onResetUnread={() => setUnreadCount(0)}
       />
 
       {!shouldHideBottomBar && (

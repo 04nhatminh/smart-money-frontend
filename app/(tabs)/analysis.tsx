@@ -32,6 +32,8 @@ import { AddTransactionModal } from "../../src/components/transactions/AddTransa
 import { TransactionRequest, Receipt } from "../../src/types/transaction.types";
 import { useCreateTransaction } from "../../src/hooks/useCreateTransaction";
 import { useLanguage } from "../../src/i18n/LanguageProvider";
+import { useThemeMode } from "../../src/theme/ThemeProvider";
+import { Theme, ThemeMode } from "../../src/theme/tokens";
 import { t } from "../../src/i18n";
 
 // ─────────────────────────────────────────────────
@@ -208,9 +210,11 @@ type KPICardProps = {
   icon: string;
   subtext?: string;
   subtextColor?: string;
+  // Styles được truyền từ component cha (đã tạo theo theme).
+  styles: ReturnType<typeof createStyles>;
 };
 
-function KPICard({ cardWidth, label, value, accentColor, icon, subtext, subtextColor }: KPICardProps) {
+function KPICard({ cardWidth, label, value, accentColor, icon, subtext, subtextColor, styles }: KPICardProps) {
   return (
     <View style={[styles.kpiCard, { width: cardWidth, borderLeftColor: accentColor }]}>
       <View style={styles.kpiTop}>
@@ -223,7 +227,7 @@ function KPICard({ cardWidth, label, value, accentColor, icon, subtext, subtextC
         {value}
       </Text>
       {!!subtext && (
-        <Text style={[styles.kpiSubtext, { color: subtextColor ?? "#94A3B8" }]} numberOfLines={1}>
+        <Text style={[styles.kpiSubtext, subtextColor ? { color: subtextColor } : null]} numberOfLines={1}>
           {subtext}
         </Text>
       )}
@@ -238,9 +242,11 @@ type MonthPickerProps = {
   options: MonthOption[];
   selectedIndex: number;
   onSelect: (index: number) => void;
+  // Styles được truyền từ component cha (đã tạo theo theme).
+  styles: ReturnType<typeof createStyles>;
 };
 
-function MonthPickerStrip({ options, selectedIndex, onSelect }: MonthPickerProps) {
+function MonthPickerStrip({ options, selectedIndex, onSelect, styles }: MonthPickerProps) {
   const scrollRef = React.useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -289,6 +295,16 @@ function MonthPickerStrip({ options, selectedIndex, onSelect }: MonthPickerProps
 export default function AnalyticsScreen() {
   const { lang } = useLanguage();
   const isVi = lang === "vi";
+
+  const { theme, mode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" ? "#FFFFFF" : theme.card;
+  const styles = useMemo(
+    () => createStyles(theme, mode, accent, surface),
+    [theme, mode, accent, surface]
+  );
 
   const [cameraVisible, setCameraVisible] = useState(false);
   const [voiceVisible, setVoiceVisible] = useState(false);
@@ -536,7 +552,7 @@ export default function AnalyticsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle={mode === "dark" ? "light-content" : "dark-content"} backgroundColor={theme.bg} />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Pressable
@@ -589,13 +605,14 @@ export default function AnalyticsScreen() {
             options={monthOptions}
             selectedIndex={selectedMonthIndex}
             onSelect={handleSelectMonth}
+            styles={styles}
           />
         )}
 
         {/* Loading */}
         {loading && (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color="#3629B7" />
+            <ActivityIndicator size="large" color={theme.primary} />
           </View>
         )}
 
@@ -607,6 +624,7 @@ export default function AnalyticsScreen() {
           <View style={styles.kpiGrid}>
             <KPICard
               cardWidth={kpiCardWidth}
+              styles={styles}
               label={isVi ? "Tổng Thu" : "Total Income"}
               value={formatVND(kpis.totalIncome, isVi)}
               accentColor="#10B981"
@@ -615,6 +633,7 @@ export default function AnalyticsScreen() {
             />
             <KPICard
               cardWidth={kpiCardWidth}
+              styles={styles}
               label={isVi ? "Tổng Chi" : "Total Expense"}
               value={formatVND(kpis.totalExpense, isVi)}
               accentColor="#EF4444"
@@ -623,19 +642,21 @@ export default function AnalyticsScreen() {
             />
             <KPICard
               cardWidth={kpiCardWidth}
+              styles={styles}
               label={isVi ? "Tích Lũy" : "Net Savings"}
               value={formatVND(Math.abs(kpis.netSavings), isVi)}
-              accentColor={kpis.netSavings >= 0 ? "#3629B7" : "#F97316"}
+              accentColor={kpis.netSavings >= 0 ? accent : "#F97316"}
               icon={kpis.netSavings >= 0 ? "✦" : "!"}
               subtext={
                 kpis.netSavings >= 0
                   ? (isVi ? "Dư thừa" : "Surplus")
                   : (isVi ? "Bội chi" : "Deficit")
               }
-              subtextColor={kpis.netSavings >= 0 ? "#3629B7" : "#F97316"}
+              subtextColor={kpis.netSavings >= 0 ? accent : "#F97316"}
             />
             <KPICard
               cardWidth={kpiCardWidth}
+              styles={styles}
               label={isVi ? "Tỷ Lệ Tiết Kiệm" : "Savings Rate"}
               value={`${kpis.savingsRate.toFixed(1)}%`}
               accentColor={kpis.savingsRate >= 20 ? "#6D6ACF" : "#F59E0B"}
@@ -684,7 +705,7 @@ export default function AnalyticsScreen() {
                     style={{
                       axis: { stroke: "transparent" },
                       ticks: { stroke: "transparent" },
-                      tickLabels: { fill: "#64748B", fontSize: 10, fontWeight: "600" },
+                      tickLabels: { fill: theme.subtext, fontSize: 10, fontWeight: "600" },
                       grid: { stroke: "transparent" },
                     }}
                   />
@@ -722,13 +743,13 @@ export default function AnalyticsScreen() {
                           axis: { stroke: "transparent" },
                           ticks: { stroke: "transparent" },
                           tickLabels: { fill: "transparent" },
-                          grid: { stroke: "#EEF2F7" },
+                          grid: { stroke: theme.border },
                         }}
                       />
                       <VictoryAxis
                         style={{
-                          axis: { stroke: "#E5E7EB" },
-                          tickLabels: { fill: "#64748B", fontSize: tickFontSize, fontWeight: "600" },
+                          axis: { stroke: theme.border },
+                          tickLabels: { fill: theme.subtext, fontSize: tickFontSize, fontWeight: "600" },
                           grid: { stroke: "transparent" },
                         }}
                       />
@@ -831,7 +852,8 @@ export default function AnalyticsScreen() {
                   ]}
                   style={{
                     data: {
-                      stroke: ({ datum }) => (datum.x === selectedCategory ? "#1E293B" : "#FFFFFF"),
+                      // Viền lát cắt: mặc định trùng màu nền card, khi chọn dùng màu chữ theme để nổi bật.
+                      stroke: ({ datum }) => (datum.x === selectedCategory ? theme.text : surface),
                       strokeWidth: ({ datum }) => (datum.x === selectedCategory ? 3 : 2),
                       opacity: ({ datum }) => (selectedCategory ? (datum.x === selectedCategory ? 1 : 0.4) : 1),
                     },
@@ -936,14 +958,16 @@ export default function AnalyticsScreen() {
 // ─────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────
-const styles = StyleSheet.create({
+// Factory tạo styles theo theme hiện tại (light/dark/green).
+function createStyles(theme: Theme, mode: ThemeMode, accent: string, surface: string) {
+  return StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: theme.bg,
   },
   container: {
     paddingBottom: 110,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: theme.bg,
   },
 
   // Header
@@ -955,12 +979,12 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#111827",
+    color: theme.text,
     letterSpacing: -0.5,
   },
   pageSubtitle: {
     fontSize: 13,
-    color: "#6B7280",
+    color: theme.subtext,
     fontWeight: "600",
     marginTop: 2,
   },
@@ -968,7 +992,7 @@ const styles = StyleSheet.create({
   // Mode Switcher Segment
   modeToggleRow: {
     flexDirection: "row",
-    backgroundColor: "#EEF2F7",
+    backgroundColor: theme.inputBg,
     borderRadius: 12,
     padding: 3,
     marginHorizontal: 20,
@@ -981,7 +1005,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   modeTabActive: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: surface,
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -991,10 +1015,10 @@ const styles = StyleSheet.create({
   modeTabText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#64748B",
+    color: theme.subtext,
   },
   modeTabTextActive: {
-    color: "#3629B7",
+    color: accent,
     fontWeight: "800",
   },
 
@@ -1012,13 +1036,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: surface,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: theme.border,
   },
   stripItemActive: {
-    backgroundColor: "#3629B7",
-    borderColor: "#3629B7",
+    // Ô tháng được chọn: nền tím đậm (primary) + chữ trắng cố định.
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
     shadowColor: "#3629B7",
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -1028,7 +1053,7 @@ const styles = StyleSheet.create({
   stripMonth: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#64748B",
+    color: theme.subtext,
   },
   stripTextActive: {
     color: "#FFFFFF",
@@ -1036,7 +1061,7 @@ const styles = StyleSheet.create({
   stripYear: {
     fontSize: 10,
     fontWeight: "500",
-    color: "#94A3B8",
+    color: theme.subtext,
     marginTop: 1,
   },
   stripYearActive: {
@@ -1052,7 +1077,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   kpiCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: surface,
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -1072,7 +1097,7 @@ const styles = StyleSheet.create({
   kpiLabel: {
     fontSize: 9.5,
     fontWeight: "700",
-    color: "#64748B",
+    color: theme.subtext,
     textTransform: "uppercase",
     letterSpacing: 0.4,
     flex: 1,
@@ -1098,6 +1123,7 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: "600",
     marginTop: 1,
+    color: theme.subtext,
   },
 
   // Loading & error
@@ -1120,10 +1146,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginHorizontal: 20,
     marginBottom: 14,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: theme.border,
   },
   emptyIcon: {
     fontSize: 40,
@@ -1132,14 +1158,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1E293B",
+    color: theme.text,
     marginBottom: 6,
     textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#64748B",
+    color: theme.subtext,
     textAlign: "center",
   },
 
@@ -1150,9 +1176,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 14,
     marginHorizontal: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: surface,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: theme.border,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -1173,7 +1199,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   scaleBadge: {
-    backgroundColor: "#EEF2F7",
+    backgroundColor: theme.inputBg,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -1182,16 +1208,16 @@ const styles = StyleSheet.create({
   scaleBadgeText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#3629B7",
+    color: accent,
   },
-  sectionTitle: { fontSize: 15, fontWeight: "800", color: "#111827" },
-  sectionCaption: { marginTop: 2, fontSize: 11, color: "#94A3B8", fontWeight: "500" },
+  sectionTitle: { fontSize: 15, fontWeight: "800", color: theme.text },
+  sectionCaption: { marginTop: 2, fontSize: 11, color: theme.subtext, fontWeight: "500" },
 
   // Chart
   chartWrap: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
   legendRow: { flexDirection: "row", gap: 24, justifyContent: "center", marginTop: 2 },
   legendItem: { flexDirection: "row", alignItems: "center" },
-  legendText: { fontSize: 12, color: "#475569", fontWeight: "600" },
+  legendText: { fontSize: 12, color: theme.subtext, fontWeight: "600" },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
 
   // Pie
@@ -1208,9 +1234,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   categoryItemActive: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: theme.inputBg,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: theme.border,
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 3,
@@ -1222,12 +1248,13 @@ const styles = StyleSheet.create({
   },
   categoryDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
   categoryMeta: { flex: 1 },
-  categoryText: { fontSize: 12, color: "#334155", fontWeight: "700" },
-  categoryTextActive: { fontSize: 12.5, color: "#0F172A", fontWeight: "800" },
+  categoryText: { fontSize: 12, color: theme.text, fontWeight: "700" },
+  categoryTextActive: { fontSize: 12.5, color: theme.text, fontWeight: "800" },
   categoryBottom: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 1 },
   categoryPercent: { fontSize: 11, fontWeight: "700" },
-  categoryAmount: { fontSize: 10, color: "#94A3B8", fontWeight: "600" },
-  categoryAmountActive: { color: "#475569", fontWeight: "700" },
+  categoryAmount: { fontSize: 10, color: theme.subtext, fontWeight: "600" },
+  // Khi được chọn: dùng màu chữ chính để đậm hơn subtext bình thường.
+  categoryAmountActive: { color: theme.text, fontWeight: "700" },
   categoryCheck: {
     width: 16,
     height: 16,
@@ -1241,4 +1268,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "900",
   },
-});
+  });
+}

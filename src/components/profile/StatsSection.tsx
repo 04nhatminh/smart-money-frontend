@@ -4,6 +4,7 @@ import { StatCard } from './StatCard';
 import { UserResponse } from '../../types/auth.types';
 import { t } from '../../i18n';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useThemeMode } from '../../theme/ThemeProvider';
 
 const { width } = Dimensions.get('window');
 
@@ -14,6 +15,8 @@ interface StatsSectionProps {
 
 export const StatsSection: React.FC<StatsSectionProps> = ({ user, coin }) => {
   const { lang } = useLanguage();
+  const { theme, mode } = useThemeMode();
+  const roleAccent = mode === 'dark' ? theme.link : theme.primary;
   return (
     <View style={styles.statsSection}>
       <StatCard
@@ -34,8 +37,8 @@ export const StatsSection: React.FC<StatsSectionProps> = ({ user, coin }) => {
 
       <StatCard
         icon="shield-checkmark"
-        iconColor="#3629B7"
-        backgroundColor="#3629B720"
+        iconColor={roleAccent}
+        backgroundColor={roleAccent + '20'}
         value={user.role}
         label={t('profile.user_role')}
       />
