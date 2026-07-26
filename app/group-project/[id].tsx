@@ -293,7 +293,7 @@ export default function GroupProjectDetailScreen() {
             router.canGoBack() ? router.back() : router.replace("/(tabs)/project")
           }
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{project.name}</Text>
         <View style={[styles.statusChip, { backgroundColor: statusStyle.bg }]}>

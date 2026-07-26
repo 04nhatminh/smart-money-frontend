@@ -1067,5 +1067,14 @@ export default {
     accepted_done: "Xong! Thay đổi đã được áp dụng.",
     dismissed_done: "Đã ghi nhận — chúng tôi sẽ hỏi ít hơn về chủ đề này.",
     decided_at: "Đã quyết định {{date}}",
+  },
+  intro: {
+    slides: [
+      "Theo dõi chi tiêu dễ dàng",
+      "Lập kế hoạch tiết kiệm thông minh",
+      "Phân tích tài chính cá nhân",
+      "Xây dựng thói quen tài chính lành mạnh",
+    ],
+    get_started: "Bắt đầu",
   }
 };

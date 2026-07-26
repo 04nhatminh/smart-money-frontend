@@ -240,7 +240,7 @@ export default function ProjectScreen() {
           <View style={styles.headerTopRow}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <Pressable onPress={() => router.replace("/(tabs)/home")} style={{ marginRight: 4 }}>
-                <Ionicons name="arrow-back" size={26} color="#FFFFFF" />
+                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </Pressable>
             <Text style={styles.title}>Projects</Text>
           </View>
