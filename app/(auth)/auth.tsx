@@ -211,7 +211,7 @@ export default function AuthScreen() {
                 }
 
                 console.log('❌ Registration failed:', response.message);
-                setSignUpError(t("auth.registration_failed"));
+                setSignUpError(response.message || t("auth.registration_failed"));
 
                 if (response.errors) {
                     const errorMessages = Object.values(response.errors).flat();

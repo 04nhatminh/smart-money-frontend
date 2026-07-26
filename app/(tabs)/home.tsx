@@ -65,7 +65,7 @@ const categoryIconMap: { [key: string]: { icon: string; color: string; displayNa
 const creditCardImages = {
   light: require('../../assets/creditcard_light.jpg'),
   dark: require('../../assets/creditcard_dark.jpg'),
-  green: require('../../assets/creditcard_green.jpg'), // hoặc tạo riêng
+  green: require('../../assets/creditcard_green.jpg'),
 };
 
 const getTransactionCategoryInfo = (category: string) => {
@@ -89,10 +89,11 @@ const getTransactionCategoryInfo = (category: string) => {
 };
 
 const moodIcons = {
+  
   Positive: {
     light: require('../../assets/happy_face_light.png'),
     dark: require('../../assets/happy_face_dark.png'),
-    green: require('../../assets/happy_face_light.png'), // hoặc tạo riêng
+    green: require('../../assets/happy_face_light.png'),
   },
   Negative: {
     light: require('../../assets/sad_face_light.png'),
