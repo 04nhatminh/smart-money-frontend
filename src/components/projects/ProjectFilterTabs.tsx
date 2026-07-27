@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { ProjectFilterType } from "../../types/project.types";
-import { projectListStyles as styles } from "../../styles/projectListStyles";
+import { useProjectListStyles } from "../../styles/projectListStyles";
 import { t } from "../../i18n";
 
 type Props = {
@@ -10,6 +10,8 @@ type Props = {
 };
 
 export default function ProjectFilterTabs({ value, onChange }: Props) {
+  const { styles } = useProjectListStyles();
+
   return (
     <View style={styles.filterTabs}>
       <Pressable

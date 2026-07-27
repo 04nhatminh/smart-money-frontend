@@ -323,10 +323,6 @@ export default function GroupDetailScreen() {
   const hasGroupProject = !!resolvedGroupProjectId;
   const canCreateProject = isAdmin && group.status === "LOCKED" && !hasGroupProject;
 
-  const bypassDateGate = process.env.EXPO_PUBLIC_BYPASS_DATE_GATE === "true";
-  const today = new Date().getDate();
-  const outsideCreationWindow = !bypassDateGate && (today < 1 || today > 7);
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -337,7 +333,7 @@ export default function GroupDetailScreen() {
             router.canGoBack() ? router.back() : router.replace("/(tabs)/project")
           }
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
         <View style={{ width: 36 }} />
@@ -480,14 +476,11 @@ export default function GroupDetailScreen() {
 
         {canCreateProject && (
           <Pressable
-            style={[styles.actionBtn, outsideCreationWindow && styles.actionBtnDisabled]}
-            onPress={() => !outsideCreationWindow && setShowCreateModal(true)}
-            disabled={outsideCreationWindow}
+            style={styles.actionBtn}
+            onPress={() => setShowCreateModal(true)}
           >
             <Ionicons name="folder-open-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.actionBtnText}>
-              {outsideCreationWindow ? "Projects open days 1–7 of month" : "Create Group Project"}
-            </Text>
+            <Text style={styles.actionBtnText}>Create Group Project</Text>
           </Pressable>
         )}
 

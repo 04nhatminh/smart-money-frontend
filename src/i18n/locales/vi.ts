@@ -182,7 +182,11 @@ export default {
     usable_income_positive: "Thu nhập khả dụng phải là số dương",
     usable_exceed_net: "Thu nhập khả dụng không thể vượt quá thu nhập ròng",
     income_saved: "Lưu hồ sơ thu nhập thành công!",
-    income_save_failed: "Lưu hồ sơ thu nhập thất bại"
+    income_save_failed: "Lưu hồ sơ thu nhập thất bại",
+    theme: 'Chủ đề',
+    theme_light: 'Sáng',
+    theme_dark: 'Tối',
+    theme_green: 'Xanh lá',
   },
   notification: {
     notifications: "Thông báo",
@@ -647,6 +651,12 @@ export default {
       "Hoàn tất thu nhập và tùy chọn tiết kiệm để xây dựng ngân sách.",
     complete_setup: "Hoàn tất thiết lập",
     view_budgets: "Xem ngân sách",
+    financial_profile_empty: "Không có hồ sơ tài chính bây giờ",
+    set_up_profile: "Cài đặt hồ sơ",
+    no_budgets_yet: "Chưa có ngân sách",
+    loading_budgets: "Đang tải ngân sách...",
+    use_ai_to_create_first_budget: "Sử dụng AI để lập kế hoạch phân bổ ngân sách đầu tiên của bạn.",
+    generate_budget: "Tạo budget",
     remaining: "Còn lại",
     spent: "Đã chi",
     limit: "Hạn mức",
@@ -1062,5 +1072,14 @@ export default {
     accepted_done: "Xong! Thay đổi đã được áp dụng.",
     dismissed_done: "Đã ghi nhận — chúng tôi sẽ hỏi ít hơn về chủ đề này.",
     decided_at: "Đã quyết định {{date}}",
+  },
+  intro: {
+    slides: [
+      "Theo dõi chi tiêu dễ dàng",
+      "Lập kế hoạch tiết kiệm thông minh",
+      "Phân tích tài chính cá nhân",
+      "Xây dựng thói quen tài chính lành mạnh",
+    ],
+    get_started: "Bắt đầu",
   }
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import { GroupAPI } from "../../api/group.api";
 import { GroupDetailResponse } from "../../types/group.types";
 import { formatCurrencyVND, parseCurrencyToNumber } from "../../utils/project";
 import { getGroupProjectErrorMessage } from "../../utils/groupProjectErrors";
+import { useThemeMode } from "../../theme/ThemeProvider";
 
 type Props = {
   visible: boolean;
@@ -37,6 +38,12 @@ export default function CreateGroupProjectModal({
   onCreated,
   onNotFeasible,
 }: Props) {
+  const { theme, mode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
@@ -57,6 +64,48 @@ export default function CreateGroupProjectModal({
       setErrors({});
     }
   }, [visible, prefillTargetAmount, prefillTotalMonths]);
+
+  const styles = useMemo(() => StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+    sheet: {
+      backgroundColor: surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+      padding: 24, paddingBottom: 40, maxHeight: "90%",
+    },
+    handle: { width: 40, height: 4, backgroundColor: theme.border, borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+    title: { fontSize: 20, fontWeight: "800", color: theme.text },
+    // Banner giữ nền vàng nhạt cố định (semantic) nên chữ giữ màu tối cố định.
+    warningBanner: {
+      flexDirection: "row", alignItems: "flex-start", gap: 8,
+      backgroundColor: "#FEF9C3", borderRadius: 10,
+      paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10,
+    },
+    warningText: { flex: 1, fontSize: 12, color: "#92400E", lineHeight: 18 },
+    label: { fontSize: 13, fontWeight: "600", color: theme.subtext, marginBottom: 6 },
+    input: {
+      backgroundColor: theme.inputBg, borderWidth: 1, borderColor: theme.border,
+      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+      fontSize: 15, color: theme.text,
+    },
+    inputError: { borderColor: "#EF4444" },
+    textArea: { minHeight: 72, textAlignVertical: "top" },
+    inputRow: {
+      flexDirection: "row", alignItems: "center",
+      backgroundColor: theme.inputBg, borderWidth: 1, borderColor: theme.border,
+      borderRadius: 12, paddingHorizontal: 14,
+    },
+    inputInline: { flex: 1, height: 44, fontSize: 15, color: theme.text, fontWeight: "600" },
+    currencyTag: { fontSize: 13, fontWeight: "700", color: theme.subtext },
+    errorText: { fontSize: 12, color: "#EF4444", marginTop: 4 },
+    createBtn: {
+      marginTop: 28, height: 52, backgroundColor: theme.primary, borderRadius: 16,
+      justifyContent: "center", alignItems: "center",
+      shadowColor: "#3629B7", shadowOpacity: 0.25, shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 }, elevation: 3,
+    },
+    btnDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
+    createBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  }), [theme, mode]);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -157,10 +206,6 @@ export default function CreateGroupProjectModal({
     }
   };
 
-  const bypassDateGate = process.env.EXPO_PUBLIC_BYPASS_DATE_GATE === "true";
-  const today = new Date().getDate();
-  const outsideWindow = !bypassDateGate && (today < 1 || today > 7);
-
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
@@ -170,7 +215,7 @@ export default function CreateGroupProjectModal({
           <View style={styles.header}>
             <Text style={styles.title}>Create Group Project</Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Ionicons name="close" size={24} color={theme.subtext} />
             </Pressable>
           </View>
 
@@ -182,21 +227,12 @@ export default function CreateGroupProjectModal({
             </Text>
           </View>
 
-          {outsideWindow && (
-            <View style={[styles.warningBanner, { backgroundColor: "#FEE2E2" }]}>
-              <Ionicons name="calendar-outline" size={14} color="#991B1B" />
-              <Text style={[styles.warningText, { color: "#991B1B" }]}>
-                Group projects can only be created on days 1–7 of each month.
-              </Text>
-            </View>
-          )}
-
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={styles.label}>Project Name *</Text>
             <TextInput
               style={[styles.input, errors.name ? styles.inputError : null]}
               placeholder="e.g. New Car Fund"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.subtext}
               value={name}
               onChangeText={(v) => { setName(v); if (errors.name) setErrors((e) => ({ ...e, name: "" })); }}
               maxLength={120}
@@ -207,7 +243,7 @@ export default function CreateGroupProjectModal({
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="What is this project about?"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.subtext}
               value={description}
               onChangeText={setDescription}
               multiline
@@ -220,7 +256,7 @@ export default function CreateGroupProjectModal({
               <TextInput
                 style={[styles.inputInline, errors.targetAmount ? styles.inputError : null]}
                 placeholder="10,000,000"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.subtext}
                 keyboardType="numeric"
                 value={targetAmount}
                 onChangeText={(v) => { setTargetAmount(v); if (errors.targetAmount) setErrors((e) => ({ ...e, targetAmount: "" })); }}
@@ -234,7 +270,7 @@ export default function CreateGroupProjectModal({
               <TextInput
                 style={[styles.inputInline, errors.totalMonths ? styles.inputError : null]}
                 placeholder="7"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.subtext}
                 keyboardType="numeric"
                 value={totalMonths}
                 onChangeText={(v) => { setTotalMonths(v); if (errors.totalMonths) setErrors((e) => ({ ...e, totalMonths: "" })); }}
@@ -246,10 +282,10 @@ export default function CreateGroupProjectModal({
               style={({ pressed }) => [
                 styles.createBtn,
                 pressed && { opacity: 0.85 },
-                (loading || outsideWindow) && styles.btnDisabled,
+                loading && styles.btnDisabled,
               ]}
               onPress={handleCreate}
-              disabled={loading || outsideWindow}
+              disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -263,44 +299,3 @@ export default function CreateGroupProjectModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  sheet: {
-    backgroundColor: "#FFFFFF", borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    padding: 24, paddingBottom: 40, maxHeight: "90%",
-  },
-  handle: { width: 40, height: 4, backgroundColor: "#E2E8F0", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
-  title: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
-  warningBanner: {
-    flexDirection: "row", alignItems: "flex-start", gap: 8,
-    backgroundColor: "#FEF9C3", borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10,
-  },
-  warningText: { flex: 1, fontSize: 12, color: "#92400E", lineHeight: 18 },
-  label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 6 },
-  input: {
-    backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0",
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: "#0F172A",
-  },
-  inputError: { borderColor: "#EF4444" },
-  textArea: { minHeight: 72, textAlignVertical: "top" },
-  inputRow: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0",
-    borderRadius: 12, paddingHorizontal: 14,
-  },
-  inputInline: { flex: 1, height: 44, fontSize: 15, color: "#0F172A", fontWeight: "600" },
-  currencyTag: { fontSize: 13, fontWeight: "700", color: "#64748B" },
-  errorText: { fontSize: 12, color: "#EF4444", marginTop: 4 },
-  createBtn: {
-    marginTop: 28, height: 52, backgroundColor: "#3629B7", borderRadius: 16,
-    justifyContent: "center", alignItems: "center",
-    shadowColor: "#3629B7", shadowOpacity: 0.25, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 }, elevation: 3,
-  },
-  btnDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
-  createBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
-});

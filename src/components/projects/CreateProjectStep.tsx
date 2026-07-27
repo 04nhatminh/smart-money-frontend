@@ -1,7 +1,7 @@
 import React from "react";
 import { Text, View } from "react-native";
 import { ButtonSave } from "../ButtonSave";
-import { projectStyles as styles } from "../../styles/projectStyles";
+import { useProjectStyles } from "../../styles/projectStyles";
 import {
   CreateProjectFormErrors,
   CreateProjectFormValues,
@@ -52,6 +52,8 @@ export default function CreateProjectStep({
   onCancel,
   onNext,
 }: Props) {
+  const { styles } = useProjectStyles();
+
   return (
     <>
       <Text style={styles.title}>{t("project.create_title")}</Text>

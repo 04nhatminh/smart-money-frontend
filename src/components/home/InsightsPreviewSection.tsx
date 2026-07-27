@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { t } from "../../i18n";
 import { useLanguage } from "../../i18n/LanguageProvider";
+import { useThemeMode } from "../../theme/ThemeProvider";
 import { useInsights } from "../../hooks/useInsights";
 import InsightCard from "../insights/InsightCard";
 
@@ -13,7 +14,33 @@ import InsightCard from "../insights/InsightCard";
  */
 export default function InsightsPreviewSection() {
   useLanguage(); // re-render on EN/VI switch
+  const { theme, mode } = useThemeMode();
   const { insights, loading, error } = useInsights();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+
+  const styles = useMemo(() => StyleSheet.create({
+    section: {
+      marginBottom: 22,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: theme.text,
+    },
+    seeAllText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: accent,
+    },
+  }), [theme, mode]);
 
   if (loading || error || insights.length === 0) {
     return null;
@@ -45,25 +72,3 @@ export default function InsightsPreviewSection() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  section: {
-    marginBottom: 22,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-  seeAllText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#2563EB",
-  },
-});

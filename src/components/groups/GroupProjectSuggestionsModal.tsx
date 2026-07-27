@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,8 @@ import {
   GroupProjectSuggestionsResponse,
 } from "../../types/group.types";
 import { formatCurrencyVND, parseCurrencyToNumber } from "../../utils/project";
+import { useThemeMode } from "../../theme/ThemeProvider";
+import { Theme, ThemeMode } from "../../theme/tokens";
 type PlanMode = "amount" | "duration";
 
 type Props = {
@@ -32,6 +34,16 @@ export default function GroupProjectSuggestionsModal({
   onClose,
   onContinue,
 }: Props) {
+  const { theme, mode: themeMode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = themeMode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = themeMode === "green" ? "#FFFFFF" : theme.card;
+  const styles = useMemo(
+    () => createStyles(theme, themeMode, accent, surface),
+    [theme, themeMode, accent, surface]
+  );
+
   const [mode, setMode] = useState<PlanMode>("amount");
   const [amountInput, setAmountInput] = useState("");
   const [monthsInput, setMonthsInput] = useState("");
@@ -104,7 +116,7 @@ export default function GroupProjectSuggestionsModal({
           <View style={styles.header}>
             <Text style={styles.title}>Plan Group Project</Text>
             <Pressable onPress={handleClose} hitSlop={12}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Ionicons name="close" size={24} color={theme.subtext} />
             </Pressable>
           </View>
 
@@ -140,7 +152,7 @@ export default function GroupProjectSuggestionsModal({
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. 10,000,000"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.subtext}
                     keyboardType="numeric"
                     value={amountInput}
                     onChangeText={handleAmountChange}
@@ -155,7 +167,7 @@ export default function GroupProjectSuggestionsModal({
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. 6"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.subtext}
                     keyboardType="numeric"
                     value={monthsInput}
                     onChangeText={handleMonthsChange}
@@ -169,7 +181,7 @@ export default function GroupProjectSuggestionsModal({
             {suggestion && (
               <View style={styles.previewCard}>
                 <View style={styles.previewRow}>
-                  <Ionicons name="people-outline" size={15} color="#3629B7" />
+                  <Ionicons name="people-outline" size={15} color={accent} />
                   <Text style={styles.previewMuted}>
                     Group capacity: {formatCurrencyVND(suggestion.totalCapacity)} VND/month
                   </Text>
@@ -219,48 +231,50 @@ export default function GroupProjectSuggestionsModal({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  sheet: {
-    backgroundColor: "#FFFFFF", borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    padding: 24, paddingBottom: 40, maxHeight: "85%",
-  },
-  handle: { width: 40, height: 4, backgroundColor: "#E2E8F0", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  title: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
-  subtitle: { fontSize: 13, color: "#64748B", lineHeight: 19, marginBottom: 18 },
-  toggleRow: {
-    flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12,
-    padding: 4, marginBottom: 20,
-  },
-  toggleTab: { flex: 1, height: 38, borderRadius: 9, justifyContent: "center", alignItems: "center" },
-  toggleTabActive: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1,
-  },
-  toggleText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
-  toggleTextActive: { color: "#3629B7", fontWeight: "700" },
-  label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 8 },
-  inputRow: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0",
-    borderRadius: 12, paddingHorizontal: 14,
-  },
-  input: { flex: 1, height: 48, fontSize: 16, color: "#0F172A", fontWeight: "700" },
-  currencyTag: { fontSize: 13, fontWeight: "700", color: "#64748B" },
-  previewCard: { backgroundColor: "#EEF0FF", borderRadius: 14, padding: 16, marginTop: 16 },
-  previewRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  previewMuted: { fontSize: 12, color: "#5B5B8A", fontWeight: "500" },
-  previewDivider: { height: 1, backgroundColor: "#D9DCF8", marginVertical: 10 },
-  previewMain: { fontSize: 15, color: "#312E81", lineHeight: 22 },
-  previewBold: { fontWeight: "800", color: "#3629B7" },
-  primaryBtn: {
-    marginTop: 24, height: 52, backgroundColor: "#3629B7", borderRadius: 16,
-    justifyContent: "center", alignItems: "center",
-    shadowColor: "#3629B7", shadowOpacity: 0.25, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 }, elevation: 3,
-  },
-  btnDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
-  primaryBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
-  footnote: { fontSize: 12, color: "#94A3B8", textAlign: "center", marginTop: 12, lineHeight: 17 },
-});
+// Factory style theo theme: overlay giữ rgba, chữ trắng trên nút primary giữ nguyên.
+const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string) =>
+  StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+    sheet: {
+      backgroundColor: surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+      padding: 24, paddingBottom: 40, maxHeight: "85%",
+    },
+    handle: { width: 40, height: 4, backgroundColor: theme.border, borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+    title: { fontSize: 20, fontWeight: "800", color: theme.text },
+    subtitle: { fontSize: 13, color: theme.subtext, lineHeight: 19, marginBottom: 18 },
+    toggleRow: {
+      flexDirection: "row", backgroundColor: theme.inputBg, borderRadius: 12,
+      padding: 4, marginBottom: 20,
+    },
+    toggleTab: { flex: 1, height: 38, borderRadius: 9, justifyContent: "center", alignItems: "center" },
+    toggleTabActive: {
+      backgroundColor: surface,
+      shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1,
+    },
+    toggleText: { fontSize: 14, fontWeight: "600", color: theme.subtext },
+    toggleTextActive: { color: accent, fontWeight: "700" },
+    label: { fontSize: 13, fontWeight: "600", color: theme.subtext, marginBottom: 8 },
+    inputRow: {
+      flexDirection: "row", alignItems: "center",
+      backgroundColor: theme.inputBg, borderWidth: 1, borderColor: theme.border,
+      borderRadius: 12, paddingHorizontal: 14,
+    },
+    input: { flex: 1, height: 48, fontSize: 16, color: theme.text, fontWeight: "700" },
+    currencyTag: { fontSize: 13, fontWeight: "700", color: theme.subtext },
+    previewCard: { backgroundColor: accent + "15", borderRadius: 14, padding: 16, marginTop: 16 },
+    previewRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    previewMuted: { fontSize: 12, color: theme.subtext, fontWeight: "500" },
+    previewDivider: { height: 1, backgroundColor: accent + "30", marginVertical: 10 },
+    previewMain: { fontSize: 15, color: theme.text, lineHeight: 22 },
+    previewBold: { fontWeight: "800", color: accent },
+    primaryBtn: {
+      marginTop: 24, height: 52, backgroundColor: theme.primary, borderRadius: 16,
+      justifyContent: "center", alignItems: "center",
+      shadowColor: "#3629B7", shadowOpacity: 0.25, shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 }, elevation: 3,
+    },
+    btnDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
+    primaryBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+    footnote: { fontSize: 12, color: theme.subtext, textAlign: "center", marginTop: 12, lineHeight: 17 },
+  });

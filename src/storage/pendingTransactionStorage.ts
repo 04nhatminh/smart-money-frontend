@@ -115,6 +115,11 @@ class PendingStorage {
     return this.queue.find((t) => t.id === id);
   }
 
+  // Fallback khi jobMap (in-memory) đã mất sau khi app bị kill: jobId được persist trên item.
+  findByJobId(jobId: string) {
+    return this.queue.find((t) => t.jobId === jobId);
+  }
+
   update(id: string, updatedFields: Partial<Omit<PendingTransaction, "id">>) {
     const index = this.queue.findIndex((t) => t.id === id);
     if (index === -1) return;

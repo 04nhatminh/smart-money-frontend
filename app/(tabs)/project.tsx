@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -20,7 +20,8 @@ import ProjectStatusFilterModal from "../../src/components/projects/ProjectStatu
 import CreateProjectModal from "../../src/components/projects/CreateProjectModal";
 import CreateGroupModal from "../../src/components/groups/CreateGroupModal";
 import { useProjectList } from "../../src/hooks/useProjectList";
-import { projectListStyles as styles } from "../../src/styles/projectListStyles";
+import { useProjectListStyles } from "../../src/styles/projectListStyles";
+import { Theme } from "../../src/theme/tokens";
 import { ProjectListItemResponse } from "../../src/types/project.types";
 import { GroupListItemResponse, GroupStatus } from "../../src/types/group.types";
 import { GroupAPI } from "../../src/api/group.api";
@@ -29,14 +30,27 @@ import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/data
 
 type TabMode = "personal" | "group";
 
+// Chip trạng thái nhóm: tint pastel nhận diện cố định (nền sáng + chữ đậm) —
+// đọc tốt ở cả 3 theme nên giữ nguyên.
 const GROUP_STATUS_COLORS: Record<GroupStatus, { bg: string; text: string }> = {
   FORMING: { bg: "#FEF9C3", text: "#92400E" },
   LOCKED: { bg: "#D1FAE5", text: "#065F46" },
   DISSOLVED: { bg: "#F3F4F6", text: "#6B7280" },
 };
 
+// Styles phụ cho tab Group, build lại theo theme hiện tại (light / dark / green).
+function useGroupStyles() {
+  const { theme, accent, surface } = useProjectListStyles();
+  const groupStyles = useMemo(
+    () => createGroupStyles(theme, accent, surface),
+    [theme, accent, surface]
+  );
+  return { groupStyles, theme, accent };
+}
+
 function GroupCard({ group, onPress }: { group: GroupListItemResponse; onPress: () => void }) {
   const { user } = useAuth();
+  const { groupStyles, theme, accent } = useGroupStyles();
   const c = GROUP_STATUS_COLORS[group.status] ?? GROUP_STATUS_COLORS.DISSOLVED;
   const isAdmin = group.adminId === user?.id;
 
@@ -44,13 +58,13 @@ function GroupCard({ group, onPress }: { group: GroupListItemResponse; onPress: 
     <Pressable
       style={({ pressed }) => [
         groupStyles.card,
-        pressed && { opacity: 0.92, backgroundColor: "#FAFAFC" },
+        pressed && { opacity: 0.92, backgroundColor: theme.inputBg },
       ]}
       onPress={onPress}
     >
       <View style={groupStyles.cardHeader}>
         <View style={groupStyles.iconWrap}>
-          <Ionicons name="people" size={22} color="#3629B7" />
+          <Ionicons name="people" size={22} color={accent} />
         </View>
         <View style={groupStyles.cardInfo}>
           <Text style={groupStyles.cardName} numberOfLines={1}>{group.name}</Text>
@@ -102,18 +116,20 @@ function GroupCard({ group, onPress }: { group: GroupListItemResponse; onPress: 
 
       <View style={groupStyles.footer}>
         <View style={groupStyles.memberCountRow}>
-          <Ionicons name="person-outline" size={13} color="#64748B" />
+          <Ionicons name="person-outline" size={13} color={theme.subtext} />
           <Text style={groupStyles.footerText}>
             {group.memberCount} thành viên
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+        <Ionicons name="chevron-forward" size={16} color={theme.subtext} />
       </View>
     </Pressable>
   );
 }
 
 export default function ProjectScreen() {
+  const { styles, theme, accent } = useProjectListStyles();
+  const { groupStyles } = useGroupStyles();
   const [tabMode, setTabMode] = useState<TabMode>("personal");
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [openStatusFilterModal, setOpenStatusFilterModal] = useState(false);
@@ -224,7 +240,7 @@ export default function ProjectScreen() {
           <View style={styles.headerTopRow}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <Pressable onPress={() => router.replace("/(tabs)/home")} style={{ marginRight: 4 }}>
-                <Ionicons name="arrow-back" size={26} color="#FFFFFF" />
+                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </Pressable>
             <Text style={styles.title}>Projects</Text>
           </View>
@@ -245,8 +261,10 @@ export default function ProjectScreen() {
             style={[tabToggleStyles.tab, tabMode === "personal" && tabToggleStyles.tabActive]}
             onPress={() => setTabMode("personal")}
           >
-            <Ionicons name="person-outline" size={14} color={tabMode === "personal" ? "#3629B7" : "#C2C2C7"} />
-            <Text style={[tabToggleStyles.tabText, tabMode === "personal" && tabToggleStyles.tabTextActive]}>
+            {/* Pill tab active nền trắng cố định trên header màu — chữ/icon dùng
+                theme.primary cho khớp màu header ở cả 3 theme. */}
+            <Ionicons name="person-outline" size={14} color={tabMode === "personal" ? theme.primary : "#C2C2C7"} />
+            <Text style={[tabToggleStyles.tabText, tabMode === "personal" && { color: theme.primary }]}>
               Personal
             </Text>
           </Pressable>
@@ -254,8 +272,8 @@ export default function ProjectScreen() {
             style={[tabToggleStyles.tab, tabMode === "group" && tabToggleStyles.tabActive]}
             onPress={() => setTabMode("group")}
           >
-            <Ionicons name="people-outline" size={14} color={tabMode === "group" ? "#3629B7" : "#C2C2C7"} />
-            <Text style={[tabToggleStyles.tabText, tabMode === "group" && tabToggleStyles.tabTextActive]}>
+            <Ionicons name="people-outline" size={14} color={tabMode === "group" ? theme.primary : "#C2C2C7"} />
+            <Text style={[tabToggleStyles.tabText, tabMode === "group" && { color: theme.primary }]}>
               Group
             </Text>
           </Pressable>
@@ -297,7 +315,14 @@ export default function ProjectScreen() {
               keyExtractor={(item) => item.projectId}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.listContent}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={[theme.primary]}
+                  tintColor={theme.primary}
+                />
+              }
               renderItem={({ item }) => (
                 <ProjectCard
                   project={item}
@@ -318,7 +343,7 @@ export default function ProjectScreen() {
           <View style={styles.content}>
             {groupsLoading && groups.length === 0 ? (
               <View style={groupStyles.center}>
-                <ActivityIndicator color="#3629B7" />
+                <ActivityIndicator color={accent} />
               </View>
             ) : (
               <FlatList
@@ -326,7 +351,14 @@ export default function ProjectScreen() {
                 keyExtractor={(item) => item.groupId}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.listContent}
-                refreshControl={<RefreshControl refreshing={groupsRefreshing} onRefresh={onGroupsRefresh} />}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={groupsRefreshing}
+                    onRefresh={onGroupsRefresh}
+                    colors={[theme.primary]}
+                    tintColor={theme.primary}
+                  />
+                }
                 renderItem={({ item }) => (
                   <GroupCard
                     group={item}
@@ -335,7 +367,7 @@ export default function ProjectScreen() {
                 )}
                 ListEmptyComponent={
                   <View style={groupStyles.emptyState}>
-                    <Ionicons name="people-outline" size={48} color="#C7C7CC" style={{ marginBottom: 12 }} />
+                    <Ionicons name="people-outline" size={48} color={theme.subtext} style={{ marginBottom: 12 }} />
                     <Text style={styles.emptyText}>No groups yet.</Text>
                     <Pressable
                       style={groupStyles.emptyCreateBtn}
@@ -380,6 +412,9 @@ export default function ProjectScreen() {
   );
 }
 
+// Toggle Personal/Group nằm trên header màu primary đậm nên các màu ở đây
+// cố định (nền mờ trắng + chữ xám sáng); màu chữ tab active theo theme.primary
+// được override inline trong JSX.
 const tabToggleStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
@@ -394,138 +429,92 @@ const tabToggleStyles = StyleSheet.create({
   },
   tabActive: { backgroundColor: "#FFFFFF" },
   tabText: { fontSize: 13, fontWeight: "600", color: "#C2C2C7" },
-  tabTextActive: { color: "#3629B7" },
 });
 
-const groupStyles = StyleSheet.create({
-  center: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 60 },
-  emptyState: { paddingTop: 48, alignItems: "center" },
-  emptyCreateBtn: {
-    marginTop: 16, flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "#3629B7", borderRadius: 14,
-    paddingHorizontal: 20, paddingVertical: 12,
-  },
-  emptyCreateBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1.5,
-  },
-  cardHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconWrap: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: "#EEF0FF", justifyContent: "center", alignItems: "center",
-  },
-  cardInfo: { flex: 1 },
-  cardName: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
-  cardDesc: { fontSize: 12, color: "#64748B", marginTop: 2 },
-  badges: { flexDirection: "row", gap: 6, alignItems: "center" },
-  adminBadge: { backgroundColor: "#EEF0FF", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-  adminBadgeText: { fontSize: 10, fontWeight: "700", color: "#3629B7" },
-  statusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-  statusChipText: { fontSize: 10, fontWeight: "700" },
+const createGroupStyles = (theme: Theme, accent: string, surface: string) =>
+  StyleSheet.create({
+    center: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 60 },
+    emptyState: { paddingTop: 48, alignItems: "center" },
+    emptyCreateBtn: {
+      marginTop: 16, flexDirection: "row", alignItems: "center", gap: 6,
+      backgroundColor: theme.primary, borderRadius: 14,
+      paddingHorizontal: 20, paddingVertical: 12,
+    },
+    emptyCreateBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
+    card: {
+      backgroundColor: surface,
+      borderRadius: 18,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      shadowColor: "#000",
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1.5,
+    },
+    cardHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+    iconWrap: {
+      width: 44, height: 44, borderRadius: 22,
+      backgroundColor: accent + "15", justifyContent: "center", alignItems: "center",
+    },
+    cardInfo: { flex: 1 },
+    cardName: { fontSize: 16, fontWeight: "700", color: theme.text },
+    cardDesc: { fontSize: 12, color: theme.subtext, marginTop: 2 },
 
-  projectBadgeActive: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#ECFDF5",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    alignSelf: "flex-start",
-    marginTop: 4,
-  },
-  projectBadgeActiveText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#047857",
-  },
-  projectBadgePending: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#FEF3C7",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    alignSelf: "flex-start",
-    marginTop: 4,
-  },
-  projectBadgePendingText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#B45309",
-  },
-  projectBadgeCompleted: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#EFF6FF",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    alignSelf: "flex-start",
-    marginTop: 4,
-  },
-  projectBadgeCompletedText: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#1D4ED8",
-  },
-  projectBadgeDissolved: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#FFF1F2",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    alignSelf: "flex-start",
-    marginTop: 4,
-  },
-  projectBadgeDissolvedText: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#BE123C",
-  },
-  projectBadgeInactive: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#F3F4F6",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    alignSelf: "flex-start",
-    marginTop: 4,
-  },
-  projectBadgeInactiveText: {
-    fontSize: 10,
-    fontWeight: "500",
-    color: "#6B7280",
-  },
-  
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-  },
-  memberCountRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  footerText: { fontSize: 12, color: "#64748B", fontWeight: "500" },
-});
+    // Badge trạng thái dự án của nhóm: tint pastel nhận diện cố định (nền sáng
+    // + chữ đậm cùng tông với icon) — đọc tốt ở cả 3 theme nên giữ nguyên,
+    // cùng quy ước với GROUP_STATUS_COLORS phía trên.
+    projectBadgeActive: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      backgroundColor: "#D1FAE5", borderRadius: 8,
+      paddingHorizontal: 6, paddingVertical: 2, marginTop: 4,
+    },
+    projectBadgeActiveText: { fontSize: 11, fontWeight: "600", color: "#047857" },
+    projectBadgePending: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      backgroundColor: "#FEF3C7", borderRadius: 8,
+      paddingHorizontal: 6, paddingVertical: 2, marginTop: 4,
+    },
+    projectBadgePendingText: { fontSize: 11, fontWeight: "600", color: "#B45309" },
+    projectBadgeCompleted: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      backgroundColor: "#DBEAFE", borderRadius: 8,
+      paddingHorizontal: 6, paddingVertical: 2, marginTop: 4,
+    },
+    projectBadgeCompletedText: { fontSize: 11, fontWeight: "600", color: "#1D4ED8" },
+    projectBadgeDissolved: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      backgroundColor: "#FFE4E6", borderRadius: 8,
+      paddingHorizontal: 6, paddingVertical: 2, marginTop: 4,
+    },
+    projectBadgeDissolvedText: { fontSize: 11, fontWeight: "600", color: "#BE123C" },
+    projectBadgeInactive: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      backgroundColor: "#F3F4F6", borderRadius: 8,
+      paddingHorizontal: 6, paddingVertical: 2, marginTop: 4,
+    },
+    projectBadgeInactiveText: { fontSize: 11, fontWeight: "600", color: "#4B5563" },
+
+    badges: { flexDirection: "row", gap: 6, alignItems: "center" },
+    adminBadge: { backgroundColor: accent + "15", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+    adminBadgeText: { fontSize: 10, fontWeight: "700", color: accent },
+    statusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+    statusChipText: { fontSize: 10, fontWeight: "700" },
+
+    footer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    memberCountRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+    },
+    footerText: { fontSize: 12, color: theme.subtext, fontWeight: "500" },
+  });

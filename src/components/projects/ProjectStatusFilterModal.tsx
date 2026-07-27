@@ -1,4 +1,5 @@
 import React from "react";
+import { useProjectListStyles } from "../../styles/projectListStyles";
 import { Modal, Pressable, StyleSheet, Text, View, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ProjectStatusFilter } from "../../types/project.types";

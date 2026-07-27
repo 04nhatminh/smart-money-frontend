@@ -76,14 +76,13 @@ export const useFacebookLogin = () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: Linking.createURL("/"), // Trả về app sau khi đăng nhập
+          redirectTo: Linking.createURL("/"), 
         },
       });
 
       if (error) throw error;
 
       if (data?.url) {
-        // Mở trình duyệt với URL đăng nhập Facebook
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
         console.log("OAuth result =", result);
         // Xử lý kết quả (tuỳ chọn)

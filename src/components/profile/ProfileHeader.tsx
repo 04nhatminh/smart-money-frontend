@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { UserResponse } from '../../types/auth.types';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useThemeMode } from '../../theme/ThemeProvider';
 
 const { width } = Dimensions.get('window');
 
@@ -23,9 +24,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   avatarTimestamp = Date.now(), // To force refresh avatar when it changes
 }) => {
   const { lang } = useLanguage();
+  const { theme } = useThemeMode();
   return (
     <LinearGradient
-      colors={['#3629B7', '#5655B9']}
+      colors={[theme.primary, theme.link]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.header}
@@ -63,7 +65,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               colors={['#A8A3D7', '#F2F1F9']}
               style={styles.avatarPlaceholder}
             >
-              <Ionicons name="person" size={50} color="#3629B7" />
+              <Ionicons name="person" size={50} color={theme.primary} />
             </LinearGradient>
           )}
           <TouchableOpacity 
@@ -71,7 +73,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             onPress={onEditAvatar}
           >
             <LinearGradient
-              colors={['#3629B7', '#5655B9']}
+              colors={[theme.primary, theme.link]}
               style={styles.editAvatarGradient}
             >
               <Ionicons name="camera" size={16} color="#FFFFFF" />

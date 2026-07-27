@@ -13,6 +13,8 @@ import { ButtonSave } from "../ButtonSave";
 import { InputField } from "../InputField";
 import { t } from "../../i18n";
 import { useLanguage } from "../../i18n/LanguageProvider";
+import { useThemeMode } from "../../theme/ThemeProvider";
+import { Theme, ThemeMode } from "../../theme/tokens";
 import {
   FinancialSetup,
   type FocusMode,
@@ -46,6 +48,270 @@ type Props = {
   onCancel?: () => void;
 };
 
+// ==================== DYNAMIC STYLES ====================
+// Styles dùng chung cho FinancialSetupForm + OptionGroup + BooleanChoiceGroup,
+// build lại theo theme hiện tại (light / dark / green).
+function useFinancialSetupStyles() {
+  const { theme, mode } = useThemeMode();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" ? "#FFFFFF" : theme.card;
+
+  const styles = useMemo(() => createStyles(theme, mode, accent, surface), [theme, mode]);
+
+  return { styles, theme, mode, accent, surface };
+}
+
+const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string) =>
+  StyleSheet.create({
+    keyboard: {
+      flex: 1,
+    },
+
+    content: {
+      paddingTop: 30,
+      paddingBottom: 30,
+      paddingHorizontal: 20,
+    },
+
+    header: {
+      marginBottom: 14,
+    },
+
+    headerIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primary,
+      marginBottom: 7,
+    },
+
+    title: {
+      fontSize: 22,
+      fontWeight: "800",
+      color: theme.text,
+      lineHeight: 24,
+      marginBottom: 3,
+    },
+
+    subtitle: {
+      fontSize: 13,
+      color: theme.subtext,
+      lineHeight: 16,
+    },
+
+    group: {
+      marginBottom: 16,
+    },
+
+    groupTitle: {
+      fontSize: 16,
+      fontWeight: "800",
+      color: theme.text,
+      marginBottom: 5,
+    },
+
+    groupDescription: {
+      fontSize: 12,
+      color: theme.subtext,
+      lineHeight: 16,
+      marginBottom: 9,
+    },
+
+    supportText: {
+      fontSize: 12,
+      color: theme.subtext,
+      marginTop: 5,
+    },
+
+    optionGrid: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      width: "88%",
+      alignSelf: "center",
+    },
+
+    optionTile: {
+      width: "30.5%",
+      minWidth: 0,
+      minHeight: 94,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1.2,
+      borderColor: theme.border,
+      borderRadius: 13,
+      backgroundColor: surface,
+      paddingHorizontal: 4,
+      paddingVertical: 9,
+    },
+
+    optionTileSelected: {
+      borderColor: accent,
+      backgroundColor: accent + "15",
+    },
+
+    optionIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.inputBg,
+      marginBottom: 6,
+    },
+
+    optionIconSelected: {
+      backgroundColor: accent,
+    },
+
+    optionLabel: {
+      width: "100%",
+      fontSize: 13,
+      fontWeight: "800",
+      color: theme.text,
+      textAlign: "center",
+      lineHeight: 15,
+    },
+
+    optionLabelSelected: {
+      color: accent,
+    },
+
+    optionDescription: {
+      width: "100%",
+      fontSize: 10.5,
+      fontWeight: "500",
+      color: theme.subtext,
+      textAlign: "center",
+      lineHeight: 13,
+      marginTop: 3,
+    },
+
+    optionDescriptionSelected: {
+      color: accent,
+    },
+
+    choiceList: {
+      gap: 10,
+    },
+
+    choiceRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1.2,
+      borderColor: theme.border,
+      borderRadius: 13,
+      backgroundColor: surface,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+
+    choiceRowSelected: {
+      borderColor: accent,
+      backgroundColor: accent + "15",
+    },
+
+    choiceTextWrap: {
+      flex: 1,
+      marginLeft: 12,
+      marginRight: 10,
+    },
+
+    choiceLabel: {
+      fontSize: 14,
+      fontWeight: "800",
+      color: theme.text,
+      lineHeight: 18,
+    },
+
+    choiceDescription: {
+      fontSize: 11.5,
+      fontWeight: "500",
+      color: theme.subtext,
+      lineHeight: 15,
+      marginTop: 3,
+    },
+
+    radio: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      borderWidth: 2,
+      borderColor: theme.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    radioSelected: {
+      borderColor: accent,
+    },
+
+    radioDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: accent,
+    },
+
+    choiceError: {
+      fontSize: 12,
+      color: "#B91C1C",
+      marginTop: 8,
+    },
+
+    messageError: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      borderRadius: 8,
+      padding: 10,
+      backgroundColor: "#FEE2E2",
+      marginBottom: 12,
+    },
+
+    messageErrorText: {
+      flex: 1,
+      marginLeft: 7,
+      color: "#B91C1C",
+      fontSize: 12,
+      lineHeight: 16,
+    },
+
+    messageSuccess: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      borderRadius: 8,
+      padding: 10,
+      backgroundColor: "#D1FAE5",
+      marginBottom: 12,
+    },
+
+    messageSuccessText: {
+      flex: 1,
+      marginLeft: 7,
+      color: "#047857",
+      fontSize: 12,
+      lineHeight: 16,
+    },
+
+    buttonRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 2,
+    },
+
+    halfButton: {
+      width: "48.5%",
+    },
+
+    fullButton: {
+      width: "100%",
+    },
+  });
+
 function OptionGroup<T extends string>({
   title,
   description,
@@ -59,6 +325,7 @@ function OptionGroup<T extends string>({
   options: readonly Option<T>[];
   onChange: (value: T) => void;
 }) {
+  const { styles, accent } = useFinancialSetupStyles();
   return (
     <View style={styles.group}>
       <Text style={styles.groupTitle}>{title}</Text>
@@ -91,7 +358,7 @@ function OptionGroup<T extends string>({
                 <Ionicons
                   name={option.icon}
                   size={18}
-                  color={selected ? "#FFFFFF" : "#4B3FD6"}
+                  color={selected ? "#FFFFFF" : accent}
                 />
               </View>
 
@@ -150,6 +417,7 @@ function BooleanChoiceGroup({
   onChange: (value: boolean) => void;
   error?: string;
 }) {
+  const { styles, accent } = useFinancialSetupStyles();
   return (
     <View style={styles.group}>
       <Text style={styles.groupTitle}>{title}</Text>
@@ -182,7 +450,7 @@ function BooleanChoiceGroup({
                 <Ionicons
                   name={option.icon}
                   size={18}
-                  color={selected ? "#FFFFFF" : "#4B3FD6"}
+                  color={selected ? "#FFFFFF" : accent}
                 />
               </View>
 
@@ -226,6 +494,7 @@ export default function FinancialSetupForm({
   onCancel,
 }: Props) {
   useLanguage(); // re-render on EN/VI switch
+  const { styles } = useFinancialSetupStyles();
   const [income, setIncome] = useState("");
   const [savingPace, setSavingPace] =
     useState<SavingPace | null>(FINANCIAL_SETUP_OPTIONS.savingPace[1].value);
@@ -459,250 +728,3 @@ export default function FinancialSetupForm({
       </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  keyboard: {
-    flex: 1,
-  },
-
-  content: {
-    paddingTop: 30,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-  },
-
-  header: {
-    marginBottom: 14,
-  },
-
-  headerIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#4B3FD6",
-    marginBottom: 7,
-  },
-
-  title: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    lineHeight: 24,
-    marginBottom: 3,
-  },
-
-  subtitle: {
-    fontSize: 13,
-    color: "#6B7280",
-    lineHeight: 16,
-  },
-
-  group: {
-    marginBottom: 16,
-  },
-
-  groupTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#111827",
-    marginBottom: 5,
-  },
-
-  groupDescription: {
-    fontSize: 12,
-    color: "#6B7280",
-    lineHeight: 16,
-    marginBottom: 9,
-  },
-
-  supportText: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 5,
-  },
-
-  optionGrid: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "88%",
-    alignSelf: "center",
-  },
-
-  optionTile: {
-    width: "30.5%",
-    minWidth: 0,
-    minHeight: 94,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.2,
-    borderColor: "#E5E7EB",
-    borderRadius: 13,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 4,
-    paddingVertical: 9,
-  },
-
-  optionTileSelected: {
-    borderColor: "#4B3FD6",
-    backgroundColor: "#F5F3FF",
-  },
-
-  optionIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#EEF2FF",
-    marginBottom: 6,
-  },
-
-  optionIconSelected: {
-    backgroundColor: "#4B3FD6",
-  },
-
-  optionLabel: {
-    width: "100%",
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#374151",
-    textAlign: "center",
-    lineHeight: 15,
-  },
-
-  optionLabelSelected: {
-    color: "#3324C9",
-  },
-
-  optionDescription: {
-    width: "100%",
-    fontSize: 10.5,
-    fontWeight: "500",
-    color: "#6B7280",
-    textAlign: "center",
-    lineHeight: 13,
-    marginTop: 3,
-  },
-
-  optionDescriptionSelected: {
-    color: "#4B3FD6",
-  },
-
-  choiceList: {
-    gap: 10,
-  },
-
-  choiceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.2,
-    borderColor: "#E5E7EB",
-    borderRadius: 13,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-
-  choiceRowSelected: {
-    borderColor: "#4B3FD6",
-    backgroundColor: "#F5F3FF",
-  },
-
-  choiceTextWrap: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 10,
-  },
-
-  choiceLabel: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#374151",
-    lineHeight: 18,
-  },
-
-  choiceDescription: {
-    fontSize: 11.5,
-    fontWeight: "500",
-    color: "#6B7280",
-    lineHeight: 15,
-    marginTop: 3,
-  },
-
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: "#CBD5E1",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  radioSelected: {
-    borderColor: "#4B3FD6",
-  },
-
-  radioDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#4B3FD6",
-  },
-
-  choiceError: {
-    fontSize: 12,
-    color: "#B91C1C",
-    marginTop: 8,
-  },
-
-  messageError: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#FEE2E2",
-    marginBottom: 12,
-  },
-
-  messageErrorText: {
-    flex: 1,
-    marginLeft: 7,
-    color: "#B91C1C",
-    fontSize: 12,
-    lineHeight: 16,
-  },
-
-  messageSuccess: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#D1FAE5",
-    marginBottom: 12,
-  },
-
-  messageSuccessText: {
-    flex: 1,
-    marginLeft: 7,
-    color: "#047857",
-    fontSize: 12,
-    lineHeight: 16,
-  },
-
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 2,
-  },
-
-  halfButton: {
-    width: "48.5%",
-  },
-
-  fullButton: {
-    width: "100%",
-  },
-});

@@ -36,7 +36,9 @@ export function ReceiptPreview({
   isSubmitting = false,
   errorMessage,
 }: Props) {
-  const { theme } = useThemeMode();
+  const { theme, mode } = useThemeMode();
+  // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
+  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   useEffect(() => {
@@ -112,7 +114,7 @@ export function ReceiptPreview({
       ) : (
         <Pressable 
           onPress={onRetakePhoto}
-          style={[styles.uploadSection, { backgroundColor: theme.card }]}
+          style={[styles.uploadSection, { backgroundColor: surface }]}
         >
           <AntDesign name="scan" size={24} color="black" />
           <Text style={[styles.uploadTitle, { color: theme.text }]}>
@@ -125,7 +127,7 @@ export function ReceiptPreview({
       )}
       
         {/* Receipt Details */}
-        <View style={[styles.detailsSection, { backgroundColor: theme.card }]}>
+        <View style={[styles.detailsSection, { backgroundColor: surface }]}>
           {/* Type */}
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: theme.subtext }]}>

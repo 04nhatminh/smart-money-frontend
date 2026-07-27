@@ -3,7 +3,7 @@ import SockJS from "sockjs-client";
 import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
 
 import { handleIncomingNotification } from "../notification/notificationHandler";
-import PendingStorage from "../storage/pendingTransactionStorage";
+import  PendingStorage, {ProcessingStatus, ProcessingEvent, pendingEventBus} from "../storage/pendingTransactionStorage";
 
 import {
   BudgetAllocationAIMessage,
@@ -17,6 +17,7 @@ import TransactionParser from "../utils/transactionParser";
 import { formatDateTime } from "../utils/dateFormatter";
 import { TransactionType } from "../types/transaction.types";
 import { CloudinaryService } from "./cloudinary.service";
+import AIAPI from "../api/ai.api";
 
 // ==============================
 // STATE
@@ -67,6 +68,16 @@ const safeParseJson = (value: unknown) => {
     return value;
   }
 };
+
+// Helper phát sự kiện
+async function emitStatus(pendingId: string, status: ProcessingStatus, error?: string) {
+    await PendingStorage.update(pendingId, {
+        processingStatus: status,
+        processingError: error,
+    });
+    const event: ProcessingEvent = { pendingId, status, error };
+    pendingEventBus.emit('processing_update', event);
+}
 
 const normalizeBudgetAllocationCategories = (
   categories: unknown
@@ -219,6 +230,10 @@ export const initWebSocket = async (userId: string): Promise<Client> => {
       subscribeNotifications();
       subscribeUserAI();
 
+      // Pending nào còn kẹt ở trạng thái processing (app bị kill / miss WS event)
+      // thì rebind job + poll lại kết quả, không đợi user mở Pending Modal.
+      recoverPendingJobs();
+
       resolve(stompClient!);
     };
 
@@ -287,6 +302,149 @@ const subscribeNotifications = () => {
 };
 
 // ==============================
+// 🎯 AI RESULT HANDLER (dùng chung cho WS message + recovery poll)
+// ==============================
+// jobMap chỉ nằm trong RAM — sau khi app bị kill phải fallback qua jobId persist trên item.
+const resolvePendingId = (jobId: string): string | undefined => {
+  return PendingStorage.getPendingId(jobId) ?? PendingStorage.findByJobId(jobId)?.id;
+};
+
+const handleAIResultData = async (data: any) => {
+  const jobId: string | null = data?.jobId ?? null;
+
+  if (!jobId) {
+    console.warn("Missing jobId");
+    return;
+  }
+
+  if (processingJobs.has(jobId)) {
+    console.log("⏭️ Job already processing:", jobId);
+    return;
+  }
+
+  processingJobs.add(jobId);
+
+  try {
+    const pendingId = resolvePendingId(jobId);
+    let source: "camera" | "voice" | "notification" = "notification";
+
+    if (pendingId) {
+
+      const pending = PendingStorage.find(pendingId);
+
+      if (pending) {
+
+        source = pending.source;
+      }
+    }
+
+    // Job FAILED → mở khóa pending (failed không còn isProcessing) để user reject/sửa được
+    const jobStatus = String(data?.status ?? "").toUpperCase();
+
+    if (jobStatus === "FAILED") {
+      console.error("❌ AI job failed:", jobId);
+
+      if (pendingId) {
+        await emitStatus(pendingId, "failed", data?.error ?? "AI processing failed");
+        PendingStorage.unbindJob(jobId);
+      }
+
+      const failCallback = jobCallbacks.get(jobId);
+      if (failCallback) {
+        failCallback(data);
+      } else {
+        pendingJobMessages.set(jobId, data);
+      }
+      return;
+    }
+
+    const normalized = normalizeAIResult(data);
+
+    console.log("Normalized AI result:", JSON.stringify(normalized, null, 2));
+
+
+
+    if (pendingId) {
+      const pending = PendingStorage.find(pendingId);
+
+      if (pending?.cloudinaryPublicId) {
+        await CloudinaryService.deleteImage(
+          pending.cloudinaryPublicId,
+          pending.cloudinaryResourceType!
+        );
+      }
+
+      await PendingStorage.remove(pendingId);
+      PendingStorage.unbindJob(jobId);
+    }
+
+    for (const tx of normalized.transactions) {
+      const amount = TransactionParser.parseAmount(tx.expense);
+
+      console.log("check")
+
+      if (amount === null || amount <= 0) {
+        continue;
+      }
+
+      const candidateDate = normalized.date || formatDateTime(new Date());
+
+      const candidate = {
+        amount,
+        category: tx.category,
+        type: tx.type as TransactionType,
+        groupText: tx.description,
+        date: candidateDate,
+        source,
+        jobId
+      };
+
+      // 1. Duplicate trong bộ nhớ
+      if (DeduplicationService.findDuplicate(candidate)) {
+        console.log("⏭️ Duplicate (memory)");
+        continue;
+      }
+
+      // 2. Duplicate với PendingStorage
+      const pendingItems = PendingStorage.getAll();
+
+      const duplicated = pendingItems.some(item => {
+        return (
+          item.amount === candidate.amount &&
+          item.type === candidate.type &&
+          Math.abs(
+            new Date(item.date).getTime() -
+            new Date(candidate.date).getTime()
+          ) < 60 * 1000
+        );
+      });
+
+      if (duplicated) {
+        console.log("⏭️ Duplicate (pending storage)");
+        continue;
+      }
+
+      DeduplicationService.markProcessed(candidate);
+
+      await PendingStorage.add(candidate);
+    }
+
+    const callback = jobCallbacks.get(jobId);
+    if (callback) {
+      callback(data);
+    } else {
+      console.warn("⚠️ No callback registered for job:", jobId);
+      pendingJobMessages.set(jobId, data);
+    }
+  } catch (err) {
+    console.error("❌ Parse error", err);
+  }
+  finally {
+    processingJobs.delete(jobId);
+  }
+};
+
+// ==============================
 // 🎯 USER AI TOPIC SUBSCRIBE
 // ==============================
 const subscribeUserAI = () => {
@@ -299,126 +457,136 @@ const subscribeUserAI = () => {
   aiUserSub = stompClient.subscribe(
     `/topic/ai/user/${currentUserId}`,
     async (msg: IMessage) => {
-      let jobId: string | null = null;
-
       try {
         const data = JSON.parse(msg.body);
-
-        jobId = data?.jobId;
-
-        if (!jobId) {
-          console.warn("Missing jobId");
-          return;
-        }
-
-        if (processingJobs.has(jobId)) {
-          console.log("⏭️ Job already processing:", jobId);
-          return;
-        }
-
-        processingJobs.add(jobId);
-
-        const pendingId = PendingStorage.getPendingId(jobId);
-        let source: "camera" | "voice" | "notification" = "notification";
-
-        if (pendingId) {
-
-          const pending = PendingStorage.find(pendingId);
-
-          if (pending) {
-
-            source = pending.source;
-          }
-        }
-
-        const normalized = normalizeAIResult(data);
-
-        console.log("Normalized AI result:", JSON.stringify(normalized, null, 2));
-
-
-
-        if (pendingId) {
-          const pending = PendingStorage.find(pendingId);
-
-          if (pending?.cloudinaryPublicId) {
-            await CloudinaryService.deleteImage(
-              pending.cloudinaryPublicId,
-              pending.cloudinaryResourceType!
-            );
-          }
-
-          await PendingStorage.remove(pendingId);
-          PendingStorage.unbindJob(jobId);
-        }
-
-        for (const tx of normalized.transactions) {
-          const amount = TransactionParser.parseAmount(tx.expense);
-
-          console.log("check")
-
-          if (amount === null || amount <= 0) {
-            continue;
-          }
-
-          const candidateDate = normalized.date || formatDateTime(new Date());
-
-          const candidate = {
-            amount,
-            category: tx.category,
-            type: tx.type as TransactionType,
-            groupText: tx.description,
-            date: candidateDate,
-            source,
-            jobId
-          };
-
-          // 1. Duplicate trong bộ nhớ
-          if (DeduplicationService.findDuplicate(candidate)) {
-            console.log("⏭️ Duplicate (memory)");
-            continue;
-          }
-
-          // 2. Duplicate với PendingStorage
-          const pendingItems = PendingStorage.getAll();
-
-          const duplicated = pendingItems.some(item => {
-            return (
-              item.amount === candidate.amount &&
-              item.type === candidate.type &&
-              Math.abs(
-                new Date(item.date).getTime() -
-                new Date(candidate.date).getTime()
-              ) < 60 * 1000
-            );
-          });
-
-          if (duplicated) {
-            console.log("⏭️ Duplicate (pending storage)");
-            continue;
-          }
-
-          DeduplicationService.markProcessed(candidate);
-
-          await PendingStorage.add(candidate);
-        }
-
-        const callback = jobCallbacks.get(jobId);
-        if (callback) {
-          callback(data);
-        } else {
-          console.warn("⚠️ No callback registered for job:", jobId);
-          pendingJobMessages.set(jobId, data);
-        }
+        await handleAIResultData(data);
       } catch (err) {
         console.error("❌ Parse error", err);
       }
-      finally {
-        if (jobId) {
-          processingJobs.delete(jobId);
-        }
-      }
     }
   );
+};
+
+// ==============================
+// 🎯 PENDING JOB RECOVERY
+// Xử lý pending bị kẹt ở uploading/ai_submitting/ai_processing:
+// app bị kill giữa chừng hoặc WS event tới lúc app không chạy.
+// ==============================
+const IN_PROGRESS_STATUSES: ProcessingStatus[] = [
+  "uploading",
+  "ai_submitting",
+  "ai_processing",
+];
+
+const recoveringJobs = new Set<string>();
+
+const RECOVERY_POLL_ATTEMPTS = 6;
+const RECOVERY_POLL_DELAY = 5000;
+
+const pollRecoveredJob = async (jobId: string, pendingId: string) => {
+  if (recoveringJobs.has(jobId)) return;
+  recoveringJobs.add(jobId);
+
+  try {
+    for (let i = 0; i < RECOVERY_POLL_ATTEMPTS; i++) {
+      // Item có thể đã được WS resolve trong lúc chờ poll
+      const current = PendingStorage.find(pendingId);
+      if (!current || !IN_PROGRESS_STATUSES.includes(current.processingStatus!)) {
+        return;
+      }
+
+      try {
+        const res = await AIAPI.getResult(jobId);
+
+        if (res?.success && res.data) {
+          console.log("♻️ Recovered AI result for job:", jobId);
+          await handleAIResultData({ ...res.data, jobId: res.data?.jobId ?? jobId });
+          return;
+        }
+      } catch (err) {
+        console.warn("⚠️ Recovery poll error:", jobId, err);
+      }
+
+      await new Promise((r) => setTimeout(r, RECOVERY_POLL_DELAY));
+    }
+
+    // Cách cuối: force get result qua getJobResult (không coi 404 là "đang xử lý")
+    const beforeForce = PendingStorage.find(pendingId);
+    if (beforeForce && IN_PROGRESS_STATUSES.includes(beforeForce.processingStatus!)) {
+      try {
+        console.log("🔨 Force getting job result:", jobId);
+        const forced = await AIAPI.getJobResult(jobId);
+
+        if (forced) {
+          await handleAIResultData({ ...forced, jobId: forced?.jobId ?? jobId });
+          return;
+        }
+      } catch (err) {
+        console.warn("⚠️ Force get result failed:", jobId, err);
+      }
+    }
+
+    // Force get cũng không cứu được → đánh dấu failed để user approve/reject được
+    const still = PendingStorage.find(pendingId);
+    if (still && IN_PROGRESS_STATUSES.includes(still.processingStatus!)) {
+      console.warn("⚠️ Job unrecoverable, marking failed:", jobId);
+      await emitStatus(pendingId, "failed", "AI result unavailable");
+      PendingStorage.unbindJob(jobId);
+    }
+  } finally {
+    recoveringJobs.delete(jobId);
+  }
+};
+
+// Watchdog cho job vừa submit: WS được ưu tiên xử lý trước (grace period),
+// quá hạn không thấy kết quả thì tự poll getResult → force getJobResult → failed.
+// Gọi ngay sau bindJob để không phụ thuộc user đang mở màn hình nào.
+export const watchPendingJob = (
+  jobId: string,
+  pendingId: string,
+  graceMs = 15000
+) => {
+  setTimeout(() => {
+    pollRecoveredJob(jobId, pendingId).catch((err) =>
+      console.error("❌ watchPendingJob error:", err)
+    );
+  }, graceMs);
+};
+
+const recoverPendingJobs = async () => {
+  try {
+    await PendingStorage.load();
+
+    const stuckItems = PendingStorage.getAll().filter(
+      (item) =>
+        item.processingStatus &&
+        IN_PROGRESS_STATUSES.includes(item.processingStatus)
+    );
+
+    if (stuckItems.length === 0) return;
+
+    console.log("♻️ Recovering stuck pending transactions:", stuckItems.length);
+
+    for (const item of stuckItems) {
+      if (!item.jobId) {
+        // Bị kill trước khi submit job → không còn gì để chờ
+        await emitStatus(item.id, "failed", "Processing was interrupted");
+        continue;
+      }
+
+      // Rebind để nếu WS còn bắn kết quả thì handler vẫn tìm được pending
+      PendingStorage.bindJob(
+        item.jobId,
+        item.id,
+        item.cloudinaryPublicId,
+        item.cloudinaryResourceType
+      );
+
+      pollRecoveredJob(item.jobId, item.id);
+    }
+  } catch (err) {
+    console.error("❌ Recover pending jobs error:", err);
+  }
 };
 
 // ==============================

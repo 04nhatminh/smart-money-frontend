@@ -2,6 +2,7 @@ import { NativeModules, NativeEventEmitter, Alert } from "react-native";
 import EventEmitter from "eventemitter3";
 import AIAPI from "../api/ai.api";
 import PendingStorage, { pendingEventBus, ProcessingEvent, ProcessingStatus } from "../storage/pendingTransactionStorage";
+import { watchPendingJob } from "../services/websocket";
 import DeduplicationService from "../utils/DeduplicationService";
 
 const { NotificationModule } = NativeModules;
@@ -428,6 +429,8 @@ export class NotificationListenerService {
 
       PendingStorage.bindJob(jobId, pendingTx.id);
 
+      // Watchdog: WS miss kết quả thì tự poll / force get, không để kẹt ai_processing
+      watchPendingJob(jobId, pendingTx.id);
 
     } catch (error: any) {
       console.error("❌ Error processing AI result:", error);
