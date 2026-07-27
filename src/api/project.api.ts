@@ -36,14 +36,20 @@ export const ProjectAPI = {
       const status = error?.response?.status || "No status";
       const responseData = error?.response?.data;
 
-      console.error("🔴 [ProjectApi] Error Details:");
-      console.error("   Message:", errorMsg);
-      console.error("   Status:", status);
-      console.error("   Response Data:", responseData);
-      console.error("   Full Error:", error);
+      // A structured response body (e.g. PROJECT_USER_INCOME_REQUIRED, priority
+      // conflicts) is a normal business-rule rejection the UI already surfaces via
+      // Alert — console.error on it just trips the RN dev-mode LogBox with a scary
+      // stack trace for what isn't actually a bug. Reserve console.error for
+      // genuinely unexpected failures (network down, 5xx, no response body).
+      const log = responseData ? console.warn : console.error;
+      log("🔴 [ProjectApi] Error Details:");
+      log("   Message:", errorMsg);
+      log("   Status:", status);
+      log("   Response Data:", responseData);
+      if (!responseData) log("   Full Error:", error);
 
       return (
-        error?.response?.data || {
+        responseData || {
           success: false,
           message: errorMsg,
         }

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -108,7 +110,10 @@ export default function ContributeModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>{t("project.contribute_title")}</Text>
@@ -146,6 +151,11 @@ export default function ContributeModal({
             value={amount}
             onChangeText={onChangeAmount}
             keyboardType="numeric"
+            // Amount re-formats with "." thousand separators on every keystroke, which
+            // shifts the string length unpredictably (e.g. "999" -> "1.000"). Without
+            // pinning the cursor to the end, RN/Android lets it drift mid-string, which
+            // reads as the input jittering while typing.
+            selection={{ start: amount.length, end: amount.length }}
             rightText={project.currency}
             error={error ?? undefined}
           />
@@ -196,7 +206,7 @@ export default function ContributeModal({
             />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -205,14 +215,14 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    paddingHorizontal: 16,
   },
   sheet: {
     backgroundColor: "#F6F6F8",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 24,
     padding: 20,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
   header: {
     flexDirection: "row",

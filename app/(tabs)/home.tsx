@@ -302,9 +302,13 @@ export default function HomePage() {
       if (token && user?.id) {
         await notificationService.savePushTokenToServer(token, user.id);
       }
-      await initWebSocket(user.id);
+      try {
+        await initWebSocket(user.id);
+      } catch (err) {
+        console.error("WebSocket init failed:", err);
+      }
     };
-    init().catch((err) => console.error("WebSocket init failed:", err));
+    init();
   }, [user?.id]);
 
   const handleToggleNotification = async () => {

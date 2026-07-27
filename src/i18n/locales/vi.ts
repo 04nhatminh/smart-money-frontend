@@ -30,6 +30,7 @@ export default {
     create: "Tạo",
     update: "Cập nhật",
     yes: "Có",
+    success: "Thành công",
   },
   auth: {
     welcome: "Tham gia Smart Money ngay hôm nay!",
@@ -274,6 +275,10 @@ export default {
     saveSuccessDesc: "Giao dịch đã được lưu thành công.",
     updateSuccess: "Cập nhật giao dịch thành công",
     updateSuccessDesc: "Giao dịch đã được cập nhật thành công.",
+    deleteSuccess: "Xóa giao dịch thành công",
+    deleteFailed: "Xóa giao dịch thất bại",
+    confirmDelete: "Bạn có chắc chắn muốn xóa giao dịch này?",
+    fetchTransactionFailed: "Không thể tải giao dịch",
     confirmExit: "Giao dịch chưa được lưu",
     confirmExitDesc: "Mọi thay đổi sẽ bị mất nếu bạn thoát bây giờ.",
     amountRequired: "Vui lòng nhập số tiền",

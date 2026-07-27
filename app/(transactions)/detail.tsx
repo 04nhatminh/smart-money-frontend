@@ -74,7 +74,21 @@ export default function TransactionDetailScreen() {
           onPress: async () => {
             try {
               setIsDeleting(true);
-              await transactionApi.delete(transaction.id);
+              const res = await transactionApi.delete(transaction.id);
+
+              if (!res.success) {
+                const isProjectDeleted =
+                  res.errorCode === "PROJECT_DELETED" ||
+                  (/project/i.test(res.message ?? "") && /delet/i.test(res.message ?? ""));
+
+                Alert.alert(
+                  "Error",
+                  isProjectDeleted
+                    ? "Project has been deleted, so transactions can not be removed"
+                    : res.message || t("transaction.deleteFailed") || "Failed to delete transaction"
+                );
+                return;
+              }
 
               Alert.alert(
                 t("common.success") || "Success",
