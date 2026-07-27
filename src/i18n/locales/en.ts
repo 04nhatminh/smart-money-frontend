@@ -30,6 +30,7 @@ export default {
     create: "Create",
     update: "Update",
     yes: "Yes",
+    success: "Success",
   },
   auth: {
     welcome: "Join Smart Money Today!",
@@ -277,6 +278,10 @@ export default {
     saveSuccessDesc: "Your transaction has been saved successfully.",
     updateSuccess: "Transaction updated successfully",
     updateSuccessDesc: "Your transaction has been updated successfully.",
+    deleteSuccess: "Transaction deleted successfully",
+    deleteFailed: "Failed to delete transaction",
+    confirmDelete: "Are you sure you want to delete this transaction?",
+    fetchTransactionFailed: "Failed to load transaction",
     confirmExit: "The transaction isn't saved.",
     confirmExitDesc: "Are you sure you want to exit?",
     amountRequired: "Amount is required",

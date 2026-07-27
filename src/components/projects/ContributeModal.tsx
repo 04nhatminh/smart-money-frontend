@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -230,7 +232,10 @@ export default function ContributeModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>{t("project.contribute_title")}</Text>
@@ -268,6 +273,11 @@ export default function ContributeModal({
             value={amount}
             onChangeText={onChangeAmount}
             keyboardType="numeric"
+            // Amount re-formats with "." thousand separators on every keystroke, which
+            // shifts the string length unpredictably (e.g. "999" -> "1.000"). Without
+            // pinning the cursor to the end, RN/Android lets it drift mid-string, which
+            // reads as the input jittering while typing.
+            selection={{ start: amount.length, end: amount.length }}
             rightText={project.currency}
             error={error ?? undefined}
           />
@@ -318,7 +328,118 @@ export default function ContributeModal({
             />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  sheet: {
+    backgroundColor: "#F6F6F8",
+    borderRadius: 24,
+    padding: 20,
+    paddingBottom: 24,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1F2937",
+  },
+  subtitle: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 16,
+  },
+  remainingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  remainingLabel: {
+    fontSize: 13,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  remainingValue: {
+    fontSize: 15,
+    color: "#1F2937",
+    fontWeight: "700",
+  },
+  quickFillButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  quickFillText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2563EB",
+  },
+  exceedingContainer: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: -8,
+    marginBottom: 12,
+  },
+  exceedingText: {
+    fontSize: 12,
+    color: "#1E40AF",
+    fontWeight: "500",
+    marginBottom: 8,
+  },
+  adjustButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#93C5FD",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  adjustButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#2563EB",
+  },
+  fieldLabel: {
+    fontSize: 13,
+    color: "#374151",
+    fontWeight: "600",
+    marginBottom: 6,
+    marginLeft: 4,
+  },
+  actions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 12,
+  },
+});

@@ -8,7 +8,15 @@ export async function registerForPushNotificationsAsync() {
   console.log("Permission:", status);
   if (status !== 'granted') return;
 
-  const token = (await Notifications.getExpoPushTokenAsync()).data;
-
-  return token;
+  try {
+    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    return token;
+  } catch (err) {
+    // Expected when Firebase/FCM credentials aren't configured for this build
+    // (see https://docs.expo.dev/push-notifications/fcm-credentials/). Push
+    // notifications are simply unavailable until that's set up — don't let it
+    // block the rest of app init (e.g. WebSocket connection).
+    console.warn("⚠️ Push notification token unavailable:", err);
+    return undefined;
+  }
 }
