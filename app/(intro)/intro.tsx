@@ -16,6 +16,8 @@ const { width, height } = Dimensions.get('window');
 import { router } from 'expo-router';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 import { useAuth } from '../../src/context/AuthContext';
+import { t } from '../../src/i18n';
+import { useLanguage } from '../../src/i18n/LanguageProvider';
 
 const videos = [
   require('../../assets/intro1.mp4'),
@@ -23,15 +25,10 @@ const videos = [
   require('../../assets/intro3.mp4'),
   require('../../assets/intro4.mp4'),
 ];
-  
-const texts = [
-  'Theo dõi chi tiêu dễ dàng',
-  'Lập kế hoạch tiết kiệm thông minh',
-  'Phân tích tài chính cá nhân',
-  'Xây dựng thói quen tài chính lành mạnh',
-];
 
 const Intro: React.FC = () => {
+  const { lang } = useLanguage();
+  const texts = React.useMemo(() => t('intro.slides') as unknown as string[], [lang]);
   const [gifIndex, setGifIndex] = useState(0);
   const [textIndex, setTextIndex] = useState(0);
   // Animation values
@@ -188,7 +185,7 @@ const Intro: React.FC = () => {
                 end={{ x: 1, y: 1 }}
                 style={styles.buttonGradient}
               >
-                <Text style={styles.buttonText}>Get Started</Text>
+                <Text style={styles.buttonText}>{t('intro.get_started')}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>

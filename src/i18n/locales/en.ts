@@ -1069,5 +1069,14 @@ export default {
     accepted_done: "Done! The change has been applied.",
     dismissed_done: "Got it — we'll ask less about this.",
     decided_at: "Decided {{date}}",
+  },
+  intro: {
+    slides: [
+      "Track your spending with ease",
+      "Plan your savings smartly",
+      "Analyze your personal finances",
+      "Build healthy financial habits",
+    ],
+    get_started: "Get Started",
   }
 };
