@@ -25,7 +25,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   const formattedAmount = formatVND(transaction.amount);
 
   // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
-  const surface = mode === "green" ? "#FFFFFF" : theme.card;
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
 
   return (
     <Pressable

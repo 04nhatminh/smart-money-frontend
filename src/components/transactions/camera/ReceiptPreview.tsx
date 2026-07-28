@@ -38,7 +38,7 @@ export function ReceiptPreview({
 }: Props) {
   const { theme, mode } = useThemeMode();
   // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
-  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   useEffect(() => {

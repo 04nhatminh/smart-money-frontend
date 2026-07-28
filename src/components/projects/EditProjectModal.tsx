@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
 import { ButtonSave } from "../ButtonSave";
 import SuccessModal from "../SuccessModal";
@@ -90,11 +98,18 @@ export default function EditProjectModal({
         transparent
         onRequestClose={handleClose}
       >
-        <View style={styles.modalOverlay}>
+        {/* App bật edgeToEdge nên Android bỏ qua adjustResize — KAV "padding" phải
+            đẩy nội dung lên ở cả 2 nền tảng. keyboardShouldPersistTaps giữ tap đầu
+            tiên vào nút Save/Cancel khi keyboard đang mở (không phải tap 2 lần). */}
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior="padding"
+        >
           <View style={styles.modalContainer}>
             <ScrollView
               contentContainerStyle={styles.scrollContainer}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
             >
               <Text style={styles.title}>{t("project.edit_project")}</Text>
 
@@ -129,7 +144,7 @@ export default function EditProjectModal({
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <SuccessModal

@@ -19,7 +19,7 @@ type Props = {
 export function RecordingScreen({ onRecordingComplete, onCancel }: Props) {
   const { theme, mode } = useThemeMode();
   // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
-  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);

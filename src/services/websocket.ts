@@ -309,7 +309,8 @@ const resolvePendingId = (jobId: string): string | undefined => {
   return PendingStorage.getPendingId(jobId) ?? PendingStorage.findByJobId(jobId)?.id;
 };
 
-const handleAIResultData = async (data: any) => {
+// Export để background task (headless, không có WS) tái sử dụng khi poll được kết quả.
+export const handleAIResultData = async (data: any) => {
   const jobId: string | null = data?.jobId ?? null;
 
   if (!jobId) {
@@ -472,11 +473,41 @@ const subscribeUserAI = () => {
 // Xử lý pending bị kẹt ở uploading/ai_submitting/ai_processing:
 // app bị kill giữa chừng hoặc WS event tới lúc app không chạy.
 // ==============================
-const IN_PROGRESS_STATUSES: ProcessingStatus[] = [
+export const IN_PROGRESS_STATUSES: ProcessingStatus[] = [
   "uploading",
   "ai_submitting",
   "ai_processing",
 ];
+
+// Item bị kill trước khi submit xong job: nếu còn file gốc trên máy thì
+// chạy lại toàn bộ flow (re-upload + submit) thay vì đánh failed.
+// Lazy require để tránh vòng import (backgroundAIHandler import watchPendingJob từ file này).
+export const resumeInterruptedFlow = (item: {
+  id: string;
+  source: "camera" | "voice" | "notification";
+  localFileUri?: string;
+}): boolean => {
+  if (!item.localFileUri) return false;
+
+  const {
+    handleFullAIFlowInBackground,
+    handleFullVoiceAIFlowInBackground,
+  } = require("./backgroundAIHandler");
+
+  console.log("♻️ Resuming interrupted flow:", item.id, item.source);
+
+  if (item.source === "voice") {
+    handleFullVoiceAIFlowInBackground(item.localFileUri, item.id, "voice").catch(
+      (err: unknown) => console.error("❌ Resume voice flow error:", err)
+    );
+  } else {
+    handleFullAIFlowInBackground(item.localFileUri, item.id, "camera").catch(
+      (err: unknown) => console.error("❌ Resume camera flow error:", err)
+    );
+  }
+
+  return true;
+};
 
 const recoveringJobs = new Set<string>();
 
@@ -569,8 +600,11 @@ const recoverPendingJobs = async () => {
 
     for (const item of stuckItems) {
       if (!item.jobId) {
-        // Bị kill trước khi submit job → không còn gì để chờ
-        await emitStatus(item.id, "failed", "Processing was interrupted");
+        // Bị kill trước khi submit job → resume từ file gốc nếu còn,
+        // không còn file mới đánh failed.
+        if (!resumeInterruptedFlow(item)) {
+          await emitStatus(item.id, "failed", "Processing was interrupted");
+        }
         continue;
       }
 

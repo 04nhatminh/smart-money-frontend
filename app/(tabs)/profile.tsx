@@ -70,7 +70,7 @@ const ProfileScreen: React.FC = () => {
   // ==================== DYNAMIC STYLES ====================
   // Card surfaces: theme "green" có token card màu xanh đậm (dành cho accent
   // như credit card ở home) nên surface của profile dùng trắng cho dễ đọc.
-  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.bg },
     scrollView: { flex: 1 },

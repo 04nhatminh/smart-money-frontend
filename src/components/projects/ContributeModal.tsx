@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -46,7 +45,7 @@ export default function ContributeModal({
   // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
   const accent = mode === 'dark' ? theme.link : theme.primary;
   // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
-  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
 
   const styles = useMemo(() => StyleSheet.create({
     backdrop: {
@@ -70,6 +69,7 @@ export default function ContributeModal({
     title: {
       fontSize: 18,
       fontWeight: "800",
+      textAlign: "center",
       color: theme.text,
     },
     subtitle: {
@@ -179,6 +179,13 @@ export default function ContributeModal({
     }
   }, [visible]);
 
+  // Object selection phải ổn định theo amount — tạo object mới mỗi render khiến
+  // native setSelection chạy liên tục trong lúc keyboard animate → input flicker.
+  const amountSelection = useMemo(
+    () => ({ start: amount.length, end: amount.length }),
+    [amount]
+  );
+
   const onChangeAmount = (value: string) => {
     const numeric = parseCurrencyToNumber(value);
     setAmount(formatNumberWithDots(numeric));
@@ -232,9 +239,12 @@ export default function ContributeModal({
       animationType="slide"
       onRequestClose={onClose}
     >
+      {/* App bật edgeToEdge nên Android bỏ qua adjustResize — cửa sổ không tự co
+          khi keyboard mở, KAV phải tự đẩy sheet lên ở cả 2 nền tảng. Dùng "padding"
+          (không dùng "height" — behavior đó re-layout theo frame nên gây giật). */}
       <KeyboardAvoidingView
         style={styles.backdrop}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
       >
         <View style={styles.sheet}>
           <View style={styles.header}>
@@ -277,7 +287,7 @@ export default function ContributeModal({
             // shifts the string length unpredictably (e.g. "999" -> "1.000"). Without
             // pinning the cursor to the end, RN/Android lets it drift mid-string, which
             // reads as the input jittering while typing.
-            selection={{ start: amount.length, end: amount.length }}
+            selection={amountSelection}
             rightText={project.currency}
             error={error ?? undefined}
           />

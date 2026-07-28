@@ -27,6 +27,10 @@ export type PendingTransaction = {
   processingStatus?: ProcessingStatus;
   processingError?: string;
 
+  // File gốc trên máy (ảnh/audio) — persist để có thể resume upload
+  // nếu app bị kill trước khi submit xong AI job.
+  localFileUri?: string;
+
   // AI Job
   jobId?: string;
 

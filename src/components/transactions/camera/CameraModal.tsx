@@ -61,6 +61,7 @@ export function CameraModal({ visible, onClose, onCaptureBill }: Props) {
         type: "EXPENSE",
         date: new Date().toISOString(),
         source: "camera",
+        localFileUri: photoUri,
       });
 
       // 🎬 Close modal NGAY

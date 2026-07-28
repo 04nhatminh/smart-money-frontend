@@ -109,7 +109,7 @@ function usePendingPanelStyles() {
   // Accent: dark mode dung link (sang hon primary) cho du tuong phan tren nen toi.
   const accent = mode === "dark" ? theme.link : theme.primary;
   // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
-  const surface = mode === "green" ? "#FFFFFF" : theme.card;
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
 
   const styles = useMemo(
     () => createPendingPanelStyles(theme, mode, accent, surface),

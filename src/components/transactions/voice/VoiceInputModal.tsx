@@ -58,6 +58,7 @@ export function VoiceInputModal({ visible, onClose, onCaptureVoice }: Props) {
         type: "EXPENSE",
         date: new Date().toISOString(),
         source: "voice",
+        localFileUri: audioUri,
       });
 
       // 🎬 Close modal NGAY
