@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useThemeMode } from '../../theme/ThemeProvider';
+import { t } from '../../i18n';
 
 export type LatestProjectItem = {
   projectId: string;
@@ -160,7 +161,7 @@ export default function LatestProjectsSection({
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Projects</Text>
+          <Text style={styles.sectionTitle}>{t("home.projects")}</Text>
         </View>
 
         <View style={styles.loadingBox}>
@@ -184,13 +185,13 @@ export default function LatestProjectsSection({
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Projects</Text>
+        <Text style={styles.sectionTitle}>{t("home.projects")}</Text>
 
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => router.push('/(tabs)/project')}
         >
-          <Text style={styles.seeAllText}>See All</Text>
+          <Text style={styles.seeAllText}>{t("common.see_all")}</Text>
         </TouchableOpacity>
       </View>
 

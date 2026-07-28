@@ -18,7 +18,7 @@ export default function QuickFeatureSection({
   const { theme, mode } = useThemeMode();
 
   // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
-  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
 
   const styles = useMemo(() => StyleSheet.create({
     quickFeatureWrapper: {

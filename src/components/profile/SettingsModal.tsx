@@ -29,8 +29,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
   const accent = mode === 'dark' ? theme.link : theme.primary;
-  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
-  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  // Theme "green"/"purple" có token card màu đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
 
   const styles = useMemo(() => StyleSheet.create({
     blurContainer: {
@@ -106,8 +106,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     },
     themeOptionsContainer: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       justifyContent: 'space-around',
       alignItems: 'center',
+      rowGap: 12,
     },
     themeOption: {
       alignItems: 'center',
@@ -243,7 +245,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </View>
 
               <View style={styles.themeOptionsContainer}>
-                {(['light', 'dark', 'green'] as ThemeMode[]).map((themeKey) => {
+                {(['light', 'dark', 'green', 'purple'] as ThemeMode[]).map((themeKey) => {
                   const previewTheme = themes[themeKey];
                   const isSelected = mode === themeKey;
                   return (
@@ -265,12 +267,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <Text style={[styles.themePreviewText, { color: previewTheme.text }]}>
                           Aa
                         </Text>
-                        <View
-                          style={[
-                            styles.themePreviewPrimary,
-                            { backgroundColor: previewTheme.primary },
-                          ]}
-                        />
+                          <View
+                            style={[
+                              styles.themePreviewPrimary,
+                              { backgroundColor: previewTheme.primary },
+                            ]}
+                          />
                       </View>
 
                       <Text

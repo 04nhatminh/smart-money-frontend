@@ -17,6 +17,9 @@ import { useAISuggestions } from "../src/context/AISuggestionContext";
 import { InteractionManager } from "react-native";
 import { resolveDeepLink } from "../src/utils/notificationDeepLink";
 import { useNotificationPermission } from "../src/hooks/useNotificationHandler";
+// Import ở top-level để TaskManager.defineTask chạy ở global scope —
+// bắt buộc để headless task còn hoạt động sau khi app bị kill.
+import { registerPendingTxBackgroundTask } from "../src/services/backgroundTaskService";
 export const panelRef = React.createRef<PendingPanelRef>();
 import * as Linking from "expo-linking";
 
@@ -179,6 +182,13 @@ function RootLayoutNav() {
     });
 
     return () => task.cancel();
+  }, [isSignedIn]);
+
+  // Background task xử lý pending transaction (scan ảnh / voice) khi app bị kill:
+  // poll kết quả AI + resume upload dở dang theo chu kỳ background fetch.
+  useEffect(() => {
+    if (!isSignedIn) return;
+    registerPendingTxBackgroundTask();
   }, [isSignedIn]);
 
   // ✅ Loading UI

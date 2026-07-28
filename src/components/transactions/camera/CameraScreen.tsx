@@ -28,7 +28,7 @@ const GUIDE_PADDING_BOTTOM = 40; // frameGuideContainer paddingBottom
 export function CameraScreen({ onCapture, onClose }: Props) {
   const { theme, mode } = useThemeMode();
   // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
-  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [isRecording, setIsRecording] = useState(false);

@@ -25,7 +25,7 @@ export default function InviteGroupMemberModal({ visible, groupId, onClose, onIn
   // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
   const accent = mode === 'dark' ? theme.link : theme.primary;
   // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
-  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);

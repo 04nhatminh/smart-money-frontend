@@ -33,7 +33,7 @@ export default function InsightCard({ insight, compact }: InsightCardProps) {
   const icon = insight.category ? categoryIcons[insight.category] : null;
 
   // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
-  const surface = mode === "green" ? "#FFFFFF" : theme.card;
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
 
   return (
     <View

@@ -25,7 +25,7 @@ type Props = {
 export function RecordingPreview({ audioUri, onRetake, onConfirm, isSubmitting, onCancel }: Props) {
   const { theme, mode } = useThemeMode();
   // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
-  const surface = mode === 'green' ? '#FFFFFF' : theme.card;
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
 
   const soundRef = React.useRef<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);

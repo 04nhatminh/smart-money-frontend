@@ -66,6 +66,7 @@ const creditCardImages = {
   light: require('../../assets/creditcard_light.jpg'),
   dark: require('../../assets/creditcard_dark.jpg'),
   green: require('../../assets/creditcard_green.jpg'),
+  purple: require('../../assets/creditcard_purple.jpg'),
 };
 
 const getTransactionCategoryInfo = (category: string) => {
@@ -94,11 +95,13 @@ const moodIcons = {
     light: require('../../assets/happy_face_light.png'),
     dark: require('../../assets/happy_face_dark.png'),
     green: require('../../assets/happy_face_light.png'),
+    purple: require('../../assets/happy_face_light.png'),
   },
   Negative: {
     light: require('../../assets/sad_face_light.png'),
     dark: require('../../assets/sad_face_dark.png'),
     green: require('../../assets/sad_face_light.png'),
+    purple: require('../../assets/sad_face_light.png'),
   },
 };
 
@@ -504,7 +507,6 @@ export default function HomePage() {
     return () => clearTimeout(timeout);
   }, [currentInsightIndex, allInsights]);
 
-  // Các useEffect và hàm khác giữ nguyên
   useEffect(() => {
     const init = async () => {
       await loadUserData();
@@ -791,7 +793,9 @@ export default function HomePage() {
           </View>
         </CircularProgress>
         <Text style={dynamicStyles.categoryName} numberOfLines={1}>
-          {categoryInfo.displayName}
+          {t(`category.${(item.category || "OTHER").toUpperCase()}`, {
+            defaultValue: categoryInfo.displayName,
+          })}
         </Text>
       </TouchableOpacity>
     );
@@ -811,7 +815,11 @@ export default function HomePage() {
           <View style={{ flex: 1, marginRight: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={dynamicStyles.transactionName} numberOfLines={1}>
-                {item.description ? item.description : categoryInfo.displayName}
+                {item.description
+                  ? item.description
+                  : t(`category.${(item.category || "OTHER").toUpperCase()}`, {
+                      defaultValue: categoryInfo.displayName,
+                    })}
               </Text>
               {item.verified && (
                 <Ionicons name="checkmark-circle" size={14} color="#10B981" style={{ marginLeft: 4 }} />
@@ -907,7 +915,7 @@ export default function HomePage() {
           {/* Greeting + Insight */}
           <View style={dynamicStyles.greetingContainer}>
             <Text style={dynamicStyles.greeting}>
-              {t("common.hi")} {user?.fullName || "User"}
+              {t("common.hi")} {user?.fullName || t("common.user")}
             </Text>
 
             {currentInsightIndex !== null && allInsights[currentInsightIndex] ? (
@@ -939,11 +947,11 @@ export default function HomePage() {
             <View>
 
               <View style={dynamicStyles.balanceHeader}>
-                <Text style={dynamicStyles.balanceDate}>This month</Text>
+                <Text style={dynamicStyles.balanceDate}>{t("transaction.this_month")}</Text>
                 <Text style={dynamicStyles.balanceAmount}>
                   {formatVND(monthlyTotalIncome - monthlyTotalExpense)}
                 </Text>
-                <Text style={dynamicStyles.balanceLabel}>Total Balance</Text>
+                <Text style={dynamicStyles.balanceLabel}>{t("home.total_balance")}</Text>
               </View>
 
               <View style={dynamicStyles.balanceSummaryRow}>
@@ -952,7 +960,7 @@ export default function HomePage() {
                     <Ionicons name="arrow-down" size={16} color="#16A34A" />
                   </View>
                   <View>
-                    <Text style={dynamicStyles.summaryLabel}>Income</Text>
+                    <Text style={dynamicStyles.summaryLabel}>{t("transaction.income")}</Text>
                     <Text style={dynamicStyles.summaryAmount}>
                       {formatVND(monthlyTotalIncome)}
                     </Text>
@@ -966,7 +974,7 @@ export default function HomePage() {
                     <Ionicons name="arrow-up" size={16} color="#DC2626" />
                   </View>
                   <View>
-                    <Text style={dynamicStyles.summaryLabel}>Expense</Text>
+                    <Text style={dynamicStyles.summaryLabel}>{t("transaction.expense")}</Text>
                     <Text style={dynamicStyles.summaryAmount}>
                       {formatVND(monthlyTotalExpense)}
                     </Text>
@@ -996,9 +1004,9 @@ export default function HomePage() {
           {/* Budgets Section */}
           <View style={dynamicStyles.section}>
             <View style={dynamicStyles.sectionHeader}>
-              <Text style={dynamicStyles.sectionTitle}>Budgets</Text>
+              <Text style={dynamicStyles.sectionTitle}>{t("budget.tab_title")}</Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/budgets')}>
-                <Text style={dynamicStyles.seeAllText}>See All</Text>
+                <Text style={dynamicStyles.seeAllText}>{t("common.see_all")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -1021,14 +1029,14 @@ export default function HomePage() {
           {/* Recent Transactions */}
           <View style={[dynamicStyles.section, { marginTop: 24 }]}>
             <View style={dynamicStyles.sectionHeader}>
-              <Text style={dynamicStyles.sectionTitle}>Recent Transactions</Text>
+              <Text style={dynamicStyles.sectionTitle}>{t("home.recent_transactions")}</Text>
               <TouchableOpacity onPress={handleTransactionsListPress}>
-                <Text style={dynamicStyles.seeAllText}>See All</Text>
+                <Text style={dynamicStyles.seeAllText}>{t("common.see_all")}</Text>
               </TouchableOpacity>
             </View>
 
             {transactionsLoading ? (
-              <Text style={dynamicStyles.loadingText}>Loading transactions...</Text>
+              <Text style={dynamicStyles.loadingText}>{t("home.loading_transactions")}</Text>
             ) : transactions.length > 0 ? (
               transactions.map(item => (
                 <TouchableOpacity
@@ -1042,7 +1050,7 @@ export default function HomePage() {
                 </TouchableOpacity>
               ))
             ) : (
-              <Text style={dynamicStyles.emptyText}>No transactions yet</Text>
+              <Text style={dynamicStyles.emptyText}>{t("home.no_transactions_yet")}</Text>
             )}
           </View>
         </View>

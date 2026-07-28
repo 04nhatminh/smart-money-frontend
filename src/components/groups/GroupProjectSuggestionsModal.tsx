@@ -38,7 +38,7 @@ export default function GroupProjectSuggestionsModal({
   // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
   const accent = themeMode === "dark" ? theme.link : theme.primary;
   // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
-  const surface = themeMode === "green" ? "#FFFFFF" : theme.card;
+  const surface = themeMode === "green" || themeMode === "purple" ? "#FFFFFF" : theme.card;
   const styles = useMemo(
     () => createStyles(theme, themeMode, accent, surface),
     [theme, themeMode, accent, surface]
