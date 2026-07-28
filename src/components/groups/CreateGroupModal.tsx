@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -11,9 +13,15 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GroupAPI } from "../../api/group.api";
 import { GroupDetailResponse, GroupListItemResponse } from "../../types/group.types";
 import { useThemeMode } from "../../theme/ThemeProvider";
+import { t } from "../../i18n";
+import { useLanguage } from "../../i18n/LanguageProvider";
+
+/** Xấp xỉ thời lượng animation "slide" của Modal trên RN. */
+const CLOSE_ANIMATION_MS = 350;
 
 type Props = {
   visible: boolean;
@@ -23,6 +31,9 @@ type Props = {
 
 export default function CreateGroupModal({ visible, onClose, onCreated }: Props) {
   const { theme, mode } = useThemeMode();
+  // Đọc lang để component re-render khi người dùng đổi ngôn ngữ.
+  useLanguage();
+  const insets = useSafeAreaInsets();
   // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
   const accent = mode === 'dark' ? theme.link : theme.primary;
   // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
@@ -38,32 +49,68 @@ export default function CreateGroupModal({ visible, onClose, onCreated }: Props)
   const [showSelectorModal, setShowSelectorModal] = useState(false);
 
   useEffect(() => {
-    if (visible) {
-      GroupAPI.getMyGroups().then(async (res) => {
-        if (res.success && res.data) {
-          // Fetch full details of each group to get member list (including emails)
-          try {
-            const detailedGroups = await Promise.all(
-              res.data.map(async (g) => {
-                const detailRes = await GroupAPI.getGroupDetail(g.groupId);
-                return detailRes.success && detailRes.data ? detailRes.data : null;
-              })
-            );
-            setMyGroups(detailedGroups.filter(Boolean) as GroupDetailResponse[]);
-          } catch {
-            // Fallback: we don't block opening the modal
-          }
-        }
-      });
-    }
+    if (!visible) return;
+    // Huỷ khi modal đóng: tránh setState (kéo theo re-render cả danh sách nhóm)
+    // ngay giữa lúc sheet đang chạy animation trượt xuống.
+    let cancelled = false;
+
+    GroupAPI.getMyGroups().then(async (res) => {
+      if (cancelled || !res.success || !res.data) return;
+      // Fetch full details of each group to get member list (including emails)
+      try {
+        const detailedGroups = await Promise.all(
+          res.data.map(async (g) => {
+            const detailRes = await GroupAPI.getGroupDetail(g.groupId);
+            return detailRes.success && detailRes.data ? detailRes.data : null;
+          })
+        );
+        if (cancelled) return;
+        setMyGroups(detailedGroups.filter(Boolean) as GroupDetailResponse[]);
+      } catch {
+        // Fallback: we don't block opening the modal
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [visible]);
+
+  // Tự né bàn phím thay cho KeyboardAvoidingView: KAV khởi tạo lại từ
+  // Keyboard.metrics() nên khi mở lại modal sau lần trước có gõ phím, nó dựng
+  // sẵn padding cũ -> sheet "nảy" lên rồi mới rơi xuống. Ở đây mỗi lần mở luôn
+  // bắt đầu từ 0 và chỉ đổi theo sự kiện bàn phím thật.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (!visible) return;
+    setKeyboardHeight(0);
+
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, (e) =>
+      setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, [visible]);
 
   const styles = useMemo(() => StyleSheet.create({
+    avoider: { flex: 1 },
     overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
     sheet: {
       backgroundColor: surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-      padding: 24, paddingBottom: 40,
+      paddingTop: 24, paddingHorizontal: 24,
+      // Nền kéo thêm xuống dưới phần nội dung cho sheet đầy đặn hơn.
+      paddingBottom: 24,
+      // Giới hạn chiều cao để nội dung cuộn được khi bàn phím đẩy sheet lên.
+      maxHeight: "92%",
     },
+    sheetScroll: { flexGrow: 0 },
+    // Chừa chỗ cho thanh điều hướng / home indicator vì sheet giờ vẽ tràn xuống đáy.
+    sheetContent: { paddingBottom: 40 + insets.bottom },
     handle: { width: 40, height: 4, backgroundColor: theme.border, borderRadius: 2, alignSelf: "center", marginBottom: 20 },
     header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
     title: { fontSize: 20, fontWeight: "800", color: theme.text },
@@ -175,7 +222,7 @@ export default function CreateGroupModal({ visible, onClose, onCreated }: Props)
       marginTop: 4,
       lineHeight: 16,
     },
-  }), [theme, mode]);
+  }), [theme, mode, insets.bottom]);
 
   const reset = () => {
     setName("");
@@ -183,16 +230,50 @@ export default function CreateGroupModal({ visible, onClose, onCreated }: Props)
     setNameError("");
     setCloneGroupId("");
     setShowSelectorModal(false);
+    // Về 0 khi animation đã xong, để lần mở sau không còn padding bàn phím cũ.
+    setKeyboardHeight(0);
   };
 
+  // Xoá form SAU khi animation trượt xuống kết thúc. Reset ngay lúc bấm đóng sẽ
+  // vẽ lại toàn bộ nội dung sheet (chữ biến mất, nút clone đổi màu) đè lên frame
+  // đang chạy animation -> giật/nháy. Lúc timer chạy thì visible đã false nên
+  // Modal không render children, re-render gần như miễn phí.
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleReset = () => {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => {
+      resetTimer.current = null;
+      reset();
+    }, CLOSE_ANIMATION_MS);
+  };
+
+  // Mở lại trước khi timer kịp chạy: reset ngay để form không còn dữ liệu cũ.
+  useEffect(() => {
+    if (visible && resetTimer.current) {
+      clearTimeout(resetTimer.current);
+      resetTimer.current = null;
+      reset();
+    }
+  }, [visible]);
+
+  useEffect(() => () => {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+  }, []);
+
   const handleClose = () => {
-    reset();
+    // Ẩn bàn phím trước: animation ẩn bàn phím chạy song song với animation
+    // trượt xuống của sheet sẽ làm cửa sổ resize giữa chừng -> giật.
+    Keyboard.dismiss();
+    // Đóng selector trước (nếu đang mở) để hai modal không cùng animate.
+    setShowSelectorModal(false);
     onClose();
+    scheduleReset();
   };
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      setNameError("Group name is required");
+      setNameError(t("group.name_required"));
       return;
     }
     setNameError("");
@@ -204,13 +285,13 @@ export default function CreateGroupModal({ visible, onClose, onCreated }: Props)
         cloneGroupId: cloneGroupId || undefined,
       });
       if (res.success && res.data) {
-        reset();
         onCreated(res.data);
+        scheduleReset();
       } else {
-        Alert.alert("Error", res.message || "Failed to create group.");
+        Alert.alert(t("common.error"), res.message || t("group.create_failed"));
       }
     } catch {
-      Alert.alert("Error", "Something went wrong.");
+      Alert.alert(t("common.error"), t("group.create_failed"));
     } finally {
       setLoading(false);
     }
@@ -218,84 +299,105 @@ export default function CreateGroupModal({ visible, onClose, onCreated }: Props)
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-        <Pressable style={styles.overlay} onPress={handleClose}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <View style={styles.handle} />
+      {/* statusBar/navigationBarTranslucent: app bật edge-to-edge, thiếu 2 cờ này
+          thì Modal dừng ngay trên thanh điều hướng -> lộ giao diện phía dưới. */}
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        navigationBarTranslucent
+        hardwareAccelerated
+        onRequestClose={handleClose}
+      >
+        {/* Modal edge-to-edge trên Android không được hệ thống resize, nên phải tự
+            đẩy sheet lên: chỉ thêm padding đáy đúng bằng chiều cao bàn phím. */}
+        <View style={[styles.avoider, keyboardHeight > 0 && { paddingBottom: keyboardHeight }]}>
+          <Pressable style={styles.overlay} onPress={handleClose}>
+            <Pressable style={styles.sheet} onPress={() => {}}>
+              <View style={styles.handle} />
 
-            <View style={styles.header}>
-              <Text style={styles.title}>New Group</Text>
-              <Pressable onPress={handleClose} hitSlop={12}>
-                <Ionicons name="close" size={24} color={theme.subtext} />
-              </Pressable>
-            </View>
+              <ScrollView
+                style={styles.sheetScroll}
+                contentContainerStyle={styles.sheetContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.header}>
+                  <Text style={styles.title}>{t("group.create_title")}</Text>
+                  <Pressable onPress={handleClose} hitSlop={12}>
+                    <Ionicons name="close" size={24} color={theme.subtext} />
+                  </Pressable>
+                </View>
 
-            <Text style={styles.label}>Group Name *</Text>
-            <TextInput
-              style={[styles.input, nameError ? styles.inputError : null]}
-              placeholder="e.g. Family Savings"
-              placeholderTextColor={theme.subtext}
-              value={name}
-              onChangeText={(v) => { setName(v); if (nameError) setNameError(""); }}
-              maxLength={120}
-            />
-            {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+                <Text style={styles.label}>{t("group.name_label")}</Text>
+                <TextInput
+                  style={[styles.input, nameError ? styles.inputError : null]}
+                  placeholder={t("group.name_placeholder")}
+                  placeholderTextColor={theme.subtext}
+                  value={name}
+                  onChangeText={(v) => { setName(v); if (nameError) setNameError(""); }}
+                  maxLength={120}
+                />
+                {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
 
-            <Text style={[styles.label, { marginTop: 16 }]}>Description (Optional)</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="What is this group saving for?"
-              placeholderTextColor={theme.subtext}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={3}
-              maxLength={500}
-            />
+                <Text style={[styles.label, { marginTop: 16 }]}>{t("group.description_label")}</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder={t("group.description_placeholder")}
+                  placeholderTextColor={theme.subtext}
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={500}
+                />
 
-            <Text style={[styles.label, { marginTop: 16 }]}>Clone from Group (Optional)</Text>
-            <Pressable
-              style={[styles.cloneButton, cloneGroupId ? styles.cloneButtonSelected : null]}
-              onPress={() => setShowSelectorModal(true)}
-            >
-              <Ionicons
-                name={cloneGroupId ? "copy" : "copy-outline"}
-                size={18}
-                color={cloneGroupId ? "#FFFFFF" : accent}
-                style={{ marginRight: 8 }}
-              />
-              <Text style={[styles.cloneButtonText, cloneGroupId ? { color: "#FFFFFF" } : null]} numberOfLines={1}>
-                {cloneGroupId
-                  ? `Cloning: ${myGroups.find((g) => g.groupId === cloneGroupId)?.name}`
-                  : "Select Group to Clone"}
-              </Text>
-              {cloneGroupId && (
+                <Text style={[styles.label, { marginTop: 16 }]}>{t("group.clone_label")}</Text>
                 <Pressable
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    setCloneGroupId("");
-                  }}
-                  style={{ marginLeft: 10 }}
-                  hitSlop={10}
+                  style={[styles.cloneButton, cloneGroupId ? styles.cloneButtonSelected : null]}
+                  onPress={() => setShowSelectorModal(true)}
                 >
-                  <Ionicons name="close-circle" size={18} color="#FFFFFF" />
+                  <Ionicons
+                    name={cloneGroupId ? "copy" : "copy-outline"}
+                    size={18}
+                    color={cloneGroupId ? "#FFFFFF" : accent}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={[styles.cloneButtonText, cloneGroupId ? { color: "#FFFFFF" } : null]} numberOfLines={1}>
+                    {cloneGroupId
+                      ? t("group.cloning", { name: myGroups.find((g) => g.groupId === cloneGroupId)?.name ?? "" })
+                      : t("group.clone_select")}
+                  </Text>
+                  {cloneGroupId && (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setCloneGroupId("");
+                      }}
+                      style={{ marginLeft: 10 }}
+                      hitSlop={10}
+                    >
+                      <Ionicons name="close-circle" size={18} color="#FFFFFF" />
+                    </Pressable>
+                  )}
                 </Pressable>
-              )}
-            </Pressable>
 
-            <Pressable
-              style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.85 }, loading && styles.btnDisabled]}
-              onPress={handleCreate}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.createBtnText}>Create Group</Text>
-              )}
+                <Pressable
+                  style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.85 }, loading && styles.btnDisabled]}
+                  onPress={handleCreate}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.createBtnText}>{t("group.create_action")}</Text>
+                  )}
+                </Pressable>
+              </ScrollView>
             </Pressable>
           </Pressable>
-        </Pressable>
+        </View>
       </Modal>
 
       {/* Select Group Modal Overlay */}
@@ -303,12 +405,14 @@ export default function CreateGroupModal({ visible, onClose, onCreated }: Props)
         visible={showSelectorModal && visible}
         transparent
         animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setShowSelectorModal(false)}
       >
         <Pressable style={styles.selectorOverlay} onPress={() => setShowSelectorModal(false)}>
           <Pressable style={styles.selectorSheet} onPress={() => {}}>
             <View style={styles.selectorHeader}>
-              <Text style={styles.selectorTitle}>Select Group to Clone</Text>
+              <Text style={styles.selectorTitle}>{t("group.clone_select")}</Text>
               <Pressable onPress={() => setShowSelectorModal(false)} hitSlop={10}>
                 <Ionicons name="close" size={24} color={theme.subtext} />
               </Pressable>
@@ -322,7 +426,7 @@ export default function CreateGroupModal({ visible, onClose, onCreated }: Props)
                 }}
               >
                 <Text style={[styles.selectorItemText, !cloneGroupId && styles.selectorItemTextActive]}>
-                  -- Do not clone (Empty group) --
+                  {t("group.clone_none")}
                 </Text>
                 {!cloneGroupId && <Ionicons name="checkmark" size={20} color={accent} />}
               </Pressable>
@@ -330,7 +434,7 @@ export default function CreateGroupModal({ visible, onClose, onCreated }: Props)
               {myGroups.map((g) => {
                 const memberEmails = g.members
                   .filter((m) => m.inviteStatus === "JOINED")
-                  .map((m) => m.email || m.username || "Unknown")
+                  .map((m) => m.email || m.username || t("group.unknown_member"))
                   .join(", ");
 
                 return (
@@ -348,10 +452,10 @@ export default function CreateGroupModal({ visible, onClose, onCreated }: Props)
                       </Text>
                       {memberEmails ? (
                         <Text style={styles.selectorItemEmails} numberOfLines={2}>
-                          Members: {memberEmails}
+                          {t("group.members", { emails: memberEmails })}
                         </Text>
                       ) : (
-                        <Text style={styles.selectorItemSub}>No members joined yet</Text>
+                        <Text style={styles.selectorItemSub}>{t("group.no_members")}</Text>
                       )}
                     </View>
                     {cloneGroupId === g.groupId && <Ionicons name="checkmark" size={20} color={accent} />}

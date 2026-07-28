@@ -9,11 +9,14 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GroupAPI } from "../../api/group.api";
 import { ProjectAPI } from "../../api/project.api";
 import { GroupProjectDetailResponse, GroupProjectPriority } from "../../types/group.types";
 import { getGroupProjectErrorMessage } from "../../utils/groupProjectErrors";
 import { useThemeMode } from "../../theme/ThemeProvider";
+import { t } from "../../i18n";
+import { useLanguage } from "../../i18n/LanguageProvider";
 
 type Props = {
   visible: boolean;
@@ -23,10 +26,12 @@ type Props = {
   onJoined: () => void;
 };
 
-const PRIORITY_CONFIG: { value: GroupProjectPriority; label: string; description: string; color: string; bg: string }[] = [
-  { value: "HIGH", label: "High", description: "Contribute the most each month", color: "#DC2626", bg: "#FEE2E2" },
-  { value: "MEDIUM", label: "Medium", description: "Balanced monthly contribution", color: "#D97706", bg: "#FEF3C7" },
-  { value: "LOW", label: "Low", description: "Smaller monthly contribution", color: "#059669", bg: "#D1FAE5" },
+// Nhãn/mô tả lấy từ i18n theo `value` (group.priority.HIGH / HIGH_desc...) nên
+// config ở đây chỉ giữ phần màu sắc.
+const PRIORITY_CONFIG: { value: GroupProjectPriority; color: string; bg: string }[] = [
+  { value: "HIGH", color: "#DC2626", bg: "#FEE2E2" },
+  { value: "MEDIUM", color: "#D97706", bg: "#FEF3C7" },
+  { value: "LOW", color: "#059669", bg: "#D1FAE5" },
 ];
 
 export default function PriorityPickerModal({
@@ -37,6 +42,9 @@ export default function PriorityPickerModal({
   onJoined,
 }: Props) {
   const { theme, mode } = useThemeMode();
+  // Đọc lang để component re-render khi người dùng đổi ngôn ngữ.
+  useLanguage();
+  const insets = useSafeAreaInsets();
   // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
   const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
 
@@ -49,7 +57,9 @@ export default function PriorityPickerModal({
     overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
     sheet: {
       backgroundColor: surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-      padding: 24, paddingBottom: 40,
+      paddingTop: 24, paddingHorizontal: 24,
+      // Chừa chỗ cho thanh điều hướng / home indicator vì sheet vẽ tràn xuống đáy.
+      paddingBottom: 40 + insets.bottom,
     },
     handle: { width: 40, height: 4, backgroundColor: theme.border, borderRadius: 2, alignSelf: "center", marginBottom: 20 },
     header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
@@ -78,7 +88,7 @@ export default function PriorityPickerModal({
     },
     btnDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
     confirmBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
-  }), [theme, mode]);
+  }), [theme, mode, insets.bottom]);
 
   // A priority is "taken" when THIS user already has another active project using
   // it — each of the user's active projects must hold a distinct priority level.
@@ -117,7 +127,7 @@ export default function PriorityPickerModal({
 
   const handleConfirm = async () => {
     if (!selected) {
-      Alert.alert("Select Priority", "Please select a priority level.");
+      Alert.alert(t("group.priority.select_title"), t("group.priority.select_message"));
       return;
     }
     setLoading(true);
@@ -130,32 +140,40 @@ export default function PriorityPickerModal({
         const msg =
           getGroupProjectErrorMessage(res.errorCode, "join-project") ??
           res.message ??
-          "Could not join project.";
-        Alert.alert("Error", msg);
+          t("group.priority.join_failed");
+        Alert.alert(t("common.error"), msg);
       }
     } catch {
-      Alert.alert("Error", "Something went wrong.");
+      Alert.alert(t("common.error"), t("group.priority.join_failed"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    // statusBar/navigationBarTranslucent: app bật edge-to-edge, thiếu 2 cờ này
+    // thì Modal dừng ngay trên thanh điều hướng -> lộ giao diện phía dưới.
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      navigationBarTranslucent
+      hardwareAccelerated
+      onRequestClose={onClose}
+    >
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
 
           <View style={styles.header}>
-            <Text style={styles.title}>Choose Priority</Text>
+            <Text style={styles.title}>{t("group.priority.title")}</Text>
             <Pressable onPress={onClose} hitSlop={12}>
               <Ionicons name="close" size={24} color={theme.subtext} />
             </Pressable>
           </View>
 
-          <Text style={styles.subtitle}>
-            Your priority determines your monthly savings contribution. Each of your active projects must use a different level.
-          </Text>
+          <Text style={styles.subtitle}>{t("group.priority.subtitle")}</Text>
 
           {checkingPriorities ? (
             <View style={styles.checkingRow}>
@@ -179,10 +197,12 @@ export default function PriorityPickerModal({
                 >
                   {isTaken && (
                     <View style={styles.takenBadge}>
-                      <Text style={styles.takenBadgeText}>Taken</Text>
+                      <Text style={styles.takenBadgeText}>{t("group.priority.taken")}</Text>
                     </View>
                   )}
-                  <Text style={[styles.tileLabel, { color: isTaken ? "#9CA3AF" : p.color }]}>{p.label}</Text>
+                  <Text style={[styles.tileLabel, { color: isTaken ? "#9CA3AF" : p.color }]}>
+                    {t(`group.priority.${p.value}`)}
+                  </Text>
                   {/* Khi được chọn, ô có nền tint sáng cố định nên chữ mô tả giữ màu tối cố định. */}
                   <Text
                     style={[
@@ -191,7 +211,7 @@ export default function PriorityPickerModal({
                       isTaken && { color: "#9CA3AF" },
                     ]}
                   >
-                    {p.description}
+                    {t(`group.priority.${p.value}_desc`)}
                   </Text>
                   {isSelected && (
                     <Ionicons name="checkmark-circle" size={18} color={p.color} style={styles.checkIcon} />
@@ -214,7 +234,9 @@ export default function PriorityPickerModal({
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.confirmBtnText}>{alreadyJoined ? "Already Joined" : "Confirm & Join"}</Text>
+              <Text style={styles.confirmBtnText}>
+                {alreadyJoined ? t("group.priority.already_joined") : t("group.priority.confirm")}
+              </Text>
             )}
           </Pressable>
         </Pressable>

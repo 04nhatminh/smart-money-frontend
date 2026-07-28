@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,14 +13,21 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GroupAPI } from "../../api/group.api";
 import {
   GroupDetailResponse,
   GroupProjectSuggestionsResponse,
 } from "../../types/group.types";
-import { formatCurrencyVND, parseCurrencyToNumber } from "../../utils/project";
+import { formatCurrencyVND, formatNumberWithDots, parseCurrencyToNumber } from "../../utils/project";
 import { useThemeMode } from "../../theme/ThemeProvider";
 import { Theme, ThemeMode } from "../../theme/tokens";
+import { t } from "../../i18n";
+import { useLanguage } from "../../i18n/LanguageProvider";
+
+/** Xấp xỉ thời lượng animation "slide" của Modal trên RN. */
+const CLOSE_ANIMATION_MS = 350;
+
 type PlanMode = "amount" | "duration";
 
 type Props = {
@@ -35,13 +44,16 @@ export default function GroupProjectSuggestionsModal({
   onContinue,
 }: Props) {
   const { theme, mode: themeMode } = useThemeMode();
+  // Đọc lang để component re-render khi người dùng đổi ngôn ngữ.
+  useLanguage();
+  const insets = useSafeAreaInsets();
   // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
   const accent = themeMode === "dark" ? theme.link : theme.primary;
   // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
   const surface = themeMode === "green" || themeMode === "purple" ? "#FFFFFF" : theme.card;
   const styles = useMemo(
-    () => createStyles(theme, themeMode, accent, surface),
-    [theme, themeMode, accent, surface]
+    () => createStyles(theme, themeMode, accent, surface, insets.bottom),
+    [theme, themeMode, accent, surface, insets.bottom]
   );
 
   const [mode, setMode] = useState<PlanMode>("amount");
@@ -49,6 +61,29 @@ export default function GroupProjectSuggestionsModal({
   const [monthsInput, setMonthsInput] = useState("");
   const [suggestion, setSuggestion] = useState<GroupProjectSuggestionsResponse | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Tự né bàn phím thay cho KeyboardAvoidingView: KAV khởi tạo lại từ
+  // Keyboard.metrics() nên khi mở lại modal sau lần trước có gõ phím, nó dựng
+  // sẵn padding cũ -> sheet "nảy" lên rồi mới rơi xuống. Ở đây mỗi lần mở luôn
+  // bắt đầu từ 0 và chỉ đổi theo sự kiện bàn phím thật.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (!visible) return;
+    setKeyboardHeight(0);
+
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, (e) =>
+      setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [visible]);
 
   // The anchor is whichever value the admin is fixing; the other is derived by
   // the backend from the group's monthly capacity.
@@ -65,7 +100,9 @@ export default function GroupProjectSuggestionsModal({
   };
 
   const handleAmountChange = (v: string) => {
-    setAmountInput(v);
+    // Hiển thị số tiền có dấu chấm ngăn cách hàng nghìn ngay khi gõ.
+    const numeric = parseCurrencyToNumber(v);
+    setAmountInput(numeric > 0 ? formatNumberWithDots(numeric) : "");
     setSuggestion(null);
   };
 
@@ -83,7 +120,7 @@ export default function GroupProjectSuggestionsModal({
     try {
       const res = await GroupAPI.getSuggestions(payload);
       if (res.success && res.data) setSuggestion(res.data);
-      else Alert.alert("Error", res.message || "Could not fetch suggestions.");
+      else Alert.alert(t("common.error"), res.message || t("group.suggestions.fetch_failed"));
     } finally {
       setLoading(false);
     }
@@ -99,30 +136,76 @@ export default function GroupProjectSuggestionsModal({
     handleClose();
   };
 
-  const handleClose = () => {
+  const reset = () => {
     setMode("amount");
     setAmountInput("");
     setMonthsInput("");
     setSuggestion(null);
+    // Về 0 khi animation đã xong, để lần mở sau không còn padding bàn phím cũ.
+    setKeyboardHeight(0);
+  };
+
+  // Xoá form SAU khi animation trượt xuống kết thúc. Reset ngay lúc bấm đóng sẽ
+  // vẽ lại nội dung sheet đè lên frame đang chạy animation -> giật/nháy. Lúc timer
+  // chạy thì visible đã false nên Modal không render children.
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleReset = () => {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => {
+      resetTimer.current = null;
+      reset();
+    }, CLOSE_ANIMATION_MS);
+  };
+
+  // Mở lại trước khi timer kịp chạy: reset ngay để form không còn dữ liệu cũ.
+  useEffect(() => {
+    if (visible && resetTimer.current) {
+      clearTimeout(resetTimer.current);
+      resetTimer.current = null;
+      reset();
+    }
+  }, [visible]);
+
+  useEffect(() => () => {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+  }, []);
+
+  const handleClose = () => {
+    // Ẩn bàn phím trước: animation ẩn bàn phím chạy song song với animation
+    // trượt xuống của sheet sẽ làm cửa sổ resize giữa chừng -> giật.
+    Keyboard.dismiss();
     onClose();
+    scheduleReset();
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+    // statusBar/navigationBarTranslucent: app bật edge-to-edge, thiếu 2 cờ này
+    // thì Modal dừng ngay trên thanh điều hướng -> lộ giao diện phía dưới.
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      navigationBarTranslucent
+      hardwareAccelerated
+      onRequestClose={handleClose}
+    >
+      {/* Modal edge-to-edge trên Android không được hệ thống resize, nên phải tự
+          đẩy sheet lên: chỉ thêm padding đáy đúng bằng chiều cao bàn phím. */}
+      <View style={[styles.avoider, keyboardHeight > 0 && { paddingBottom: keyboardHeight }]}>
       <Pressable style={styles.overlay} onPress={handleClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
 
           <View style={styles.header}>
-            <Text style={styles.title}>Plan Group Project</Text>
+            <Text style={styles.title}>{t("group.suggestions.title")}</Text>
             <Pressable onPress={handleClose} hitSlop={12}>
               <Ionicons name="close" size={24} color={theme.subtext} />
             </Pressable>
           </View>
 
-          <Text style={styles.subtitle}>
-            Fix either the target or the duration — we'll work out the other from your group's monthly capacity.
-          </Text>
+          <Text style={styles.subtitle}>{t("group.suggestions.subtitle")}</Text>
 
           {/* Mode toggle */}
           <View style={styles.toggleRow}>
@@ -131,7 +214,7 @@ export default function GroupProjectSuggestionsModal({
               onPress={() => switchMode("amount")}
             >
               <Text style={[styles.toggleText, mode === "amount" && styles.toggleTextActive]}>
-                By Amount
+                {t("group.suggestions.by_amount")}
               </Text>
             </Pressable>
             <Pressable
@@ -139,19 +222,24 @@ export default function GroupProjectSuggestionsModal({
               onPress={() => switchMode("duration")}
             >
               <Text style={[styles.toggleText, mode === "duration" && styles.toggleTextActive]}>
-                By Duration
+                {t("group.suggestions.by_duration")}
               </Text>
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.sheetScroll}
+            contentContainerStyle={styles.sheetContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             {mode === "amount" ? (
               <>
-                <Text style={styles.label}>I want to save</Text>
+                <Text style={styles.label}>{t("group.suggestions.amount_label")}</Text>
                 <View style={styles.inputRow}>
                   <TextInput
                     style={styles.input}
-                    placeholder="e.g. 10,000,000"
+                    placeholder={t("group.suggestions.amount_placeholder")}
                     placeholderTextColor={theme.subtext}
                     keyboardType="numeric"
                     value={amountInput}
@@ -162,17 +250,17 @@ export default function GroupProjectSuggestionsModal({
               </>
             ) : (
               <>
-                <Text style={styles.label}>I want to finish in</Text>
+                <Text style={styles.label}>{t("group.suggestions.months_label")}</Text>
                 <View style={styles.inputRow}>
                   <TextInput
                     style={styles.input}
-                    placeholder="e.g. 6"
+                    placeholder={t("group.suggestions.months_placeholder")}
                     placeholderTextColor={theme.subtext}
                     keyboardType="numeric"
                     value={monthsInput}
                     onChangeText={handleMonthsChange}
                   />
-                  <Text style={styles.currencyTag}>months</Text>
+                  <Text style={styles.currencyTag}>{t("group.project_months_unit")}</Text>
                 </View>
               </>
             )}
@@ -183,20 +271,26 @@ export default function GroupProjectSuggestionsModal({
                 <View style={styles.previewRow}>
                   <Ionicons name="people-outline" size={15} color={accent} />
                   <Text style={styles.previewMuted}>
-                    Group capacity: {formatCurrencyVND(suggestion.totalCapacity)} VND/month
+                    {t("group.suggestions.capacity", {
+                      amount: formatCurrencyVND(suggestion.totalCapacity),
+                    })}
                   </Text>
                 </View>
                 <View style={styles.previewDivider} />
                 {mode === "amount" ? (
                   <Text style={styles.previewMain}>
-                    Reaches your goal in{" "}
-                    <Text style={styles.previewBold}>{suggestion.suggestedMonths} months</Text>
+                    {t("group.suggestions.result_months_label")}{" "}
+                    <Text style={styles.previewBold}>
+                      {t("group.suggestions.result_months_value", { count: suggestion.suggestedMonths })}
+                    </Text>
                   </Text>
                 ) : (
                   <Text style={styles.previewMain}>
-                    Your group can save{" "}
+                    {t("group.suggestions.result_amount_label")}{" "}
                     <Text style={styles.previewBold}>
-                      {formatCurrencyVND(suggestion.suggestedAmount)} VND
+                      {t("group.suggestions.result_amount_value", {
+                        amount: formatCurrencyVND(suggestion.suggestedAmount),
+                      })}
                     </Text>
                   </Text>
                 )}
@@ -215,30 +309,38 @@ export default function GroupProjectSuggestionsModal({
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.primaryBtnText}>{suggestion ? "Continue" : "Calculate"}</Text>
+                <Text style={styles.primaryBtnText}>
+                  {suggestion ? t("common.continue") : t("group.suggestions.calculate")}
+                </Text>
               )}
             </Pressable>
 
             {suggestion && (
-              <Text style={styles.footnote}>
-                You can fine-tune the exact target and duration on the next step.
-              </Text>
+              <Text style={styles.footnote}>{t("group.suggestions.footnote")}</Text>
             )}
           </ScrollView>
         </Pressable>
       </Pressable>
+      </View>
     </Modal>
   );
 }
 
 // Factory style theo theme: overlay giữ rgba, chữ trắng trên nút primary giữ nguyên.
-const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string) =>
+const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string, bottomInset: number) =>
   StyleSheet.create({
+    avoider: { flex: 1 },
     overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
     sheet: {
       backgroundColor: surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-      padding: 24, paddingBottom: 40, maxHeight: "85%",
+      paddingTop: 24, paddingHorizontal: 24,
+      // Nền kéo thêm xuống dưới phần nội dung cho sheet đầy đặn hơn.
+      paddingBottom: 24,
+      maxHeight: "92%",
     },
+    sheetScroll: { flexGrow: 0 },
+    // Chừa chỗ cho thanh điều hướng / home indicator vì sheet vẽ tràn xuống đáy.
+    sheetContent: { paddingBottom: 40 + bottomInset },
     handle: { width: 40, height: 4, backgroundColor: theme.border, borderRadius: 2, alignSelf: "center", marginBottom: 20 },
     header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
     title: { fontSize: 20, fontWeight: "800", color: theme.text },

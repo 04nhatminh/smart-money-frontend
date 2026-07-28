@@ -26,6 +26,8 @@ import PriorityPickerModal from "../../src/components/groups/PriorityPickerModal
 import { groupStorage } from "../../src/storage/groupStorage";
 import { useThemeMode } from "../../src/theme/ThemeProvider";
 import { Theme, ThemeMode } from "../../src/theme/tokens";
+import { t } from "../../src/i18n";
+import { useLanguage } from "../../src/i18n/LanguageProvider";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   ACTIVE: { bg: "#D1FAE5", text: "#065F46" },
@@ -33,6 +35,8 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   DISSOLVED: { bg: "#F3F4F6", text: "#6B7280" },
   PENDING_SPONSORSHIP: { bg: "#FEF9C3", text: "#D97706" },
   SPONSORSHIP_FAILED: { bg: "#FEE2E2", text: "#DC2626" },
+  EXPIRED: { bg: "#FEE2E2", text: "#991B1B" },
+  FROZEN: { bg: "#FEF9C3", text: "#92400E" },
 };
 
 const SUB_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -81,10 +85,12 @@ function MemberRow({
       <View style={styles.memberInfo}>
         <View style={styles.memberTopRow}>
           <Text style={styles.memberName} numberOfLines={1}>
-            {member.username ?? member.userId}{isCurrentUser ? " (You)" : ""}
+            {member.username ?? member.userId}{isCurrentUser ? t("group.detail.you_suffix") : ""}
           </Text>
           <View style={[styles.subStatusChip, { backgroundColor: statusStyle.bg }]}>
-            <Text style={[styles.subStatusText, { color: statusStyle.text }]}>{member.projectStatus}</Text>
+            <Text style={[styles.subStatusText, { color: statusStyle.text }]}>
+              {t(`group.sub_status.${member.projectStatus}`)}
+            </Text>
           </View>
         </View>
         <ProgressBar percent={member.progressPercent} styles={styles} />
@@ -97,7 +103,9 @@ function MemberRow({
         {memberOwed > 0 && (
           <View style={styles.memberDebtRow}>
             <Ionicons name="alert-circle-outline" size={12} color="#DC2626" />
-            <Text style={styles.memberDebtText}>{formatCurrencyVND(memberOwed)} debt</Text>
+            <Text style={styles.memberDebtText}>
+              {t("group.project_detail.member_debt", { amount: formatCurrencyVND(memberOwed) })}
+            </Text>
           </View>
         )}
       </View>
@@ -108,6 +116,8 @@ function MemberRow({
 export default function GroupProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  // Đọc lang để màn hình re-render khi người dùng đổi ngôn ngữ.
+  useLanguage();
   const { theme, mode } = useThemeMode();
   // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
   const accent = mode === "dark" ? theme.link : theme.primary;
@@ -153,12 +163,12 @@ export default function GroupProjectDetailScreen() {
         if (res.errorCode === "PROJECT_NOT_FOUND") {
           await groupStorage.removeGroupProjectByProjectId(id);
           Alert.alert(
-            "Project Failed",
-            "This group project has failed due to declined or insufficient sponsorship contributions.",
+            t("group.project_detail.failed_title"),
+            t("group.project_detail.failed_message"),
             [{ text: "OK", onPress: () => router.canGoBack() ? router.back() : router.replace("/(tabs)/project") }]
           );
         } else {
-          Alert.alert("Error", res.message || "Could not load group project.");
+          Alert.alert(t("common.error"), res.message || t("group.project_detail.load_failed"));
         }
       }
     } catch (err: any) {
@@ -166,12 +176,12 @@ export default function GroupProjectDetailScreen() {
       if (responseData?.errorCode === "PROJECT_NOT_FOUND") {
         await groupStorage.removeGroupProjectByProjectId(id);
         Alert.alert(
-          "Project Failed",
-          "This group project has failed due to declined or insufficient sponsorship contributions.",
+          t("group.project_detail.failed_title"),
+          t("group.project_detail.failed_message"),
           [{ text: "OK", onPress: () => router.canGoBack() ? router.back() : router.replace("/(tabs)/project") }]
         );
       } else {
-        Alert.alert("Error", "Could not load group project.");
+        Alert.alert(t("common.error"), t("group.project_detail.load_failed"));
       }
     }
   }, [id]);
@@ -193,15 +203,17 @@ export default function GroupProjectDetailScreen() {
       const res = await GroupAPI.respondToSponsorshipRequest(myPendingRequest.requestId, { agreed });
       if (res.success) {
         Alert.alert(
-          "Success",
-          agreed ? "You agreed to sponsor your teammate!" : "You declined the sponsorship request."
+          t("common.success"),
+          agreed
+            ? t("group.project_detail.respond_agreed")
+            : t("group.project_detail.respond_declined")
         );
         await fetchProject();
       } else {
-        Alert.alert("Error", res.message || "Failed to respond to request.");
+        Alert.alert(t("common.error"), res.message || t("group.project_detail.respond_failed"));
       }
     } catch {
-      Alert.alert("Error", "Something went wrong.");
+      Alert.alert(t("common.error"), t("group.project_detail.respond_failed"));
     } finally {
       setLoading(false);
     }
@@ -210,19 +222,19 @@ export default function GroupProjectDetailScreen() {
   const handleDissolve = () => {
     if (!project) return;
     Alert.alert(
-      "Dissolve Group Project",
-      "This will permanently dissolve the group project. Active sub-projects will be abandoned; completed ones are kept. This cannot be undone.",
+      t("group.project_detail.dissolve_title"),
+      t("group.project_detail.dissolve_message"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Dissolve",
+          text: t("group.project_detail.dissolve_confirm"),
           style: "destructive",
           onPress: async () => {
             setDissolving(true);
             try {
               const res = await GroupAPI.dissolveGroupProject(project.groupProjectId);
               if (res.success) {
-                Alert.alert("Dissolved", "The group project has been dissolved.", [
+                Alert.alert(t("group.project_detail.dissolved_title"), t("group.project_detail.dissolved_message"), [
                   {
                     text: "OK",
                     onPress: () =>
@@ -233,8 +245,8 @@ export default function GroupProjectDetailScreen() {
                 const msg =
                   getGroupProjectErrorMessage(res.errorCode, "join-project") ??
                   res.message ??
-                  "Could not dissolve project.";
-                Alert.alert("Error", msg);
+                  t("group.project_detail.dissolve_failed");
+                Alert.alert(t("common.error"), msg);
               }
             } finally {
               setDissolving(false);
@@ -256,7 +268,7 @@ export default function GroupProjectDetailScreen() {
   if (!project) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.errorText}>Project not found.</Text>
+        <Text style={styles.errorText}>{t("group.project_detail.not_found")}</Text>
       </SafeAreaView>
     );
   }
@@ -297,7 +309,9 @@ export default function GroupProjectDetailScreen() {
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{project.name}</Text>
         <View style={[styles.statusChip, { backgroundColor: statusStyle.bg }]}>
-          <Text style={[styles.statusChipText, { color: statusStyle.text }]}>{project.status}</Text>
+          <Text style={[styles.statusChipText, { color: statusStyle.text }]}>
+            {t(`group.project_status.${project.status}`)}
+          </Text>
         </View>
       </View>
 
@@ -312,10 +326,12 @@ export default function GroupProjectDetailScreen() {
             <View style={styles.celebrationIcon}>
               <Ionicons name="trophy" size={32} color="#B45309" />
             </View>
-            <Text style={styles.celebrationTitle}>Goal Reached! 🎉</Text>
+            <Text style={styles.celebrationTitle}>{t("group.project_detail.celebration_title")}</Text>
             <Text style={styles.celebrationText}>
-              "{project.name}" hit its {formatCurrencyVND(project.targetAmount)} VND target.
-              Congratulations to everyone who contributed!
+              {t("group.project_detail.celebration_text", {
+                name: project.name,
+                amount: formatCurrencyVND(project.targetAmount),
+              })}
             </Text>
           </View>
         )}
@@ -326,38 +342,46 @@ export default function GroupProjectDetailScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
               <Ionicons name="alert-circle" size={20} color="#D97706" style={{ marginRight: 6 }} />
               <Text style={styles.sponsorshipTitle}>
-                {myPendingRequest ? "Sponsorship Request Pending" : "Awaiting Sponsorship Surveys"}
+                {myPendingRequest
+                  ? t("group.project_detail.sponsor_pending_title")
+                  : t("group.project_detail.sponsor_awaiting_title")}
               </Text>
             </View>
 
             {myPendingRequest ? (
               <View>
                 <Text style={styles.sponsorshipText}>
-                  A teammate lacks financial capacity. The system proposes that you sponsor them by contributing an extra{" "}
-                  <Text style={{ fontWeight: "700" }}>{formatCurrencyVND(myPendingRequest.askedAmount)} VND/month</Text>.
-                  This changes your share from{" "}
-                  <Text style={{ fontWeight: "700" }}>{formatCurrencyVND(myPendingRequest.originalShare)}</Text> to{" "}
-                  <Text style={{ fontWeight: "700" }}>{formatCurrencyVND(myPendingRequest.proposedShare)} VND/month</Text>.
+                  {t("group.project_detail.sponsor_request_intro", {
+                    amount: formatCurrencyVND(myPendingRequest.askedAmount),
+                  })}
+                </Text>
+                <Text style={[styles.sponsorshipText, { marginTop: 6 }]}>
+                  {t("group.project_detail.sponsor_request_change", {
+                    from: formatCurrencyVND(myPendingRequest.originalShare),
+                    to: formatCurrencyVND(myPendingRequest.proposedShare),
+                  })}
                 </Text>
                 <View style={styles.sponsorshipActionRow}>
                   <Pressable
                     style={[styles.sponsorshipBtn, styles.declineSponsorBtn]}
                     onPress={() => handleRespondSponsorship(false)}
                   >
-                    <Text style={[styles.sponsorshipBtnText, { color: "#EF4444" }]}>Decline</Text>
+                    <Text style={[styles.sponsorshipBtnText, { color: "#EF4444" }]}>
+                      {t("group.project_detail.sponsor_decline")}
+                    </Text>
                   </Pressable>
                   <Pressable
                     style={[styles.sponsorshipBtn, styles.agreeSponsorBtn]}
                     onPress={() => handleRespondSponsorship(true)}
                   >
-                    <Text style={[styles.sponsorshipBtnText, { color: "#FFFFFF" }]}>Agree</Text>
+                    <Text style={[styles.sponsorshipBtnText, { color: "#FFFFFF" }]}>
+                      {t("group.project_detail.sponsor_agree")}
+                    </Text>
                   </Pressable>
                 </View>
               </View>
             ) : (
-              <Text style={styles.sponsorshipText}>
-                The project is waiting for teammates to respond to proposed sponsorship shares.
-              </Text>
+              <Text style={styles.sponsorshipText}>{t("group.project_detail.sponsor_waiting_text")}</Text>
             )}
           </View>
         )}
@@ -367,17 +391,19 @@ export default function GroupProjectDetailScreen() {
           <View style={[styles.sponsorshipCard, { borderColor: "#EF4444", backgroundColor: "#FEE2E2" }]}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons name="close-circle" size={20} color="#DC2626" style={{ marginRight: 6 }} />
-              <Text style={[styles.sponsorshipTitle, { color: "#991B1B" }]}>Sponsorship Failed</Text>
+              <Text style={[styles.sponsorshipTitle, { color: "#991B1B" }]}>
+                {t("group.project_detail.sponsor_failed_title")}
+              </Text>
             </View>
             <Text style={[styles.sponsorshipText, { color: "#7F1D1D", marginTop: 4 }]}>
-              This project has failed because members declined or lacked capacity to sponsor the deficit.
+              {t("group.project_detail.sponsor_failed_text")}
             </Text>
           </View>
         )}
 
         {/* Aggregate Progress */}
         <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Aggregate Progress</Text>
+          <Text style={styles.sectionLabel}>{t("group.project_detail.aggregate_title")}</Text>
           <ProgressBar percent={aggregateProgress} styles={styles} />
           <View style={styles.aggregateRow}>
             <Text style={styles.aggregateAmount}>
@@ -387,17 +413,19 @@ export default function GroupProjectDetailScreen() {
           </View>
           {showOriginalGoal && (
             <Text style={styles.originalGoalText}>
-              Original goal: {formatCurrencyVND(project.targetAmount)} VND
+              {t("group.project_detail.original_goal", { amount: formatCurrencyVND(project.targetAmount) })}
             </Text>
           )}
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <Ionicons name="calendar-outline" size={14} color={theme.subtext} />
-              <Text style={styles.metaText}>{monthsLeft} month{monthsLeft !== 1 ? "s" : ""} left</Text>
+              <Text style={styles.metaText}>{t("group.project_detail.months_left", { count: monthsLeft })}</Text>
             </View>
             <View style={styles.metaItem}>
               <Ionicons name="people-outline" size={14} color={theme.subtext} />
-              <Text style={styles.metaText}>{formatCurrencyVND(project.totalCapacity)} VND/month total</Text>
+              <Text style={styles.metaText}>
+                {t("group.project_detail.total_capacity", { amount: formatCurrencyVND(project.totalCapacity) })}
+              </Text>
             </View>
           </View>
         </View>
@@ -406,14 +434,14 @@ export default function GroupProjectDetailScreen() {
         {!alreadyJoined && project.status === "ACTIVE" && (
           <Pressable style={styles.joinBtn} onPress={() => setShowPriority(true)}>
             <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.joinBtnText}>Join Project</Text>
+            <Text style={styles.joinBtnText}>{t("group.project_detail.join_action")}</Text>
           </Pressable>
         )}
 
         {/* Members */}
-        <Text style={styles.sectionTitle}>Members</Text>
+        <Text style={styles.sectionTitle}>{t("group.detail.members_title")}</Text>
         {project.members.length === 0 ? (
-          <Text style={styles.emptyText}>No members have joined yet.</Text>
+          <Text style={styles.emptyText}>{t("group.project_detail.empty_members")}</Text>
         ) : (
           project.members.map((m) => (
             <MemberRow
@@ -443,7 +471,7 @@ export default function GroupProjectDetailScreen() {
             ) : (
               <>
                 <Ionicons name="trash-outline" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={styles.dissolveBtnText}>Dissolve Group Project</Text>
+                <Text style={styles.dissolveBtnText}>{t("group.project_detail.dissolve_action")}</Text>
               </>
             )}
           </Pressable>
