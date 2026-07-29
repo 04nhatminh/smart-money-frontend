@@ -211,6 +211,7 @@ export default {
     enable_bank_notification: "Bật đọc thông báo ngân hàng",
     notification_privacy: "Ứng dụng sẽ đọc nội dung thông báo (ví dụ: ngân hàng) để tự động ghi nhận giao dịch. Dữ liệu chỉ được xử lý trên thiết bị và không chia sẻ nếu không có sự cho phép.",
     notification_permission_guide: "Vào Cài đặt → Quyền riêng tư → Truy cập thông báo → Bật cho ứng dụng này",
+    overspending_warning: "⚠️ Mức bội chi tháng này đã vượt quá thu nhập bạn thiết lập — hãy xem lại chi tiêu.",
     suggestion: {
       raise_budget: "Ngân sách {{category}} của bạn sắp bị vượt — chúng tôi có một gợi ý.",
       create_budget: "Chi tiêu cho {{category}} tăng vọt tháng này — bạn muốn đặt ngân sách cho mục này?",
@@ -236,6 +237,14 @@ export default {
       pending_suggestions: "Bạn có các gợi ý đang chờ xem xét.",
       weekly: "Bạn có {{count}} thông tin chi tiêu đáng chú ý trong tuần này.",
     },
+  },
+  overspending: {
+    warning_title: "Cảnh báo bội chi",
+    warning_message: "Tháng này bạn đã chi vượt thu {{deficit}}, cao hơn thu nhập bạn đã thiết lập ({{income}}).",
+    monthly_expense: "Tổng chi tháng này",
+    monthly_income: "Tổng thu tháng này",
+    setup_income: "Thu nhập thiết lập",
+    dismiss: "Đã hiểu",
   },
   privacy: {
     privacy_security: "Riêng tư & Bảo mật",
@@ -607,6 +616,7 @@ export default {
     try_again: "Thử lại",
     saving_your_financial_profile_please_wait: "Đang lưu hồ sơ tài chính của bạn. Vui lòng chờ.",
     unexpected_error: "Lỗi không mong đợi",
+    tab_title: "Ngân sách",
     title: "Phân bổ ngân sách",
     create_budget_allocation: "Tạo phân bổ ngân sách",
     create_budget: "Tạo ngân sách",

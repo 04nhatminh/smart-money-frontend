@@ -210,6 +210,7 @@ export default {
     enable_bank_notification: "Enable bank notification reading",
     notification_privacy: "The app reads notification content (e.g. banking alerts) to automatically detect transactions. Data is processed locally and not shared without your permission.",
     notification_permission_guide: "Go to Settings → Privacy → Notification access → Enable for this app",
+    overspending_warning: "⚠️ This month's overspending has exceeded your configured income — review your spending.",
     suggestion: {
       raise_budget: "Your {{category}} budget is on track to be exceeded — we have a suggestion.",
       create_budget: "Spending on {{category}} spiked this month — want to set a budget for it?",
@@ -235,6 +236,14 @@ export default {
       pending_suggestions: "You have suggestions waiting for review.",
       weekly: "You have {{count}} spending insight(s) worth a look this week.",
     },
+  },
+  overspending: {
+    warning_title: "Overspending Warning",
+    warning_message: "This month you have spent {{deficit}} more than you earned, which exceeds your configured income ({{income}}).",
+    monthly_expense: "Total expense this month",
+    monthly_income: "Total income this month",
+    setup_income: "Configured income",
+    dismiss: "Got it",
   },
   privacy: {
     privacy_security: "Privacy & Security",

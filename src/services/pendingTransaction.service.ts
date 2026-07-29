@@ -21,9 +21,9 @@ class PendingTransactionService {
     return PendingStorage.getAll();
   }
 
-  async approve(id: string) {
+  async approve(id: string): Promise<boolean> {
     const tx = PendingStorage.find(id);
-    if (!tx) return;
+    if (!tx) return false;
 
     // Only send the required fields to the backend, exclude the 'id' field
     const payload = {
@@ -44,7 +44,10 @@ class PendingTransactionService {
 
       this.eventBus.emit("updated", this.getAll());
       this.eventBus.emit("approved", res.data);
+      return true;
     }
+
+    return false;
   }
 
   async reject(id: string) {

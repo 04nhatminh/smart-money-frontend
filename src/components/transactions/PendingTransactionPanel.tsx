@@ -32,6 +32,10 @@ import PendingStorage, {
   ProcessingStatus
 } from "../../storage/pendingTransactionStorage";
 import PendingService from "../../services/pendingTransaction.service";
+import OverspendingWarningPanel from "./OverspendingWarningPanel";
+import OverspendingWarningService, {
+  OverspendingWarning,
+} from "../../services/overspendingWarning.service";
 
 // Helper format
 const formatAmount = (amount?: number) => {
@@ -376,6 +380,23 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
     date: "",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [overspendWarning, setOverspendWarning] =
+    useState<OverspendingWarning | null>(null);
+
+  // Phối hợp scroll giữa ScrollView và swipe-to-close của react-native-modal:
+  // modal chỉ được kéo xuống để đóng khi danh sách đang ở đầu trang.
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
+
+  const handleOnScroll = (event: any) => {
+    setScrollOffset(event.nativeEvent.contentOffset.y);
+  };
+
+  const handleScrollTo = (p: { x?: number; y?: number; animated?: boolean }) => {
+    scrollViewRef.current?.scrollTo(p);
+  };
 
   useImperativeHandle(ref, () => ({
     open: () => setVisible(true),
@@ -396,7 +417,13 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
       return;
     }
     try {
-      await PendingService.approve(id);
+      const approved = await PendingService.approve(id);
+      if (approved) {
+        const warning = await OverspendingWarningService.checkAndNotify();
+        if (warning) {
+          setOverspendWarning(warning);
+        }
+      }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể duyệt giao dịch');
     }
@@ -526,13 +553,25 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
         style={styles.modal}
         swipeDirection="down"
         onSwipeComplete={() => setVisible(false)}
+        propagateSwipe
+        scrollTo={handleScrollTo}
+        scrollOffset={scrollOffset}
+        scrollOffsetMax={Math.max(0, contentHeight - scrollViewHeight)}
       >
         <View style={styles.container}>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>{t("transaction.pending_transactions")}</Text>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          <ScrollView
+            ref={scrollViewRef}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            onScroll={handleOnScroll}
+            scrollEventThrottle={16}
+            onContentSizeChange={(_, h) => setContentHeight(h)}
+            onLayout={(e) => setScrollViewHeight(e.nativeEvent.layout.height)}
+          >
             {data.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>{t("transaction.no_pending")}</Text>
@@ -667,6 +706,13 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
           </View>
         </View>
       </RNModal>
+
+      {/* Overspending warning */}
+      <OverspendingWarningPanel
+        visible={!!overspendWarning}
+        warning={overspendWarning}
+        onClose={() => setOverspendWarning(null)}
+      />
     </>
   );
 });

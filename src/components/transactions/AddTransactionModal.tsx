@@ -26,7 +26,11 @@ import {
 import { formatNumber } from "../../utils/formatCurrency";
 import SuccessModal from "../SuccessModal";
 import ConfirmExitModal from "../ConfirmExitModal";
+import OverspendingWarningPanel from "./OverspendingWarningPanel";
 import { useCreateTransaction } from "../../hooks/useCreateTransaction";
+import OverspendingWarningService, {
+  OverspendingWarning,
+} from "../../services/overspendingWarning.service";
 
 interface AddTransactionModalProps {
   visible: boolean;
@@ -57,6 +61,9 @@ export function AddTransactionModal({
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [overspendWarning, setOverspendWarning] =
+    useState<OverspendingWarning | null>(null);
+  const [showWarningPanel, setShowWarningPanel] = useState(false);
 
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -72,6 +79,8 @@ export function AddTransactionModal({
     setShowTimePicker(false);
     setShowSuccessModal(false);
     setShowExitModal(false);
+    setOverspendWarning(null);
+    setShowWarningPanel(false);
     setHasChanges(false);
     setIsSaving(false);
     setErrors({});
@@ -130,7 +139,13 @@ export function AddTransactionModal({
         date: formatDateTime(date),
       });
 
-      setShowSuccessModal(true);
+      const warning = await OverspendingWarningService.checkAndNotify();
+      if (warning) {
+        setOverspendWarning(warning);
+        setShowWarningPanel(true);
+      } else {
+        setShowSuccessModal(true);
+      }
     } catch (error) {
       console.log("AddTransactionModal handleSave error:", error);
     } finally {
@@ -359,6 +374,15 @@ export function AddTransactionModal({
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+
+      <OverspendingWarningPanel
+        visible={showWarningPanel}
+        warning={overspendWarning}
+        onClose={() => {
+          setShowWarningPanel(false);
+          setShowSuccessModal(true);
+        }}
+      />
 
       <SuccessModal
         visible={showSuccessModal}
