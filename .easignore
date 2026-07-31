@@ -1,0 +1,27 @@
+# EAS đọc file này thay cho .gitignore khi đóng gói source gửi lên build server.
+# Vì nó THAY THẾ .gitignore, phải liệt kê lại cả những mục .gitignore đang chặn.
+
+# --- vốn đã có trong .gitignore ---
+node_modules/
+.expo/
+dist/
+web-build/
+.env
+*.log
+/logs/
+.claude/
+.vscode/
+.kotlin/
+
+# --- build artifact của Android: hơn 1 GB, iOS không cần ---
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+
+# --- native folder được sinh lại bằng prebuild trên server ---
+ios/
+
+# --- tài liệu, không ảnh hưởng build ---
+*.md
+!README.md
