@@ -5,17 +5,24 @@
   },
   "build": {
     "simulator": {
+      "environment": "production",
       "developmentClient": false,
       "distribution": "internal",
       "ios": {
         "simulator": true,
         "buildConfiguration": "Release"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://smartmoney-haibang.duckdns.org"
+      }
+    },
+    "simulator-dev": {
+      "environment": "production",
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
       }
     },
     "development": {
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "android": {
@@ -23,12 +30,14 @@
       }
     },
     "preview": {
+      "environment": "preview",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "environment": "production",
       "autoIncrement": true
     }
   },
