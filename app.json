@@ -14,12 +14,23 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "bundleIdentifier": "com.smartmoneyfrontend",
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
           "fetch",
           "processing"
-        ]
+        ],
+        "BGTaskSchedulerPermittedIdentifiers": [
+          "pending-transaction-background-task"
+        ],
+        "NSCameraUsageDescription": "Allow Smart Money to access your camera to capture bills",
+        "NSPhotoLibraryUsageDescription": "Allow Smart Money to access your photos",
+        "NSPhotoLibraryAddUsageDescription": "Allow Smart Money to save photos",
+        "NSMicrophoneUsageDescription": "Allow Smart Money to record audio notes",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
@@ -74,8 +85,7 @@
           "savePhotosPermission": "Allow Smart Money to save photos",
           "isAccessMediaLocationEnabled": false
         }
-      ],
-      "@react-native-google-signin/google-signin"
+      ]
     ]
   }
 }

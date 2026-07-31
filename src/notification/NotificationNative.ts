@@ -2,15 +2,19 @@ import { NativeModules } from 'react-native';
 
 const { NotificationModule } = NativeModules;
 
-console.log("MODULE", NotificationModule);
+// Module native chỉ có trên Android — iOS không có API tương đương
+// NotificationListenerService, nên mọi hàm ở đây là no-op trên iOS.
+const isAvailable = !!NotificationModule;
 
 export default {
+  isAvailable,
+
   hasPermission: (): Promise<boolean> =>
-      NotificationModule.hasPermission(),
+    isAvailable ? NotificationModule.hasPermission() : Promise.resolve(false),
 
   openSettings: () =>
-    NotificationModule.openNotificationListenerSettings(),
+    isAvailable ? NotificationModule.openNotificationListenerSettings() : undefined,
 
   notifyJSReady: () =>
-    NotificationModule.notifyJSReady(),
+    isAvailable ? NotificationModule.notifyJSReady() : undefined,
 };

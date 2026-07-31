@@ -6,7 +6,10 @@ import {
 
 GoogleSignin.configure({
   scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+  // webClientId quyết định `aud` của idToken gửi cho backend -> giữ chung cho cả 2 nền tảng
   webClientId: process.env.EXPO_PUBLIC_SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID,
+  // iOS bắt buộc có OAuth client riêng loại iOS, Android bỏ qua field này
+  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
 });
 
 export interface GoogleLoginState {

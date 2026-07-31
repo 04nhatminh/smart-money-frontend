@@ -6,7 +6,13 @@ import { watchPendingJob } from "../services/websocket";
 import DeduplicationService from "../utils/DeduplicationService";
 
 const { NotificationModule } = NativeModules;
-const emitter = new NativeEventEmitter(NotificationModule);
+
+// NotificationModule chỉ tồn tại trên Android. Trên iOS nó là undefined và
+// NativeEventEmitter sẽ throw ngay lúc import (invariant chỉ áp dụng cho iOS),
+// làm app crash trước cả màn hình login → dùng emitter rỗng thay thế.
+const emitter: Pick<NativeEventEmitter, "addListener"> = NotificationModule
+  ? new NativeEventEmitter(NotificationModule)
+  : ({ addListener: () => ({ remove: () => {} }) } as any);
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
