@@ -14,19 +14,53 @@ const CATEGORY_MAP: Record<string, string> = {
 };
 
 const normalizeNotification = (content: string) => {
-  const [key, type, amount, category] = content.split("|");
+  // Anything without the "notification." prefix is a server-narrated sentence.
+  if (!content.startsWith("notification.")) {
+    return content;
+  }
+
+  const [key, ...args] = content.split("|");
+  let params: Record<string, string> = {};
 
   switch (key) {
     case "notification.notification_done":
       return t(key, {
-        type: t(type), // expense -> Spent
-        amount: Number(amount).toLocaleString(),
-        category: t(`category.${category.toUpperCase()}`),
+        type: t(args[0]), // expense -> Spent
+        amount: Number(args[1]).toLocaleString(),
+        category: t(`category.${args[2].toUpperCase()}`),
       });
 
+    case "notification.settlement.project_completed":
+    case "notification.settlement.project_frozen":
+    case "notification.settlement.project_expired":
+    case "notification.group.project_started":
+    case "notification.group.project_completed":
+    case "notification.group.project_expired":
+    case "notification.group.sponsorship_failed":
+      params = { projectName: args[0] };
+      break;
+
+    case "notification.group.invited":
+      params = { groupName: args[0] };
+      break;
+
+    case "notification.group.member_dropped":
+      params = { username: args[0], projectName: args[1] };
+      break;
+
+    case "notification.group.sponsorship_survey":
+    case "notification.group.sponsorship_new_round":
+      params = {
+        proposed: Number(args[0]).toLocaleString(),
+        original: Number(args[1]).toLocaleString(),
+      };
+      break;
+
     default:
-      return t(key);
+      break;
   }
+
+  return t(key, { ...params, defaultValue: content });
 };
 
 let isAppInNotificationScreen = false;
