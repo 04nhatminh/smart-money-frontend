@@ -102,6 +102,14 @@ export type CreateProjectFormErrors = {
     deadlineMonths: string;
 };
 
+// Thành viên tham gia group project — backend chỉ trả kèm khi item có groupProjectId.
+export type ProjectParticipant = {
+  userId: string;
+  username?: string;
+  fullName?: string;
+  avatarUrl?: string | null;
+};
+
 export type ProjectListItemResponse = {
   projectId: string;
   name: string;
@@ -120,6 +128,9 @@ export type ProjectListItemResponse = {
   status: ProjectStatus;
   monthsLeft: number;
   deadlineLabel: string;
+  // Chỉ có mặt khi project là sub-project của một group project.
+  groupProjectId?: string;
+  participants?: ProjectParticipant[];
 };
 
 export type ProjectHistory = {

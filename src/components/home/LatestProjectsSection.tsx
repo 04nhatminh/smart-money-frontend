@@ -5,12 +5,20 @@ import {
   StyleSheet,
   FlatList,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useMemo } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useThemeMode } from '../../theme/ThemeProvider';
 import { t } from '../../i18n';
+
+export type LatestProjectParticipant = {
+  userId: string;
+  username?: string;
+  fullName?: string;
+  avatarUrl?: string | null;
+};
 
 export type LatestProjectItem = {
   projectId: string;
@@ -19,8 +27,13 @@ export type LatestProjectItem = {
   currency: string;
   progressPercent?: number;
   status?: string;
+  // Chỉ có với project thuộc group project (backend trả kèm participants khi đó).
+  participants?: LatestProjectParticipant[];
   isPlaceholder?: boolean;
 };
+
+// Hiện tối đa 2 avatar trên thẻ; phần vượt gộp thành badge "+N".
+const MAX_AVATARS = 2;
 
 type LatestProjectsSectionProps = {
   projects: LatestProjectItem[];
@@ -95,6 +108,12 @@ export default function LatestProjectsSection({
       justifyContent: 'center',
     },
 
+    cardTopRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+    },
+
     projectIconBox: {
       width: 46,
       height: 46,
@@ -108,6 +127,34 @@ export default function LatestProjectsSection({
       shadowOpacity: 0.06,
       shadowRadius: 6,
       elevation: 2,
+    },
+
+    // Thẻ nền pastel sáng cố định nên avatar dùng viền trắng + chữ tối, không theo theme.
+    avatarRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingLeft: 8,
+    },
+
+    avatar: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      marginLeft: -8,
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+      backgroundColor: '#E2E8F0',
+    },
+
+    avatarFallback: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    avatarInitial: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: '#334155',
     },
 
     projectAmount: {
@@ -227,12 +274,46 @@ export default function LatestProjectsSection({
                 router.push(`/(tabs)/project/${item.projectId}` as any)
               }
             >
-              <View style={styles.projectIconBox}>
-                <MaterialCommunityIcons
-                  name="piggy-bank"
-                  size={25}
-                  color="#0F172A"
-                />
+              <View style={styles.cardTopRow}>
+                <View style={styles.projectIconBox}>
+                  <MaterialCommunityIcons
+                    name="piggy-bank"
+                    size={25}
+                    color="#0F172A"
+                  />
+                </View>
+
+                {!!item.participants?.length && (
+                  <View style={styles.avatarRow}>
+                    {item.participants.slice(0, MAX_AVATARS).map((p) =>
+                      p.avatarUrl ? (
+                        <Image
+                          key={p.userId}
+                          source={{ uri: p.avatarUrl }}
+                          style={styles.avatar}
+                        />
+                      ) : (
+                        <View
+                          key={p.userId}
+                          style={[styles.avatar, styles.avatarFallback]}
+                        >
+                          <Text style={styles.avatarInitial}>
+                            {(p.fullName || p.username || '?')
+                              .charAt(0)
+                              .toUpperCase()}
+                          </Text>
+                        </View>
+                      )
+                    )}
+                    {item.participants.length > MAX_AVATARS && (
+                      <View style={[styles.avatar, styles.avatarFallback]}>
+                        <Text style={styles.avatarInitial}>
+                          +{item.participants.length - MAX_AVATARS}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
 
               <View>
