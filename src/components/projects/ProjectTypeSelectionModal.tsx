@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useThemeMode } from "../../theme/ThemeProvider";
 import { t } from "../../i18n";
 
 type Props = {
@@ -16,6 +17,86 @@ export default function ProjectTypeSelectionModal({
   onSelectPersonal,
   onSelectGroup,
 }: Props) {
+  const { theme, mode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "flex-end",
+    },
+    modalCard: {
+      backgroundColor: surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 36,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.text,
+    },
+    closeBtn: {
+      padding: 4,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: theme.subtext,
+      marginTop: 4,
+      marginBottom: 20,
+    },
+    optionsContainer: {
+      gap: 12,
+    },
+    optionCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.inputBg,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    optionPressed: {
+      backgroundColor: accent + "15",
+      borderColor: accent + "40",
+    },
+    iconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 14,
+    },
+    optionContent: {
+      flex: 1,
+      marginRight: 8,
+    },
+    optionTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 2,
+    },
+    optionDesc: {
+      fontSize: 13,
+      color: theme.subtext,
+      lineHeight: 18,
+    },
+  }), [theme, mode]);
+
   return (
     <Modal
       visible={visible}
@@ -30,7 +111,7 @@ export default function ProjectTypeSelectionModal({
               {t("project.select_project_type_title") || "Chọn loại dự án"}
             </Text>
             <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={8}>
-              <Ionicons name="close" size={22} color="#6B7280" />
+              <Ionicons name="close" size={22} color={theme.subtext} />
             </Pressable>
           </View>
           <Text style={styles.subtitle}>
@@ -50,8 +131,8 @@ export default function ProjectTypeSelectionModal({
                 onSelectPersonal();
               }}
             >
-              <View style={[styles.iconWrap, { backgroundColor: "#EEF2FF" }]}>
-                <Ionicons name="person" size={24} color="#4F46E5" />
+              <View style={[styles.iconWrap, { backgroundColor: accent + "15" }]}>
+                <Ionicons name="person" size={24} color={accent} />
               </View>
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>
@@ -62,7 +143,7 @@ export default function ProjectTypeSelectionModal({
                     "Tạo mục tiêu tiết kiệm và quản lý ngân sách cá nhân"}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={20} color={theme.subtext} />
             </Pressable>
 
             {/* Group option */}
@@ -88,7 +169,7 @@ export default function ProjectTypeSelectionModal({
                     "Chọn nhóm để thêm hoặc quản lý dự án chung"}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={20} color={theme.subtext} />
             </Pressable>
           </View>
         </Pressable>
@@ -96,77 +177,3 @@ export default function ProjectTypeSelectionModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalCard: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 36,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  optionsContainer: {
-    gap: 12,
-  },
-  optionCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  optionPressed: {
-    backgroundColor: "#F3F4F6",
-    borderColor: "#CBD5E1",
-  },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  optionContent: {
-    flex: 1,
-    marginRight: 8,
-  },
-  optionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1F2937",
-    marginBottom: 2,
-  },
-  optionDesc: {
-    fontSize: 13,
-    color: "#6B7280",
-    lineHeight: 18,
-  },
-});

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { ProjectAPI } from "../../api/project.api";
+import { useThemeMode } from "../../theme/ThemeProvider";
 import { t } from "../../i18n";
 
 type Props = {
@@ -22,6 +23,141 @@ type Props = {
 };
 
 export default function InviteMemberModal({ visible, projectId, onClose }: Props) {
+  const { theme, mode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(15, 23, 42, 0.6)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+    },
+    modalContainer: {
+      backgroundColor: surface,
+      borderRadius: 24,
+      width: "100%",
+      maxWidth: 400,
+      overflow: "hidden",
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: theme.text,
+    },
+    closeBtn: {
+      padding: 4,
+    },
+    content: {
+      padding: 20,
+    },
+    description: {
+      fontSize: 14,
+      color: theme.subtext,
+      lineHeight: 22,
+      marginBottom: 20,
+    },
+    inputGroup: {
+      marginBottom: 16,
+    },
+    label: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: theme.subtext,
+      marginBottom: 8,
+    },
+    input: {
+      backgroundColor: theme.inputBg,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      height: 48,
+      paddingHorizontal: 16,
+      fontSize: 14,
+      color: theme.text,
+    },
+    checkboxRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 24,
+      gap: 8,
+    },
+    checkboxLabel: {
+      fontSize: 14,
+      color: theme.text,
+      fontWeight: "600",
+    },
+    actionBtn: {
+      backgroundColor: theme.primary,
+      height: 50,
+      borderRadius: 16,
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    btnDisabled: {
+      backgroundColor: "#94A3B8",
+    },
+    actionBtnText: {
+      color: "#FFFFFF",
+      fontSize: 15,
+      fontWeight: "700",
+    },
+    successIconBox: {
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    resultTitle: {
+      fontSize: 20,
+      fontWeight: "800",
+      color: theme.text,
+      textAlign: "center",
+      marginBottom: 8,
+    },
+    resultDesc: {
+      fontSize: 14,
+      color: theme.subtext,
+      textAlign: "center",
+      lineHeight: 22,
+      marginBottom: 20,
+    },
+    linkContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: accent + "15",
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      height: 48,
+      marginBottom: 24,
+      gap: 8,
+    },
+    linkText: {
+      flex: 1,
+      fontSize: 13,
+      color: accent,
+      fontWeight: "600",
+    },
+    copyBtn: {
+      padding: 8,
+      backgroundColor: surface,
+      borderRadius: 8,
+    },
+  }), [theme, mode]);
+
   const [email, setEmail] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -88,7 +224,7 @@ export default function InviteMemberModal({ visible, projectId, onClose }: Props
           <View style={styles.header}>
             <Text style={styles.title}>Invite Project Member</Text>
             <Pressable onPress={handleClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Ionicons name="close" size={24} color={theme.subtext} />
             </Pressable>
           </View>
 
@@ -103,7 +239,7 @@ export default function InviteMemberModal({ visible, projectId, onClose }: Props
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. member@gmail.com"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={theme.subtext}
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
@@ -118,7 +254,7 @@ export default function InviteMemberModal({ visible, projectId, onClose }: Props
                 <Ionicons
                   name={isAdmin ? "checkbox" : "square-outline"}
                   size={24}
-                  color={isAdmin ? "#3F2CCB" : "#64748B"}
+                  color={isAdmin ? accent : theme.subtext}
                 />
                 <Text style={styles.checkboxLabel}>Make user a Project Admin</Text>
               </Pressable>
@@ -153,7 +289,7 @@ export default function InviteMemberModal({ visible, projectId, onClose }: Props
                   {inviteResult.deepLinkUrl}
                 </Text>
                 <Pressable style={styles.copyBtn} onPress={handleCopyLink}>
-                  <Ionicons name="copy-outline" size={20} color="#3F2CCB" />
+                  <Ionicons name="copy-outline" size={20} color={accent} />
                 </Pressable>
               </View>
 
@@ -167,132 +303,3 @@ export default function InviteMemberModal({ visible, projectId, onClose }: Props
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  modalContainer: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    width: "100%",
-    maxWidth: 400,
-    overflow: "hidden",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  content: {
-    padding: 20,
-  },
-  description: {
-    fontSize: 14,
-    color: "#64748B",
-    lineHeight: 22,
-    marginBottom: 20,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#475569",
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    height: 48,
-    paddingHorizontal: 16,
-    fontSize: 14,
-    color: "#0F172A",
-  },
-  checkboxRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 24,
-    gap: 8,
-  },
-  checkboxLabel: {
-    fontSize: 14,
-    color: "#334155",
-    fontWeight: "600",
-  },
-  actionBtn: {
-    backgroundColor: "#3F2CCB",
-    height: 50,
-    borderRadius: 16,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  btnDisabled: {
-    backgroundColor: "#94A3B8",
-  },
-  actionBtnText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  successIconBox: {
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  resultTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#0F172A",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  resultDesc: {
-    fontSize: 14,
-    color: "#64748B",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 20,
-  },
-  linkContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#EEF0FF",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 48,
-    marginBottom: 24,
-    gap: 8,
-  },
-  linkText: {
-    flex: 1,
-    fontSize: 13,
-    color: "#3F2CCB",
-    fontWeight: "600",
-  },
-  copyBtn: {
-    padding: 8,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 8,
-  },
-});

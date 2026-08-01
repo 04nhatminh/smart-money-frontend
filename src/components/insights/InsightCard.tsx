@@ -32,12 +32,15 @@ export default function InsightCard({ insight, compact }: InsightCardProps) {
   const sev = severityStyle(insight.severity, mode === "dark");
   const icon = insight.category ? categoryIcons[insight.category] : null;
 
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
+
   return (
     <View
       style={[
         styles.card,
         compact && styles.cardCompact,
-        { backgroundColor: theme.card, borderColor: theme.border },
+        { backgroundColor: surface, borderColor: theme.border },
       ]}
     >
       <View style={[styles.accentBar, { backgroundColor: sev.color }]} />

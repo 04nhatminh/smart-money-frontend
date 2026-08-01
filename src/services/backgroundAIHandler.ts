@@ -1,5 +1,5 @@
 import AIAPI from "../api/ai.api";
-import { waitForAIResult } from "./websocket";
+import { waitForAIResult, watchPendingJob } from "./websocket";
 import PendingStorage from "../storage/pendingTransactionStorage";
 import { CloudinaryService } from "./cloudinary.service";
 import AIJobStorage, { AIJobRecord } from "../storage/aiJobStorage";
@@ -69,6 +69,7 @@ export async function handleFullAIFlowInBackground(
     source: "camera" | "voice"
 ) {
     let publicId = "";
+    let submitted = false;
 
     try {
         console.log("🌀 Start full AI flow");
@@ -98,16 +99,22 @@ export async function handleFullAIFlowInBackground(
             "image"
         );
 
+        // Watchdog: WS miss kết quả thì tự poll / force get, không để kẹt ai_processing
+        watchPendingJob(jobId, pendingTxId);
+
+        submitted = true;
         return;
     } catch (err) {
         console.error("❌ Full flow error:", err);
+        emitStatus(pendingTxId, 'failed', undefined);
 
     } finally {
-        // 🧹 Clean up image if it was uploaded
-        if (publicId) {
+        // 🧹 Chỉ dọn ảnh khi flow fail — AI worker cần file còn tồn tại để xử lý;
+        // submit thành công thì handleAIResultData dọn sau khi có kết quả.
+        if (publicId && !submitted) {
             try {
                 await CloudinaryService.deleteImage(publicId, "image");
-                console.log("🗑️ Cleaned up cloudinary image after full flow");
+                console.log("🗑️ Cleaned up cloudinary image after failed flow");
             } catch (err) {
                 console.error("❌ Cleanup error after full flow:", err);
             }
@@ -123,6 +130,7 @@ export async function handleFullVoiceAIFlowInBackground(
     source: "camera" | "voice"
 ) {
     let publicId = "";
+    let submitted = false;
 
     try {
         console.log("🌀 Start full VOICE AI flow");
@@ -152,6 +160,10 @@ export async function handleFullVoiceAIFlowInBackground(
             "voice"
         );
 
+        // Watchdog: WS miss kết quả thì tự poll / force get, không để kẹt ai_processing
+        watchPendingJob(jobId, pendingTxId);
+
+        submitted = true;
         return;
 
     } catch (err) {
@@ -159,11 +171,12 @@ export async function handleFullVoiceAIFlowInBackground(
         emitStatus(pendingTxId, 'failed', undefined);
 
     } finally {
-        // 🧹 Clean up audio if it was uploaded
-        if (publicId) {
+        // 🧹 Chỉ dọn audio khi flow fail — AI worker cần file còn tồn tại để xử lý;
+        // submit thành công thì handleAIResultData dọn sau khi có kết quả.
+        if (publicId && !submitted) {
             try {
                 await CloudinaryService.deleteImage(publicId, "voice");
-                console.log("🗑️ Cleaned up cloudinary audio after full flow");
+                console.log("🗑️ Cleaned up cloudinary audio after failed flow");
             } catch (err) {
                 console.error("❌ Cleanup error after full voice flow:", err);
             }

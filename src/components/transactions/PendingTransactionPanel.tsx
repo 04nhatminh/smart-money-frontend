@@ -3,6 +3,7 @@ import React, {
   useImperativeHandle,
   useState,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import {
@@ -22,6 +23,8 @@ import { Picker } from "@react-native-picker/picker";
 import Modal from "react-native-modal";
 import { t } from '../../i18n';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useThemeMode } from '../../theme/ThemeProvider';
+import { Theme, ThemeMode } from '../../theme/tokens';
 import PendingStorage, {
   PendingTransaction,
   pendingEventBus,
@@ -98,6 +101,24 @@ const categoryIcons: Record<string, string> = {
 
 const TRANSACTION_TYPES = ["EXPENSE", "INCOME"];
 
+// ==================== DYNAMIC STYLES ====================
+// Styles dung chung cho PendingTransactionPanel + SwipeableItem, build lai theo theme.
+function usePendingPanelStyles() {
+  const { theme, mode } = useThemeMode();
+
+  // Accent: dark mode dung link (sang hon primary) cho du tuong phan tren nen toi.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
+
+  const styles = useMemo(
+    () => createPendingPanelStyles(theme, mode, accent, surface),
+    [theme, mode]
+  );
+
+  return { styles, theme, mode, accent, surface };
+}
+
 export type PendingPanelRef = {
   open: () => void;
   close: () => void;
@@ -113,6 +134,7 @@ const SwipeableItem: React.FC<{
   processingMessage: Record<string, string | undefined>;
   processingError: Record<string, string | undefined>;
 }> = ({ item, onApprove, onReject, onEdit, processingMap, processingMessage, processingError }) => {
+  const { styles, accent } = usePendingPanelStyles();
   const status = processingMap[item.id] ?? item.processingStatus;
   const error = processingError[item.id] ?? item.processingError;
   const isProcessing = status !== undefined && status !== 'completed' && status !== 'failed';
@@ -305,7 +327,7 @@ const SwipeableItem: React.FC<{
                   </Animated.Text>
                 ) : (
                   <>
-                    <ActivityIndicator size="small" color="#3629B7" />
+                    <ActivityIndicator size="small" color={accent} />
                     <Text style={styles.processingText}>
                       {getProcessingLabel(status)}
                     </Text>
@@ -336,6 +358,7 @@ const SwipeableItem: React.FC<{
 };
 
 const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
+  const { styles, theme, accent } = usePendingPanelStyles();
   const [visible, setVisible] = useState(false);
   const [data, setData] = useState<PendingTransaction[]>([]);
   const { lang } = useLanguage();
@@ -585,6 +608,7 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                 onChangeText={(text) => setEditForm({ ...editForm, amount: text })}
                 keyboardType="numeric"
                 placeholder="0"
+                placeholderTextColor={theme.subtext}
               />
               <Text style={styles.inputLabel}>{t("transaction.category")}</Text>
               <View style={styles.pickerContainer}>
@@ -592,7 +616,7 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                   selectedValue={editForm.category}
                   onValueChange={(value) => setEditForm({ ...editForm, category: value })}
                   style={styles.picker}
-                  dropdownIconColor="#3629B7"
+                  dropdownIconColor={accent}
                 >
                   {CATEGORIES.map((cat) => (
                     <Picker.Item key={cat} label={getCategoryLabel(cat)} value={cat} />
@@ -605,7 +629,7 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                   selectedValue={editForm.type}
                   onValueChange={(value) => setEditForm({ ...editForm, type: value })}
                   style={styles.picker}
-                  dropdownIconColor="#3629B7"
+                  dropdownIconColor={accent}
                 >
                   {TRANSACTION_TYPES.map((type) => (
                     <Picker.Item key={type} label={type === "EXPENSE" ? t("transaction.expense") : t("transaction.income")} value={type} />
@@ -618,6 +642,7 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                 value={editForm.date}
                 onChangeText={(text) => setEditForm({ ...editForm, date: text })}
                 placeholder={t("transaction.date_format_placeholder")}
+                placeholderTextColor={theme.subtext}
               />
             </ScrollView>
             <View style={styles.editButtonsRow}>
@@ -648,10 +673,15 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
 
 export default PendingTransactionPanel;
 
-const styles = StyleSheet.create({
+const createPendingPanelStyles = (
+  theme: Theme,
+  mode: ThemeMode,
+  accent: string,
+  surface: string
+) => StyleSheet.create({
   modal: { justifyContent: "flex-end", margin: 0 },
   container: {
-    backgroundColor: "white",
+    backgroundColor: surface,
     padding: 16,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
@@ -663,15 +693,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  title: { fontWeight: "bold", color: "#3629B7", fontSize: 16 },
+  title: { fontWeight: "bold", color: accent, fontSize: 16 },
   scrollContent: { paddingBottom: 8 },
   emptyContainer: { paddingVertical: 24, alignItems: "center" },
-  emptyText: { color: "#888", fontSize: 14 },
+  emptyText: { color: theme.subtext, fontSize: 14 },
   aiGroup: {
     margin: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: theme.border,
     overflow: "hidden",
   },
   aiGroupHeader: {
@@ -680,17 +710,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: '#F8F8F8',
+    backgroundColor: theme.inputBg,
   },
   aiGroupItemCount: {
     fontSize: 12,
-    color: '#888',
+    color: theme.subtext,
   },
   aiGroupTotalAmount: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3629B7',
-    backgroundColor: '#EDE7F6',
+    color: accent,
+    backgroundColor: accent + "20",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
@@ -699,7 +729,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     overflow: "hidden",
-    backgroundColor: "#fff",
+    backgroundColor: surface,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -712,10 +742,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: theme.border,
   },
   groupIcon: { fontSize: 18, marginRight: 6 },
-  groupTitle: { fontSize: 14, fontWeight: "600", color: "#333", flex: 1 },
+  groupTitle: { fontSize: 14, fontWeight: "600", color: theme.text, flex: 1 },
 
   // Item styles
   itemRow: {
@@ -724,15 +754,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#ccc",
-    backgroundColor: "#fff",
+    borderBottomColor: theme.border,
+    backgroundColor: surface,
     position: "relative",
     zIndex: 1,
     minHeight: 60,
   },
   descriptionText: {
     fontSize: 14,
-    color: '#1a1a1a',
+    color: theme.text,
     flexShrink: 1,
   },
   completedIcon: {
@@ -740,7 +770,7 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     fontWeight: '500',
-    color: '#3629B7', // làm nổi bật danh mục
+    color: accent,
   },
   // Label hành động (hiển thị khi kéo)
   actionLabelContainer: {
@@ -766,7 +796,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "white",
+    backgroundColor: surface,
     paddingHorizontal: 4,
     zIndex: 2,
   },
@@ -779,29 +809,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   editModalContainer: {
-    backgroundColor: "white",
+    backgroundColor: surface,
     width: "85%",
     maxHeight: "80%",
     borderRadius: 16,
     padding: 20,
   },
-  editTitle: { fontSize: 18, fontWeight: "bold", color: "#3629B7", marginBottom: 16, textAlign: "center" },
-  inputLabel: { fontSize: 13, fontWeight: "500", color: "#333", marginBottom: 4, marginTop: 8 },
-  input: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: "#fff" },
-  pickerContainer: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, backgroundColor: "#fff", marginBottom: 4 },
-  picker: { height: 50, width: "100%", color: "#333" },
+  editTitle: { fontSize: 18, fontWeight: "bold", color: accent, marginBottom: 16, textAlign: "center" },
+  inputLabel: { fontSize: 13, fontWeight: "500", color: theme.text, marginBottom: 4, marginTop: 8 },
+  input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: theme.inputBg, color: theme.text },
+  pickerContainer: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, backgroundColor: theme.inputBg, marginBottom: 4 },
+  picker: { height: 50, width: "100%", color: theme.text },
   editButtonsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 16, gap: 12 },
-  editCancelBtn: { flex: 1, backgroundColor: "#eee", padding: 12, borderRadius: 8, alignItems: "center" },
-  editCancelText: { color: "#333", fontWeight: "500" },
-  editSaveBtn: { flex: 1, backgroundColor: "#3629B7", padding: 12, borderRadius: 8, alignItems: "center" },
+  editCancelBtn: { flex: 1, backgroundColor: theme.inputBg, padding: 12, borderRadius: 8, alignItems: "center" },
+  editCancelText: { color: theme.text, fontWeight: "500" },
+  editSaveBtn: { flex: 1, backgroundColor: theme.primary, padding: 12, borderRadius: 8, alignItems: "center" },
   editSaveText: { color: "white", fontWeight: "500" },
   approveBtnDisabled: { backgroundColor: "#A0A0A0", opacity: 0.7 },
   swipeContainer: {
     position: 'relative',
     overflow: 'hidden',
-    backgroundColor: '#fff',
+    backgroundColor: surface,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#ccc',
+    borderBottomColor: theme.border,
     minHeight: 60,
   },
 
@@ -843,7 +873,7 @@ const styles = StyleSheet.create({
 
   // Lớp nội dung (foreground) – di chuyển theo translateX
   contentContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: surface,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
@@ -872,12 +902,12 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: theme.text,
   },
   category: {
     fontSize: 12,
-    color: '#666',
-    backgroundColor: '#f0f0f0',
+    color: theme.subtext,
+    backgroundColor: theme.inputBg,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
@@ -885,17 +915,17 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   typeBadge: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.inputBg,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
     marginLeft: 6,
   },
-  typeText: { fontSize: 10, color: '#555' },
+  typeText: { fontSize: 10, color: theme.subtext },
   processingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EDE7F6',
+    backgroundColor: accent + "20",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 16,
@@ -904,7 +934,7 @@ const styles = StyleSheet.create({
   },
   processingText: {
     fontSize: 11,
-    color: '#3629B7',
+    color: accent,
     fontWeight: '500',
   },
 
@@ -933,7 +963,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 13,
-    color: '#666',
+    color: theme.subtext,
     marginTop: 4,
     flexShrink: 1,
     width: '100%',
@@ -949,10 +979,10 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     fontSize: 16,
-    color: '#3629B7',
+    color: accent,
   },
   swipeHint: {
     fontSize: 12,
-    color: '#aaa',
+    color: theme.subtext,
   },
 });

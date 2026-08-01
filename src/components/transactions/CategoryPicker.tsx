@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { t } from "../../i18n";
 import {
   View,
@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useThemeMode } from "../../theme/ThemeProvider";
 
 import {
   EXPENSE_CATEGORIES,
@@ -28,6 +29,73 @@ export const CategoryPicker: React.FC<Props> = ({
   onChange,
 }) => {
   const [visible, setVisible] = useState(false);
+  const { theme, mode } = useThemeMode();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    input: {
+      height: 46,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 14,
+    },
+
+    text: {
+      flex: 1,
+      fontSize: 14,
+      color: theme.text,
+    },
+
+    placeholder: {
+      color: theme.subtext,
+    },
+
+    overlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.3)",
+      justifyContent: "flex-end",
+    },
+
+    sheet: {
+      backgroundColor: surface,
+      borderTopLeftRadius: 25,
+      borderTopRightRadius: 25,
+      padding: 20,
+      maxHeight: "60%",
+    },
+
+    handle: {
+      width: 40,
+      height: 4,
+      backgroundColor: theme.border,
+      alignSelf: "center",
+      borderRadius: 10,
+      marginBottom: 10,
+    },
+
+    item: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+
+    itemText: {
+      fontSize: 16,
+      color: theme.text,
+    },
+  }), [theme, mode]);
 
   const categories =
     type === "EXPENSE" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
@@ -41,7 +109,7 @@ export const CategoryPicker: React.FC<Props> = ({
         <Ionicons
           name={CATEGORY_ICONS[value] || "pricetag-outline"}
           size={18}
-          color={value ? "#3629B7" : "#A8A3D7"}
+          color={value ? accent : theme.subtext}
         />
 
         <Text
@@ -56,7 +124,7 @@ export const CategoryPicker: React.FC<Props> = ({
         <Ionicons
           name="chevron-down-outline"
           size={18}
-          color="#A8A3D7"
+          color={theme.subtext}
         />
       </Pressable>
 
@@ -88,7 +156,7 @@ export const CategoryPicker: React.FC<Props> = ({
                   <Ionicons
                     name={CATEGORY_ICONS[item]}
                     size={20}
-                    color="#3629B7"
+                    color={accent}
                   />
 
                   <Text style={styles.itemText}>{t(`transaction.${item}`)}</Text>
@@ -102,64 +170,3 @@ export const CategoryPicker: React.FC<Props> = ({
     </>
   );
 };
-
-const styles = StyleSheet.create({
-
-  input: {
-    height: 46,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 14,
-  },
-
-  text: {
-    flex: 1,
-    fontSize: 14,
-    color: "#1F2937",
-  },
-
-  placeholder: {
-    color: "#B0B0B0",
-  },
-
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "flex-end",
-  },
-
-  sheet: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    padding: 20,
-    maxHeight: "60%",
-  },
-
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: "#DDD",
-    alignSelf: "center",
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEE",
-  },
-
-  itemText: {
-    fontSize: 16,
-  },
-});

@@ -15,7 +15,7 @@ import { t } from "../../i18n";
 
 import { InputField } from "../InputField";
 import { ButtonSave } from "../ButtonSave";
-import { transactionStyles as styles } from "../../styles/transactionStyles";
+import { useTransactionStyles } from "../../styles/transactionStyles";
 import { CategoryPicker } from "./CategoryPicker";
 import { CATEGORY_ENUM_MAP } from "../../constants/categories";
 import {
@@ -45,6 +45,7 @@ export function AddTransactionModal({
   onSaved,
 }: AddTransactionModalProps) {
   const { createManualTransaction } = useCreateTransaction();
+  const { styles, theme } = useTransactionStyles();
 
   const [type, setType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
   const [amount, setAmount] = useState("");
@@ -186,7 +187,7 @@ export function AddTransactionModal({
         presentationStyle="pageSheet"
         onRequestClose={handleRequestClose}
       >
-        <SafeAreaView style={{ flex: 1 }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -208,7 +209,7 @@ export function AddTransactionModal({
                 alignItems: "center",
               }}
             >
-              <Text style={{ fontSize: 25, fontWeight: "700" }}>
+              <Text style={{ fontSize: 25, fontWeight: "700", color: theme.text }}>
                 {t("transaction.addTitle")}
               </Text>
 
@@ -225,7 +226,9 @@ export function AddTransactionModal({
                   setHasChanges(true);
                 }}
               >
-                <Text style={styles.typeText}>{t("transaction.expense")}</Text>
+                <Text style={[styles.typeText, type === "EXPENSE" && styles.typeTextActive]}>
+                  {t("transaction.expense")}
+                </Text>
               </Pressable>
 
               <Pressable
@@ -238,7 +241,9 @@ export function AddTransactionModal({
                   setHasChanges(true);
                 }}
               >
-                <Text style={styles.typeText}>{t("transaction.income")}</Text>
+                <Text style={[styles.typeText, type === "INCOME" && styles.typeTextActive]}>
+                  {t("transaction.income")}
+                </Text>
               </Pressable>
             </View>
 
@@ -287,14 +292,14 @@ export function AddTransactionModal({
                   style={styles.dateInput}
                   onPress={() => setShowDatePicker(true)}
                 >
-                  <Text>{formatDateToDDMMYYYY(date)}</Text>
+                  <Text style={styles.dateText}>{formatDateToDDMMYYYY(date)}</Text>
                 </Pressable>
 
                 <Pressable
                   style={styles.timeInput}
                   onPress={() => setShowTimePicker(true)}
                 >
-                  <Text>{formatTime(date)}</Text>
+                  <Text style={styles.dateText}>{formatTime(date)}</Text>
                 </Pressable>
               </View>
 

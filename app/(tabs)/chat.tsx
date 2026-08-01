@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { useRouter } from 'expo-router';
 import {
   View,
@@ -19,6 +19,8 @@ import AIAPI from "../../src/api/ai.api";
 import { useAISuggestions } from "../../src/context/AISuggestionContext";
 import { t, tLang } from "../../src/i18n";          // ← thêm import
 import { useLanguage } from "../../src/i18n/LanguageProvider"; // (tuỳ chọn)
+import { useThemeMode } from "../../src/theme/ThemeProvider";
+import { Theme, ThemeMode } from "../../src/theme/tokens";
 import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/dataRefreshEmitter";
 import {
   ChatIntent,
@@ -69,7 +71,324 @@ const TYPEWRITER_TOTAL_TICKS = 45;
 // "thinking" — purely cosmetic staging since both happen inside one HTTP call.
 const CONTEXT_PHASE_MS = 550;
 
+// ==================== DYNAMIC STYLES ====================
+// Styles dùng chung cho AIScreen + ThinkingIndicator, build lại theo theme.
+function useChatStyles() {
+  const { theme, mode } = useThemeMode();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
+
+  const styles = useMemo(() => createStyles(theme, mode, accent, surface), [theme, mode]);
+
+  return { styles, theme, mode, accent, surface };
+}
+
+const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
+
+    header: {
+      paddingHorizontal: 18,
+      paddingTop: 50,
+      paddingBottom: 10,
+      backgroundColor: surface,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
+    backButton: {
+      marginRight: 8,
+      padding: 4, // để tăng vùng bấm
+    },
+
+    headerLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+    avatar: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: theme.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
+    },
+
+    headerTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: theme.text,
+    },
+
+    headerSubtitle: {
+      fontSize: 12,
+      color: theme.subtext,
+      marginTop: 2,
+    },
+
+    messageWrapper: {
+      marginBottom: 12,
+    },
+
+    userWrapper: {
+      alignItems: "flex-end",
+    },
+
+    assistantWrapper: {
+      alignItems: "flex-start",
+    },
+
+    messageActions: {
+      flexDirection: "row",
+      marginTop: 4,
+    },
+
+    messageActionsUser: {
+      justifyContent: "flex-end",
+    },
+
+    messageActionsAssistant: {
+      justifyContent: "flex-start",
+    },
+
+    actionBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      marginLeft: 6,
+    },
+
+    actionBtnText: {
+      fontSize: 12,
+      color: theme.subtext,
+      marginLeft: 4,
+    },
+
+    // ── Hold-to-copy popup (shown on long-press of a bubble) ─────────────────
+    copyPopup: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#333",
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 16,
+      marginBottom: 6,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    copyPopupText: {
+      color: "#FFF",
+      fontSize: 12,
+      fontWeight: "600",
+      marginLeft: 6,
+    },
+
+    suggestionContainer: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: surface,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+
+    suggestionChip: {
+      backgroundColor: theme.inputBg,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      marginRight: 8,
+    },
+
+    suggestionChipDisabled: {
+      opacity: 0.5,
+    },
+
+    relatedQuestionsGroup: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      maxWidth: "90%",
+      marginTop: 8,
+    },
+
+    relatedQuestionChip: {
+      backgroundColor: theme.inputBg,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 16,
+      marginRight: 8,
+      marginBottom: 8,
+    },
+
+    relatedQuestionText: {
+      fontSize: 13,
+      color: accent,
+    },
+
+    suggestionText: {
+      fontSize: 13,
+      color: accent,
+    },
+
+    bubble: {
+      maxWidth: "90%",
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 18,
+      overflow: 'hidden',   // ✅ ngăn nội dung tràn ra ngoài
+      flexShrink: 1,        // ✅ co lại vừa đủ
+
+    },
+
+    userBubble: {
+      backgroundColor: theme.primary,
+    },
+
+    assistantBubble: {
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+
+    outOfScopeBubble: {
+      backgroundColor: "#FFFBEB",
+      borderWidth: 1,
+      borderColor: "#FDE68A",
+    },
+
+    outOfScopeLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 6,
+    },
+
+    outOfScopeLabelText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#B45309",
+      marginLeft: 4,
+      textTransform: "uppercase",
+    },
+
+    messageText: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: theme.text,
+    },
+
+    inputContainer: {
+      backgroundColor: surface,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 12,
+    },
+
+    UserContainer: {
+      display: "flex",
+      padding: 5,
+      backgroundColor: surface + "53", // bán trong suốt theo surface của theme
+      flexDirection: "column"
+    },
+
+    sendBtn: {
+      alignSelf: "center",
+      borderColor: theme.border,
+      borderWidth: 1,
+      paddingHorizontal: 14,
+      borderRadius: 5,
+      paddingVertical: 7,
+      backgroundColor: theme.primary
+    },
+
+    sendBtnDisabled: {
+      backgroundColor: accent + "66", // primary/accent mờ khi disable
+    },
+
+    input: {
+      flex: 1,
+      maxHeight: 120,
+      backgroundColor: theme.inputBg,
+      color: theme.text,
+      borderRadius: 22,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      marginRight: 10,
+    },
+
+    inputDisabled: {
+      opacity: 0.6,
+    },
+
+    // ── Thinking / loading-context indicator ─────────────────────────────────
+    thinkingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    thinkingLabel: {
+      fontSize: 13,
+      color: theme.subtext,
+      marginRight: 8,
+      fontStyle: "italic",
+    },
+    thinkingDots: {
+      flexDirection: "row",
+    },
+    thinkingDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: accent,
+      marginHorizontal: 2,
+    },
+
+    // ── Yes/No decision chips (replaces the old confirm/dismiss card+buttons) ────
+    decisionRow: {
+      flexDirection: "row",
+      marginTop: 8,
+    },
+    decisionChipNo: {
+      backgroundColor: theme.inputBg,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      marginRight: 8,
+    },
+    decisionChipNoText: {
+      color: theme.subtext,
+      fontSize: 13,
+      fontWeight: "600",
+    },
+    decisionChipYes: {
+      backgroundColor: theme.primary,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    decisionChipYesText: {
+      color: "#FFF",
+      fontSize: 13,
+      fontWeight: "600",
+    },
+  });
+
 function ThinkingIndicator({ label }: { label: string }) {
+  const { styles } = useChatStyles();
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -113,6 +432,7 @@ export default function AIScreen() {
   const phaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typewriterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
+  const { styles, theme, mode, accent } = useChatStyles();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -159,10 +479,12 @@ export default function AIScreen() {
   } = useAISuggestions();
 
   const getMarkdownStyles = (isUser: boolean) => {
-    const textColor = isUser ? '#FFF' : '#111';
-    const linkColor = isUser ? '#B3A0FF' : '#3629B7';
-    const codeBg = isUser ? 'rgba(255,255,255,0.2)' : '#f0f0f0';
-    const blockquoteColor = isUser ? '#B3A0FF' : '#ccc';
+    // Bubble của user luôn nền primary đậm nên chữ trắng cố định;
+    // bubble của assistant nền surface nên chữ/link/code theo theme.
+    const textColor = isUser ? '#FFF' : theme.text;
+    const linkColor = isUser ? '#B3A0FF' : accent;
+    const codeBg = isUser ? 'rgba(255,255,255,0.2)' : theme.inputBg;
+    const blockquoteColor = isUser ? '#B3A0FF' : theme.border;
 
     return {
       ...baseMarkdownStyles,
@@ -436,7 +758,7 @@ export default function AIScreen() {
                   <Text style={styles.outOfScopeLabelText}>{t('ai.out_of_scope_label')}</Text>
                 </View>
               )}
-              <Markdown style={markdownStyles} mergeStyle={true}>
+              <Markdown style={isOutOfScope ? getOutOfScopeMarkdownStyles() : markdownStyles} mergeStyle={true}>
                 {item.text || ""}
               </Markdown>
             </>
@@ -456,8 +778,8 @@ export default function AIScreen() {
               style={styles.actionBtn}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <Ionicons name="refresh" size={14} color="#3629B7" />
-              <Text style={[styles.actionBtnText, { color: "#3629B7" }]}>
+              <Ionicons name="refresh" size={14} color={accent} />
+              <Text style={[styles.actionBtnText, { color: accent }]}>
                 {t('ai.retry')}
               </Text>
             </TouchableOpacity>
@@ -509,6 +831,21 @@ export default function AIScreen() {
     );
   };
 
+  // Bubble "ngoài phạm vi" luôn nền vàng nhạt cố định (mọi theme) nên chữ trong
+  // đó cũng cố định màu tối — không dùng theme.text (dark mode sẽ thành chữ sáng
+  // trên nền sáng).
+  const getOutOfScopeMarkdownStyles = () => {
+    const textColor = '#92400E';
+    return {
+      ...baseMarkdownStyles,
+      body: { ...baseMarkdownStyles.body, color: textColor },
+      paragraph: { ...baseMarkdownStyles.paragraph, color: textColor },
+      listItem: { ...baseMarkdownStyles.listItem, color: textColor },
+      strong: { ...baseMarkdownStyles.strong, color: textColor },
+      em: { ...baseMarkdownStyles.em, color: textColor },
+    };
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -519,7 +856,7 @@ export default function AIScreen() {
         <View style={styles.headerLeft}>
           {/* Nút quay lại */}
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#222" />
+            <Ionicons name="arrow-back" size={24} color={theme.text} />
           </TouchableOpacity>
 
           <View style={styles.avatar}>
@@ -532,7 +869,7 @@ export default function AIScreen() {
         </View>
 
         <TouchableOpacity>
-          <Ionicons name="menu" size={24} color="#222" />
+          <Ionicons name="menu" size={24} color={theme.text} />
         </TouchableOpacity>
       </View>
 
@@ -580,9 +917,9 @@ export default function AIScreen() {
                 ? t('ai.waiting_for_reply')
                 : t('ai.placeholder')
             }
+            placeholderTextColor={theme.subtext}
             multiline
             editable={!loading && !awaitingDecision}
-            placeholderTextColor="#9CA3AF"
             style={[styles.input, (loading || awaitingDecision) && styles.inputDisabled]}
           />
           <TouchableOpacity

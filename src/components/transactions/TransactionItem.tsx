@@ -16,7 +16,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   transaction,
   onPress,
 }) => {
-  const { theme } = useThemeMode();
+  const { theme, mode } = useThemeMode();
   const isExpense = transaction.type === "EXPENSE";
   const categoryInfo =
     CATEGORY_ICONS_LIST[transaction.category.toLowerCase()] ||
@@ -24,10 +24,13 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
 
   const formattedAmount = formatVND(transaction.amount);
 
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
+
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.container, { backgroundColor: theme.card }]}
+      style={[styles.container, { backgroundColor: surface }]}
     >
       <View style={styles.content}>
         <View

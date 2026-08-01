@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -24,6 +24,10 @@ import { formatCurrencyVND } from "../../src/utils/project";
 import { getGroupProjectErrorMessage } from "../../src/utils/groupProjectErrors";
 import PriorityPickerModal from "../../src/components/groups/PriorityPickerModal";
 import { groupStorage } from "../../src/storage/groupStorage";
+import { useThemeMode } from "../../src/theme/ThemeProvider";
+import { Theme, ThemeMode } from "../../src/theme/tokens";
+import { t } from "../../src/i18n";
+import { useLanguage } from "../../src/i18n/LanguageProvider";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   ACTIVE: { bg: "#D1FAE5", text: "#065F46" },
@@ -31,6 +35,8 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   DISSOLVED: { bg: "#F3F4F6", text: "#6B7280" },
   PENDING_SPONSORSHIP: { bg: "#FEF9C3", text: "#D97706" },
   SPONSORSHIP_FAILED: { bg: "#FEE2E2", text: "#DC2626" },
+  EXPIRED: { bg: "#FEE2E2", text: "#991B1B" },
+  FROZEN: { bg: "#FEF9C3", text: "#92400E" },
 };
 
 const SUB_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -41,7 +47,10 @@ const SUB_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   EXPIRED: { bg: "#FEE2E2", text: "#991B1B" },
 };
 
-function ProgressBar({ percent }: { percent: number }) {
+// Styles được truyền từ component cha (factory theo theme) để sub-component module-level dùng chung.
+type Styles = ReturnType<typeof createStyles>;
+
+function ProgressBar({ percent, styles }: { percent: number; styles: Styles }) {
   const safe = Math.min(100, Math.max(0, percent));
   return (
     <View style={styles.progressBg}>
@@ -54,10 +63,14 @@ function MemberRow({
   member,
   isCurrentUser,
   onPress,
+  styles,
+  accent,
 }: {
   member: GroupProjectMemberDetail;
   isCurrentUser: boolean;
   onPress: () => void;
+  styles: Styles;
+  accent: string;
 }) {
   const statusStyle = SUB_STATUS_COLORS[member.projectStatus] ?? SUB_STATUS_COLORS.ACTIVE;
   // EXPIRED and ABANDONED members have dropped out — dim them.
@@ -67,18 +80,20 @@ function MemberRow({
   return (
     <Pressable style={[styles.memberRow, isCurrentUser && styles.memberRowHighlight, isDroppedOut && styles.memberRowAbandoned]} onPress={onPress}>
       <View style={styles.memberAvatar}>
-        <Ionicons name="person" size={16} color="#3629B7" />
+        <Ionicons name="person" size={16} color={accent} />
       </View>
       <View style={styles.memberInfo}>
         <View style={styles.memberTopRow}>
           <Text style={styles.memberName} numberOfLines={1}>
-            {member.username ?? member.userId}{isCurrentUser ? " (You)" : ""}
+            {member.username ?? member.userId}{isCurrentUser ? t("group.detail.you_suffix") : ""}
           </Text>
           <View style={[styles.subStatusChip, { backgroundColor: statusStyle.bg }]}>
-            <Text style={[styles.subStatusText, { color: statusStyle.text }]}>{member.projectStatus}</Text>
+            <Text style={[styles.subStatusText, { color: statusStyle.text }]}>
+              {t(`group.sub_status.${member.projectStatus}`)}
+            </Text>
           </View>
         </View>
-        <ProgressBar percent={member.progressPercent} />
+        <ProgressBar percent={member.progressPercent} styles={styles} />
         <View style={styles.memberAmountRow}>
           <Text style={styles.memberAmountText}>
             {formatCurrencyVND(memberNetSaved)} / {formatCurrencyVND(member.targetAmount)}
@@ -88,7 +103,9 @@ function MemberRow({
         {memberOwed > 0 && (
           <View style={styles.memberDebtRow}>
             <Ionicons name="alert-circle-outline" size={12} color="#DC2626" />
-            <Text style={styles.memberDebtText}>{formatCurrencyVND(memberOwed)} debt</Text>
+            <Text style={styles.memberDebtText}>
+              {t("group.project_detail.member_debt", { amount: formatCurrencyVND(memberOwed) })}
+            </Text>
           </View>
         )}
       </View>
@@ -99,6 +116,17 @@ function MemberRow({
 export default function GroupProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  // Đọc lang để màn hình re-render khi người dùng đổi ngôn ngữ.
+  useLanguage();
+  const { theme, mode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
+  const styles = useMemo(
+    () => createStyles(theme, mode, accent, surface),
+    [theme, mode, accent, surface]
+  );
 
   const [project, setProject] = useState<GroupProjectDetailResponse | null>(null);
   const [groupAdminId, setGroupAdminId] = useState<string | null>(null);
@@ -135,12 +163,12 @@ export default function GroupProjectDetailScreen() {
         if (res.errorCode === "PROJECT_NOT_FOUND") {
           await groupStorage.removeGroupProjectByProjectId(id);
           Alert.alert(
-            "Project Failed",
-            "This group project has failed due to declined or insufficient sponsorship contributions.",
+            t("group.project_detail.failed_title"),
+            t("group.project_detail.failed_message"),
             [{ text: "OK", onPress: () => router.canGoBack() ? router.back() : router.replace("/(tabs)/project") }]
           );
         } else {
-          Alert.alert("Error", res.message || "Could not load group project.");
+          Alert.alert(t("common.error"), res.message || t("group.project_detail.load_failed"));
         }
       }
     } catch (err: any) {
@@ -148,12 +176,12 @@ export default function GroupProjectDetailScreen() {
       if (responseData?.errorCode === "PROJECT_NOT_FOUND") {
         await groupStorage.removeGroupProjectByProjectId(id);
         Alert.alert(
-          "Project Failed",
-          "This group project has failed due to declined or insufficient sponsorship contributions.",
+          t("group.project_detail.failed_title"),
+          t("group.project_detail.failed_message"),
           [{ text: "OK", onPress: () => router.canGoBack() ? router.back() : router.replace("/(tabs)/project") }]
         );
       } else {
-        Alert.alert("Error", "Could not load group project.");
+        Alert.alert(t("common.error"), t("group.project_detail.load_failed"));
       }
     }
   }, [id]);
@@ -175,15 +203,17 @@ export default function GroupProjectDetailScreen() {
       const res = await GroupAPI.respondToSponsorshipRequest(myPendingRequest.requestId, { agreed });
       if (res.success) {
         Alert.alert(
-          "Success",
-          agreed ? "You agreed to sponsor your teammate!" : "You declined the sponsorship request."
+          t("common.success"),
+          agreed
+            ? t("group.project_detail.respond_agreed")
+            : t("group.project_detail.respond_declined")
         );
         await fetchProject();
       } else {
-        Alert.alert("Error", res.message || "Failed to respond to request.");
+        Alert.alert(t("common.error"), res.message || t("group.project_detail.respond_failed"));
       }
     } catch {
-      Alert.alert("Error", "Something went wrong.");
+      Alert.alert(t("common.error"), t("group.project_detail.respond_failed"));
     } finally {
       setLoading(false);
     }
@@ -192,19 +222,19 @@ export default function GroupProjectDetailScreen() {
   const handleDissolve = () => {
     if (!project) return;
     Alert.alert(
-      "Dissolve Group Project",
-      "This will permanently dissolve the group project. Active sub-projects will be abandoned; completed ones are kept. This cannot be undone.",
+      t("group.project_detail.dissolve_title"),
+      t("group.project_detail.dissolve_message"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Dissolve",
+          text: t("group.project_detail.dissolve_confirm"),
           style: "destructive",
           onPress: async () => {
             setDissolving(true);
             try {
               const res = await GroupAPI.dissolveGroupProject(project.groupProjectId);
               if (res.success) {
-                Alert.alert("Dissolved", "The group project has been dissolved.", [
+                Alert.alert(t("group.project_detail.dissolved_title"), t("group.project_detail.dissolved_message"), [
                   {
                     text: "OK",
                     onPress: () =>
@@ -215,8 +245,8 @@ export default function GroupProjectDetailScreen() {
                 const msg =
                   getGroupProjectErrorMessage(res.errorCode, "join-project") ??
                   res.message ??
-                  "Could not dissolve project.";
-                Alert.alert("Error", msg);
+                  t("group.project_detail.dissolve_failed");
+                Alert.alert(t("common.error"), msg);
               }
             } finally {
               setDissolving(false);
@@ -230,7 +260,7 @@ export default function GroupProjectDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#3629B7" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
     );
   }
@@ -238,7 +268,7 @@ export default function GroupProjectDetailScreen() {
   if (!project) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.errorText}>Project not found.</Text>
+        <Text style={styles.errorText}>{t("group.project_detail.not_found")}</Text>
       </SafeAreaView>
     );
   }
@@ -275,11 +305,13 @@ export default function GroupProjectDetailScreen() {
             router.canGoBack() ? router.back() : router.replace("/(tabs)/project")
           }
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{project.name}</Text>
         <View style={[styles.statusChip, { backgroundColor: statusStyle.bg }]}>
-          <Text style={[styles.statusChipText, { color: statusStyle.text }]}>{project.status}</Text>
+          <Text style={[styles.statusChipText, { color: statusStyle.text }]}>
+            {t(`group.project_status.${project.status}`)}
+          </Text>
         </View>
       </View>
 
@@ -294,10 +326,12 @@ export default function GroupProjectDetailScreen() {
             <View style={styles.celebrationIcon}>
               <Ionicons name="trophy" size={32} color="#B45309" />
             </View>
-            <Text style={styles.celebrationTitle}>Goal Reached! 🎉</Text>
+            <Text style={styles.celebrationTitle}>{t("group.project_detail.celebration_title")}</Text>
             <Text style={styles.celebrationText}>
-              "{project.name}" hit its {formatCurrencyVND(project.targetAmount)} VND target.
-              Congratulations to everyone who contributed!
+              {t("group.project_detail.celebration_text", {
+                name: project.name,
+                amount: formatCurrencyVND(project.targetAmount),
+              })}
             </Text>
           </View>
         )}
@@ -308,38 +342,46 @@ export default function GroupProjectDetailScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
               <Ionicons name="alert-circle" size={20} color="#D97706" style={{ marginRight: 6 }} />
               <Text style={styles.sponsorshipTitle}>
-                {myPendingRequest ? "Sponsorship Request Pending" : "Awaiting Sponsorship Surveys"}
+                {myPendingRequest
+                  ? t("group.project_detail.sponsor_pending_title")
+                  : t("group.project_detail.sponsor_awaiting_title")}
               </Text>
             </View>
 
             {myPendingRequest ? (
               <View>
                 <Text style={styles.sponsorshipText}>
-                  A teammate lacks financial capacity. The system proposes that you sponsor them by contributing an extra{" "}
-                  <Text style={{ fontWeight: "700" }}>{formatCurrencyVND(myPendingRequest.askedAmount)} VND/month</Text>.
-                  This changes your share from{" "}
-                  <Text style={{ fontWeight: "700" }}>{formatCurrencyVND(myPendingRequest.originalShare)}</Text> to{" "}
-                  <Text style={{ fontWeight: "700" }}>{formatCurrencyVND(myPendingRequest.proposedShare)} VND/month</Text>.
+                  {t("group.project_detail.sponsor_request_intro", {
+                    amount: formatCurrencyVND(myPendingRequest.askedAmount),
+                  })}
+                </Text>
+                <Text style={[styles.sponsorshipText, { marginTop: 6 }]}>
+                  {t("group.project_detail.sponsor_request_change", {
+                    from: formatCurrencyVND(myPendingRequest.originalShare),
+                    to: formatCurrencyVND(myPendingRequest.proposedShare),
+                  })}
                 </Text>
                 <View style={styles.sponsorshipActionRow}>
                   <Pressable
                     style={[styles.sponsorshipBtn, styles.declineSponsorBtn]}
                     onPress={() => handleRespondSponsorship(false)}
                   >
-                    <Text style={[styles.sponsorshipBtnText, { color: "#EF4444" }]}>Decline</Text>
+                    <Text style={[styles.sponsorshipBtnText, { color: "#EF4444" }]}>
+                      {t("group.project_detail.sponsor_decline")}
+                    </Text>
                   </Pressable>
                   <Pressable
                     style={[styles.sponsorshipBtn, styles.agreeSponsorBtn]}
                     onPress={() => handleRespondSponsorship(true)}
                   >
-                    <Text style={[styles.sponsorshipBtnText, { color: "#FFFFFF" }]}>Agree</Text>
+                    <Text style={[styles.sponsorshipBtnText, { color: "#FFFFFF" }]}>
+                      {t("group.project_detail.sponsor_agree")}
+                    </Text>
                   </Pressable>
                 </View>
               </View>
             ) : (
-              <Text style={styles.sponsorshipText}>
-                The project is waiting for teammates to respond to proposed sponsorship shares.
-              </Text>
+              <Text style={styles.sponsorshipText}>{t("group.project_detail.sponsor_waiting_text")}</Text>
             )}
           </View>
         )}
@@ -349,18 +391,20 @@ export default function GroupProjectDetailScreen() {
           <View style={[styles.sponsorshipCard, { borderColor: "#EF4444", backgroundColor: "#FEE2E2" }]}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons name="close-circle" size={20} color="#DC2626" style={{ marginRight: 6 }} />
-              <Text style={[styles.sponsorshipTitle, { color: "#991B1B" }]}>Sponsorship Failed</Text>
+              <Text style={[styles.sponsorshipTitle, { color: "#991B1B" }]}>
+                {t("group.project_detail.sponsor_failed_title")}
+              </Text>
             </View>
             <Text style={[styles.sponsorshipText, { color: "#7F1D1D", marginTop: 4 }]}>
-              This project has failed because members declined or lacked capacity to sponsor the deficit.
+              {t("group.project_detail.sponsor_failed_text")}
             </Text>
           </View>
         )}
 
         {/* Aggregate Progress */}
         <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Aggregate Progress</Text>
-          <ProgressBar percent={aggregateProgress} />
+          <Text style={styles.sectionLabel}>{t("group.project_detail.aggregate_title")}</Text>
+          <ProgressBar percent={aggregateProgress} styles={styles} />
           <View style={styles.aggregateRow}>
             <Text style={styles.aggregateAmount}>
               {formatCurrencyVND(project.aggregateMoneySaved)} / {formatCurrencyVND(requiredTarget)} VND
@@ -369,17 +413,19 @@ export default function GroupProjectDetailScreen() {
           </View>
           {showOriginalGoal && (
             <Text style={styles.originalGoalText}>
-              Original goal: {formatCurrencyVND(project.targetAmount)} VND
+              {t("group.project_detail.original_goal", { amount: formatCurrencyVND(project.targetAmount) })}
             </Text>
           )}
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
-              <Ionicons name="calendar-outline" size={14} color="#64748B" />
-              <Text style={styles.metaText}>{monthsLeft} month{monthsLeft !== 1 ? "s" : ""} left</Text>
+              <Ionicons name="calendar-outline" size={14} color={theme.subtext} />
+              <Text style={styles.metaText}>{t("group.project_detail.months_left", { count: monthsLeft })}</Text>
             </View>
             <View style={styles.metaItem}>
-              <Ionicons name="people-outline" size={14} color="#64748B" />
-              <Text style={styles.metaText}>{formatCurrencyVND(project.totalCapacity)} VND/month total</Text>
+              <Ionicons name="people-outline" size={14} color={theme.subtext} />
+              <Text style={styles.metaText}>
+                {t("group.project_detail.total_capacity", { amount: formatCurrencyVND(project.totalCapacity) })}
+              </Text>
             </View>
           </View>
         </View>
@@ -388,20 +434,22 @@ export default function GroupProjectDetailScreen() {
         {!alreadyJoined && project.status === "ACTIVE" && (
           <Pressable style={styles.joinBtn} onPress={() => setShowPriority(true)}>
             <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.joinBtnText}>Join Project</Text>
+            <Text style={styles.joinBtnText}>{t("group.project_detail.join_action")}</Text>
           </Pressable>
         )}
 
         {/* Members */}
-        <Text style={styles.sectionTitle}>Members</Text>
+        <Text style={styles.sectionTitle}>{t("group.detail.members_title")}</Text>
         {project.members.length === 0 ? (
-          <Text style={styles.emptyText}>No members have joined yet.</Text>
+          <Text style={styles.emptyText}>{t("group.project_detail.empty_members")}</Text>
         ) : (
           project.members.map((m) => (
             <MemberRow
               key={m.userId}
               member={m}
               isCurrentUser={m.userId === currentUserId}
+              styles={styles}
+              accent={accent}
               onPress={() => {
                 if (m.userId === currentUserId && m.personalProjectId) {
                   router.push(`/(tabs)/project/${m.personalProjectId}` as any);
@@ -423,7 +471,7 @@ export default function GroupProjectDetailScreen() {
             ) : (
               <>
                 <Ionicons name="trash-outline" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={styles.dissolveBtnText}>Dissolve Group Project</Text>
+                <Text style={styles.dissolveBtnText}>{t("group.project_detail.dissolve_action")}</Text>
               </>
             )}
           </Pressable>
@@ -441,12 +489,14 @@ export default function GroupProjectDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F6F6F8" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F6F6F8" },
-  errorText: { fontSize: 15, color: "#6B7280" },
+// Factory style theo theme: header brand giữ chữ/icon trắng, badge trạng thái giữ màu ngữ nghĩa.
+const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string) =>
+  StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.bg },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.bg },
+  errorText: { fontSize: 15, color: theme.subtext },
   header: {
-    backgroundColor: "#3629B7",
+    backgroundColor: theme.primary,
     paddingHorizontal: 20, paddingTop: 56, paddingBottom: 20,
     borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
     flexDirection: "row", alignItems: "center", gap: 10,
@@ -461,7 +511,7 @@ const styles = StyleSheet.create({
   statusChipText: { fontSize: 11, fontWeight: "700" },
   scrollContent: { padding: 20, paddingBottom: 60, gap: 14 },
   card: {
-    backgroundColor: "#FFFFFF", borderRadius: 18, padding: 18,
+    backgroundColor: surface, borderRadius: 18, padding: 18,
     shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
@@ -475,46 +525,46 @@ const styles = StyleSheet.create({
   },
   celebrationTitle: { fontSize: 18, fontWeight: "900", color: "#92400E", marginBottom: 6 },
   celebrationText: { fontSize: 13, color: "#78350F", textAlign: "center", lineHeight: 20 },
-  sectionLabel: { fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 12 },
-  progressBg: { height: 10, backgroundColor: "#E5E7EB", borderRadius: 999, overflow: "hidden", marginBottom: 8 },
-  progressFill: { height: "100%", backgroundColor: "#3629B7", borderRadius: 999 },
+  sectionLabel: { fontSize: 13, fontWeight: "600", color: theme.subtext, marginBottom: 12 },
+  progressBg: { height: 10, backgroundColor: theme.border, borderRadius: 999, overflow: "hidden", marginBottom: 8 },
+  progressFill: { height: "100%", backgroundColor: accent, borderRadius: 999 },
   aggregateRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-  aggregateAmount: { fontSize: 13, color: "#0F172A", fontWeight: "600" },
-  aggregatePercent: { fontSize: 18, fontWeight: "900", color: "#3629B7" },
-  originalGoalText: { fontSize: 11, color: "#94A3B8", marginBottom: 10 },
+  aggregateAmount: { fontSize: 13, color: theme.text, fontWeight: "600" },
+  aggregatePercent: { fontSize: 18, fontWeight: "900", color: accent },
+  originalGoalText: { fontSize: 11, color: theme.subtext, marginBottom: 10 },
   metaRow: { flexDirection: "row", gap: 16, flexWrap: "wrap" },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  metaText: { fontSize: 12, color: "#64748B" },
+  metaText: { fontSize: 12, color: theme.subtext },
   joinBtn: {
-    backgroundColor: "#3629B7", borderRadius: 16, height: 50,
+    backgroundColor: theme.primary, borderRadius: 16, height: 50,
     flexDirection: "row", justifyContent: "center", alignItems: "center",
     shadowColor: "#3629B7", shadowOpacity: 0.2, shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   joinBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
-  emptyText: { fontSize: 13, color: "#9CA3AF", textAlign: "center", paddingVertical: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: theme.text },
+  emptyText: { fontSize: 13, color: theme.subtext, textAlign: "center", paddingVertical: 12 },
   memberRow: {
-    backgroundColor: "#FFFFFF", borderRadius: 14, padding: 14,
+    backgroundColor: surface, borderRadius: 14, padding: 14,
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  memberRowHighlight: { borderWidth: 1.5, borderColor: "#3629B7" },
+  memberRowHighlight: { borderWidth: 1.5, borderColor: accent },
   memberRowAbandoned: { opacity: 0.4 },
   memberAvatar: {
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: "#EEF0FF", justifyContent: "center", alignItems: "center",
+    backgroundColor: accent + "20", justifyContent: "center", alignItems: "center",
     marginTop: 2,
   },
   memberInfo: { flex: 1 },
   memberTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  memberName: { flex: 1, fontSize: 13, fontWeight: "600", color: "#0F172A" },
+  memberName: { flex: 1, fontSize: 13, fontWeight: "600", color: theme.text },
   subStatusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginLeft: 8 },
   subStatusText: { fontSize: 10, fontWeight: "700" },
   memberAmountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
-  memberAmountText: { fontSize: 11, color: "#64748B" },
-  memberPercentText: { fontSize: 11, fontWeight: "700", color: "#3629B7" },
+  memberAmountText: { fontSize: 11, color: theme.subtext },
+  memberPercentText: { fontSize: 11, fontWeight: "700", color: accent },
   memberDebtRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   memberDebtText: { fontSize: 11, fontWeight: "700", color: "#DC2626" },
   dissolveBtn: {

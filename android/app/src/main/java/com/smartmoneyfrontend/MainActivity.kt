@@ -8,7 +8,9 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
-
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import expo.modules.ReactActivityDelegateWrapper
 
 class MainActivity : ReactActivity() {
@@ -21,6 +23,29 @@ class MainActivity : ReactActivity() {
     SplashScreenManager.registerOnActivity(this)
     // @generated end expo-splashscreen
     super.onCreate(null)
+
+    WindowCompat.setDecorFitsSystemWindows(window, false)
+    WindowInsetsControllerCompat(window, window.decorView).apply {
+        hide(
+            WindowInsetsCompat.Type.statusBars() or
+            WindowInsetsCompat.Type.navigationBars()
+        )
+
+        systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
+  }
+
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+      super.onWindowFocusChanged(hasFocus)
+
+      if (hasFocus) {
+          WindowInsetsControllerCompat(window, window.decorView).apply {
+              hide(WindowInsetsCompat.Type.systemBars())
+              systemBarsBehavior =
+                  WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+          }
+      }
   }
 
   /**

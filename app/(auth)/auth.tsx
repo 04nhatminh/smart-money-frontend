@@ -211,7 +211,7 @@ export default function AuthScreen() {
                 }
 
                 console.log('❌ Registration failed:', response.message);
-                setSignUpError(t("auth.registration_failed"));
+                setSignUpError(response.message || t("auth.registration_failed"));
 
                 if (response.errors) {
                     const errorMessages = Object.values(response.errors).flat();
@@ -275,7 +275,7 @@ export default function AuthScreen() {
             if (res.success) {
                 console.log('✅ Reset password OTP verified');
                 setShowResetPassword(true);
-                await setPendingVerifyEmail(null);
+                await setPendingVerifyEmail(email);
                 setShowOTPModal(false);
                 setSuccess(t("auth.email_verified"));
             } else {
@@ -490,27 +490,22 @@ export default function AuthScreen() {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.gradientBackground}
-                >
-                    {/* Decorative Circles */}
-                    <View style={styles.circle1} />
-                    <View style={styles.circle2} />
-                    <View style={styles.circle3} />
-                </LinearGradient>
-
-                {/* Header with Back Button */}
-                <Pressable style={styles.exitBtn} onPress={goBack}>
-                    <View style={styles.exitBtnInner}>
-                        <Ionicons name="arrow-back" size={24} color="#3629B7" />
-                    </View>
-                </Pressable>
-
-                {/* Language Switch */}
-                <View style={styles.languageSwitchContainer}>
-                    <LanguageSwitch />
-                </View>
+                />
 
                 {/* Main Content */}
                 <View style={styles.container}>
+                    {/* Top header: Back (when meaningful) + Language, in flow with login top */}
+                    <View style={styles.topHeader}>
+                        {(showResetPassword || showOTPModal || router.canGoBack()) ? (
+                            <Pressable style={styles.backBtn} onPress={goBack} hitSlop={8}>
+                                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                            </Pressable>
+                        ) : (
+                            <View style={{ width: 40, height: 40 }} />
+                        )}
+                        <LanguageSwitch />
+                    </View>
+
                     {/* Logo/Title Section */}
                     {!isKeyboardVisible && (
                         <View style={styles.logoContainer}>
@@ -626,38 +621,11 @@ const styles = StyleSheet.create({
         top: 0,
         bottom: 0,
     },
-    circle1: {
-        position: 'absolute',
-        width: width * 0.8,
-        height: width * 0.8,
-        borderRadius: width * 0.4,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        top: -width * 0.2,
-        right: -width * 0.2,
-    },
-    circle2: {
-        position: 'absolute',
-        width: width * 0.6,
-        height: width * 0.6,
-        borderRadius: width * 0.3,
-        backgroundColor: 'rgba(255, 255, 255, 0.08)',
-        bottom: -width * 0.1,
-        left: -width * 0.2,
-    },
-    circle3: {
-        position: 'absolute',
-        width: width * 0.4,
-        height: width * 0.4,
-        borderRadius: width * 0.2,
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        top: height * 0.3,
-        right: width * 0.1,
-    },
     container: {
         flex: 1,
     },
     logoContainer: {
-        paddingTop: 60,
+        paddingTop: 20,
         display: 'flex',
         height: height * 0.2,
         alignItems: 'center',
@@ -705,33 +673,21 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         paddingBottom: 20,
     },
-    exitBtn: {
-        position: 'absolute',
-        top: Platform.OS === 'ios' ? 60 : 40,
-        left: 20,
+    topHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 8 : 16,
         zIndex: 100,
     },
-    exitBtnInner: {
+    backBtn: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255,255,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#3629B7',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
-    },
-    languageSwitchContainer: {
-        position: 'absolute',
-        top: Platform.OS === 'ios' ? 60 : 40,
-        right: 20,
-        zIndex: 100,
     },
     socialSection: {
         marginTop: 20,

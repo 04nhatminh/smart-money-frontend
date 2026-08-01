@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -23,12 +23,22 @@ import BudgetPlanReview, {
 } from "../../src/components/projects/BudgetPlanReview";
 import BudgetPlanResult from "../../src/components/projects/BudgetPlanResult";
 import FinancialSetupModal from "../../src/components/financialSetup/FinancialSetupModal";
+import { useThemeMode } from "../../src/theme/ThemeProvider";
+import { Theme, ThemeMode } from "../../src/theme/tokens";
 
 const FINANCIAL_SETUP_REQUIRED = "FINANCIAL_SETUP_REQUIRED";
 
 export default function BudgetAllocationPage() {
   const router = useRouter();
   const { refreshUser } = useAuth();
+  const { theme, mode } = useThemeMode();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
+
+  const styles = useMemo(() => createStyles(theme, mode, accent, surface), [theme, mode, accent, surface]);
 
   const [computing, setComputing] = useState(false);
   const [computeError, setComputeError] = useState<string | null>(null);
@@ -120,14 +130,17 @@ export default function BudgetAllocationPage() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar
+        barStyle={mode === "dark" ? "light-content" : "dark-content"}
+        backgroundColor={surface}
+      />
 
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>{t("budget.title")}</Text>
@@ -147,7 +160,7 @@ export default function BudgetAllocationPage() {
         >
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="sparkles" size={20} color="#4B3FD6" />
+              <Ionicons name="sparkles" size={20} color={accent} />
               <Text style={styles.sectionTitle}>{t("budget.title")}</Text>
             </View>
 
@@ -250,10 +263,17 @@ export default function BudgetAllocationPage() {
   );
 }
 
-const styles = StyleSheet.create({
+// Style factory theo theme: nhận theme/mode/accent/surface để mọi màu nền/chữ đi theo token.
+const createStyles = (
+  theme: Theme,
+  mode: ThemeMode,
+  accent: string,
+  surface: string
+) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: theme.bg,
   },
   header: {
     flexDirection: "row",
@@ -262,20 +282,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: theme.border,
     marginTop: 10,
   },
   backButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: theme.inputBg,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#333",
+    color: theme.text,
   },
   scroll: {
     flex: 1,
@@ -287,7 +307,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   sectionCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: surface,
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
@@ -305,14 +325,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#111827",
+    color: theme.text,
   },
   budgetDesc: {
     fontSize: 14,
-    color: "#6B7280",
+    color: theme.subtext,
     lineHeight: 20,
     marginBottom: 16,
   },
+  // Giữ nguyên màu cảnh báo (amber) — màu ngữ nghĩa, không theo theme.
   warningCard: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -342,6 +363,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
+  // Giữ nguyên màu lỗi (đỏ) — màu ngữ nghĩa, không theo theme.
   errorCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -364,7 +386,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#4B3FD6",
+    // Nút tô đặc màu primary, giữ chữ trắng.
+    backgroundColor: theme.primary,
     borderRadius: 12,
     paddingVertical: 13,
     paddingHorizontal: 20,
@@ -381,7 +404,8 @@ const styles = StyleSheet.create({
   doneBtn: {
     height: 48,
     borderRadius: 14,
-    backgroundColor: "#4B3FD6",
+    // Nút tô đặc màu primary, giữ chữ trắng.
+    backgroundColor: theme.primary,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 16,

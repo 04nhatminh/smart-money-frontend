@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { t } from '../../i18n';
 import authService from '../../auth/authService';
 import { formatDateToDDMMYYYY } from '../../utils/dateFormatter';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useThemeMode } from '../../theme/ThemeProvider';
 import {
   DateTimePickerAndroid,
 } from '@react-native-community/datetimepicker';
@@ -47,6 +48,120 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const { lang } = useLanguage();
+  const { theme, mode } = useThemeMode();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    blurContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: surface,
+      borderTopLeftRadius: 30,
+      borderTopRightRadius: 30,
+      paddingHorizontal: 24,
+      paddingTop: 24,
+      maxHeight: '90%',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 24,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: mode === 'dark' ? theme.text : theme.primary,
+    },
+    form: {
+      maxHeight: '70%',
+    },
+    formGroup: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: mode === 'dark' ? theme.text : theme.primary,
+      marginBottom: 8,
+    },
+    dateButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      backgroundColor: theme.inputBg,
+      gap: 12,
+    },
+    dateButtonText: {
+      fontSize: 16,
+      color: theme.text,
+      flex: 1,
+    },
+    datePickerDoneButton: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginVertical: 10,
+    },
+    datePickerDoneButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    footer: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingVertical: 24,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    button: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelButton: {
+      backgroundColor: theme.inputBg,
+      borderWidth: 2,
+      borderColor: accent,
+    },
+    cancelButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: accent,
+    },
+    saveButton: {
+      backgroundColor: theme.primary,
+    },
+    saveButtonDisabled: {
+      opacity: 0.6,
+    },
+    saveButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
+  }), [theme, mode]);
 
   useEffect(() => {
     if (visible) {
@@ -121,7 +236,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             <View style={styles.header}>
               <Text style={styles.title}>{t('profile.edit_profile')}</Text>
               <TouchableOpacity onPress={onClose} disabled={loading}>
-                <Ionicons name="close" size={28} color="#3629B7" />
+                <Ionicons name="close" size={28} color={accent} />
               </TouchableOpacity>
             </View>
 
@@ -164,7 +279,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   }}
                   disabled={loading}
                 >
-                  <Ionicons name="calendar-outline" size={20} color="#3629B7" />
+                  <Ionicons name="calendar-outline" size={20} color={accent} />
                   <Text style={styles.dateButtonText}>
                     {dateOfBirth
                       ? dateOfBirth.toLocaleDateString('en-US', {
@@ -230,111 +345,3 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  blurContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F1F9',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#3629B7',
-  },
-  form: {
-    maxHeight: '70%',
-  },
-  formGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3629B7',
-    marginBottom: 8,
-  },
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#F2F1F9',
-    gap: 12,
-  },
-  dateButtonText: {
-    fontSize: 16,
-    color: '#333333',
-    flex: 1,
-  },
-  datePickerDoneButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#3629B7',
-    borderRadius: 12,
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  datePickerDoneButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#F2F1F9',
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#F2F1F9',
-    borderWidth: 2,
-    borderColor: '#3629B7',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#3629B7',
-  },
-  saveButton: {
-    backgroundColor: '#3629B7',
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-});

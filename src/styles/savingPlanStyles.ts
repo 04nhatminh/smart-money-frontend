@@ -1,316 +1,346 @@
 import { StyleSheet } from "react-native";
+import { useMemo } from "react";
+import { useThemeMode } from "../theme/ThemeProvider";
+import { Theme, ThemeMode } from "../theme/tokens";
 
-export const savingPlanStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F7F7F8",
-  },
+// ==================== DYNAMIC STYLES ====================
+// Styles cho luồng lập kế hoạch tiết kiệm (AI assistant + review),
+// build lại theo theme hiện tại (light / dark / green).
+export function useSavingPlanStyles() {
+  const { theme, mode } = useThemeMode();
 
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingTop: 56,
-    paddingBottom: 8,
-    backgroundColor: "#F7F7F8",
-  },
+  const styles = useMemo(
+    () => createSavingPlanStyles(theme, mode, accent, surface),
+    [theme, mode]
+  );
 
-  backButton: {
-    width: 28,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  return { styles, theme, mode, accent, surface };
+}
 
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#262626",
-  },
+const createSavingPlanStyles = (
+  theme: Theme,
+  mode: ThemeMode,
+  accent: string,
+  surface: string
+) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
 
-  assistantCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-    marginBottom: 18,
-  },
+    content: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
 
-  assistantHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
-  },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 20,
+      paddingTop: 56,
+      paddingBottom: 8,
+      backgroundColor: theme.bg,
+    },
 
-  assistantTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#202020",
-  },
+    backButton: {
+      width: 28,
+      height: 28,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  assistantQuestion: {
-    fontSize: 14,
-    color: "#4B5563",
-    marginBottom: 18,
-  },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: "700",
+      color: theme.text,
+    },
 
-  modeButtonRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
+    assistantCard: {
+      backgroundColor: surface,
+      borderRadius: 16,
+      padding: 16,
+      shadowColor: "#000",
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 3,
+      marginBottom: 18,
+    },
 
-  modeButton: {
-    flex: 1,
-    height: 42,
-    backgroundColor: "#EDECF3",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    assistantHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 16,
+    },
 
-  modeButtonActive: {
-    backgroundColor: "#3F2CCB",
-  },
+    assistantTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: theme.text,
+    },
 
-  modeButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#4B4B4B",
-  },
+    assistantQuestion: {
+      fontSize: 14,
+      color: theme.subtext,
+      marginBottom: 18,
+    },
 
-  modeButtonTextActive: {
-    color: "#FFFFFF",
-  },
+    modeButtonRow: {
+      flexDirection: "row",
+      gap: 12,
+    },
 
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#242424",
-    marginBottom: 10,
-  },
+    modeButton: {
+      flex: 1,
+      height: 42,
+      backgroundColor: theme.inputBg,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  suggestionBox: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D9D9DE",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-  },
+    modeButtonActive: {
+      backgroundColor: theme.primary,
+    },
 
-  suggestionText: {
-    fontSize: 14,
-    color: "#555",
-  },
+    modeButtonText: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.text,
+    },
 
-  questionText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2E2E2E",
-    marginBottom: 12,
-  },
+    modeButtonTextActive: {
+      color: "#FFFFFF",
+    },
 
-  yesNoRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.text,
+      marginBottom: 10,
+    },
 
-  lightButton: {
-    minWidth: 86,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#ECEAF2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    suggestionBox: {
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 16,
+    },
 
-  lightButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#4B4B4B",
-  },
+    suggestionText: {
+      fontSize: 14,
+      color: theme.subtext,
+    },
 
-  reviewTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#242424",
-    marginBottom: 10,
-  },
+    questionText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 12,
+    },
 
-  reviewCard: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D9D9DE",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 22,
-  },
+    yesNoRow: {
+      flexDirection: "row",
+      gap: 12,
+    },
 
-  reviewIntro: {
-    fontSize: 13,
-    color: "#707070",
-    marginBottom: 14,
-  },
+    lightButton: {
+      minWidth: 86,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: theme.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  reviewRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-    gap: 12,
-  },
+    lightButtonText: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.text,
+    },
 
-  reviewLabel: {
-    flex: 1,
-    fontSize: 15,
-    color: "#444",
-  },
+    reviewTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.text,
+      marginBottom: 10,
+    },
 
-  reviewValue: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#2D2D2D",
-  },
+    reviewCard: {
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 22,
+    },
 
-  reviewInput: {
-    minWidth: 140,
-    borderWidth: 1,
-    borderColor: "#D8D8DE",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    textAlign: "right",
-    fontSize: 14,
-    color: "#2D2D2D",
-    backgroundColor: "#FFF",
-  },
+    reviewIntro: {
+      fontSize: 13,
+      color: theme.subtext,
+      marginBottom: 14,
+    },
 
-  primaryButton: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#3F2CCB",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
+    reviewRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 10,
+      gap: 12,
+    },
 
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
+    reviewLabel: {
+      flex: 1,
+      fontSize: 15,
+      color: theme.subtext,
+    },
 
-  secondaryButton: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#ECEAF2",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
+    reviewValue: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.text,
+    },
 
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#444",
-  },
+    reviewInput: {
+      minWidth: 140,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      textAlign: "right",
+      fontSize: 14,
+      color: theme.text,
+      backgroundColor: theme.inputBg,
+    },
 
-  dangerButton: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#F3F1F8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    primaryButton: {
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: theme.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 12,
+    },
 
-  dangerButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FF4D6D",
-  },
+    primaryButtonText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
 
-  emptyWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
+    secondaryButton: {
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: theme.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 12,
+    },
 
-  emptyText: {
-    fontSize: 16,
-    color: "#7A7A7A",
-    textAlign: "center",
-  },
+    secondaryButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+    },
 
-  disabledButton: {
-    opacity: 0.6,
-  },
+    dangerButton: {
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: theme.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  stepHeader: {
-    marginBottom: 18,
-  },
+    dangerButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#FF4D6D",
+    },
 
-  stepActionRow: {
-    marginTop: 8,
-  },
+    emptyWrap: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 24,
+    },
 
-  aiStatusText: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
+    emptyText: {
+      fontSize: 16,
+      color: theme.subtext,
+      textAlign: "center",
+    },
 
-  aiAgreeText: {
-    color: "#16A34A",
-  },
+    disabledButton: {
+      opacity: 0.6,
+    },
 
-  aiAdjustText: {
-    color: "#4B3FD6",
-  },
+    stepHeader: {
+      marginBottom: 18,
+    },
 
-  suggestionErrorBox: {
-    borderColor: "#FFB4C2",
-    backgroundColor: "#FFF5F7",
-  },
+    stepActionRow: {
+      marginTop: 8,
+    },
 
-  suggestionErrorTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#FF4D6D",
-    marginBottom: 8,
-  },
+    aiStatusText: {
+      fontSize: 14,
+      fontWeight: "700",
+      marginBottom: 8,
+    },
 
-  suggestionErrorText: {
-    fontSize: 13,
-    color: "#555",
-    lineHeight: 20,
-    marginBottom: 14,
-  },
+    aiAgreeText: {
+      color: "#16A34A",
+    },
 
-  inlineEditButton: {
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "#FF4D6D",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    aiAdjustText: {
+      color: accent,
+    },
 
-  inlineEditButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 14,
-  },
+    // Hộp lỗi gợi ý: tint hồng cảnh báo cố định (mọi theme) — chữ trong đó
+    // cũng cố định tối để không thành chữ sáng trên nền sáng ở dark mode.
+    suggestionErrorBox: {
+      borderColor: "#FFB4C2",
+      backgroundColor: "#FFF5F7",
+    },
 
-});
+    suggestionErrorTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#FF4D6D",
+      marginBottom: 8,
+    },
+
+    suggestionErrorText: {
+      fontSize: 13,
+      color: "#555555",
+      lineHeight: 20,
+      marginBottom: 14,
+    },
+
+    inlineEditButton: {
+      height: 38,
+      borderRadius: 12,
+      backgroundColor: "#FF4D6D",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    inlineEditButtonText: {
+      color: "#FFFFFF",
+      fontWeight: "700",
+      fontSize: 14,
+    },
+
+  });

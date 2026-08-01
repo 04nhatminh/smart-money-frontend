@@ -6,6 +6,7 @@ import {
   BulkBudgetsResponse,
   BudgetItem,
 } from "../../api/budget.api";
+import { useThemeMode } from "../../theme/ThemeProvider";
 import { i18n, t } from "../../i18n";
 
 type Props = {
@@ -35,6 +36,102 @@ const ALERT: Record<
 };
 
 export default function BudgetPlanResult({ result }: Props) {
+  const { theme, mode } = useThemeMode();
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    wrap: {
+      marginTop: 16,
+      gap: 10,
+    },
+    successHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 4,
+    },
+    successTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: "#065F46",
+      flex: 1,
+    },
+    card: {
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      padding: 12,
+      gap: 8,
+    },
+    cardTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    cardName: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: theme.text,
+    },
+    pill: {
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    pillText: {
+      fontSize: 11,
+      fontWeight: "700",
+    },
+    progressTrack: {
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.inputBg,
+      overflow: "hidden",
+    },
+    progressFill: {
+      height: 8,
+      borderRadius: 4,
+    },
+    cardBottom: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      flexWrap: "wrap",
+      gap: 4,
+    },
+    metaText: {
+      fontSize: 12,
+      color: theme.subtext,
+    },
+    failCard: {
+      backgroundColor: "#FFFBEB",
+      borderWidth: 1,
+      borderColor: "#FDE68A",
+      borderRadius: 12,
+      padding: 12,
+      gap: 4,
+    },
+    failHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginBottom: 2,
+    },
+    failTitle: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#92400E",
+    },
+    failText: {
+      fontSize: 12,
+      color: "#92400E",
+      lineHeight: 17,
+    },
+  }), [theme, mode]);
+
   const formatter = useMemo(
     () => new Intl.NumberFormat(i18n.locale === "vi" ? "vi-VN" : "en-US"),
     []
@@ -112,93 +209,3 @@ export default function BudgetPlanResult({ result }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    marginTop: 16,
-    gap: 10,
-  },
-  successHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
-  },
-  successTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#065F46",
-    flex: 1,
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#EEF0F4",
-    borderRadius: 12,
-    padding: 12,
-    gap: 8,
-  },
-  cardTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  cardName: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  pill: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  pillText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#F1F1F4",
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: 8,
-    borderRadius: 4,
-  },
-  cardBottom: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
-  failCard: {
-    backgroundColor: "#FFFBEB",
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
-  },
-  failHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 2,
-  },
-  failTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#92400E",
-  },
-  failText: {
-    fontSize: 12,
-    color: "#92400E",
-    lineHeight: 17,
-  },
-});

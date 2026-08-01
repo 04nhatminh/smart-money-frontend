@@ -23,6 +23,8 @@ import GroupProjectSuggestionsModal from "../../src/components/groups/GroupProje
 import CreateGroupProjectModal from "../../src/components/groups/CreateGroupProjectModal";
 import { groupStorage } from "../../src/storage/groupStorage";
 import { parseCurrencyToNumber, formatNumberWithDots } from "../../src/utils/project";
+import { t } from "../../src/i18n";
+import { useLanguage } from "../../src/i18n/LanguageProvider";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   FORMING: { bg: "#FEF9C3", text: "#92400E" },
@@ -39,6 +41,8 @@ const INVITE_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  // Đọc lang để màn hình re-render khi người dùng đổi ngôn ngữ.
+  useLanguage();
 
   const [group, setGroup] = useState<GroupDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,7 +85,7 @@ export default function GroupDetailScreen() {
         if (storedProjectId) setLocalGroupProjectId(storedProjectId);
       }
     } catch {
-      Alert.alert("Error", "Could not load group details.");
+      Alert.alert(t("common.error"), t("group.detail.load_failed"));
     }
   }, [id]);
 
@@ -116,10 +120,10 @@ export default function GroupDetailScreen() {
       if (res.success && res.data) {
         setGroup(res.data);
       } else {
-        setLockError(res.message || "Could not lock group.");
+        setLockError(res.message || t("group.detail.lock_failed"));
       }
     } catch {
-      setLockError("Something went wrong.");
+      setLockError(t("common.error"));
     } finally {
       setLocking(false);
     }
@@ -133,12 +137,12 @@ export default function GroupDetailScreen() {
       const res = await GroupAPI.unlockGroup(group.groupId);
       if (res.success && res.data) {
         setGroup(res.data);
-        Alert.alert("Success", "Group unlocked successfully!");
+        Alert.alert(t("common.success"), t("group.detail.unlock_success"));
       } else {
-        setLockError(res.message || "Could not unlock group.");
+        setLockError(res.message || t("group.detail.unlock_failed"));
       }
     } catch {
-      setLockError("Something went wrong.");
+      setLockError(t("common.error"));
     } finally {
       setUnlocking(false);
     }
@@ -147,26 +151,26 @@ export default function GroupDetailScreen() {
   const handleDeleteGroup = () => {
     if (!group) return;
     Alert.alert(
-      "Delete Group",
-      "Are you sure you want to permanently delete this group?",
+      t("group.detail.delete_title"),
+      t("group.detail.delete_message"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Delete",
+          text: t("common.delete"),
           style: "destructive",
           onPress: async () => {
             setDeleting(true);
             try {
               const res = await GroupAPI.deleteGroup(group.groupId);
               if (res.success) {
-                Alert.alert("Deleted", "Group deleted successfully.", [
+                Alert.alert(t("group.detail.deleted_title"), t("group.detail.deleted_message"), [
                   { text: "OK", onPress: () => router.replace("/(tabs)/project") }
                 ]);
               } else {
-                Alert.alert("Error", res.message || "Could not delete group.");
+                Alert.alert(t("common.error"), res.message || t("group.detail.delete_failed"));
               }
             } catch {
-              Alert.alert("Error", "Something went wrong.");
+              Alert.alert(t("common.error"), t("group.detail.delete_failed"));
             } finally {
               setDeleting(false);
             }
@@ -183,15 +187,15 @@ export default function GroupDetailScreen() {
       const res = await GroupAPI.inviteMember(group.groupId, { email });
       if (res.success) {
         setSentEmails((prev) => ({ ...prev, [email]: true }));
-        Alert.alert("Success", `Invitation resent to ${email}!`);
+        Alert.alert(t("common.success"), t("group.detail.resend_success", { email }));
         setTimeout(() => {
           setSentEmails((prev) => ({ ...prev, [email]: false }));
         }, 4000);
       } else {
-        Alert.alert("Error", res.message || "Failed to resend invitation.");
+        Alert.alert(t("common.error"), res.message || t("group.detail.resend_failed"));
       }
     } catch {
-      Alert.alert("Error", "Something went wrong.");
+      Alert.alert(t("common.error"), t("group.detail.resend_failed"));
     } finally {
       setResendingEmail(null);
     }
@@ -208,11 +212,14 @@ export default function GroupDetailScreen() {
       const limitVal = parseCurrencyToNumber(autoSponsorLimit);
       if (limitVal > capacity) {
         Alert.alert(
-          "Limit Exceeds Capacity",
-          `The entered sponsor limit (${formatNumberWithDots(limitVal)} VND) exceeds your maximum capability (${formatNumberWithDots(capacity)} VND). Please select an option:`,
+          t("group.detail.sponsor_limit_exceed_title"),
+          t("group.detail.sponsor_limit_exceed_message", {
+            limit: formatNumberWithDots(limitVal),
+            capacity: formatNumberWithDots(capacity),
+          }),
           [
             {
-              text: "Switch to Max Capability",
+              text: t("group.detail.sponsor_switch_max"),
               onPress: async () => {
                 setAutoSponsorLimitType("MAX");
                 setAutoSponsorLimit("");
@@ -223,20 +230,20 @@ export default function GroupDetailScreen() {
                     limit: undefined,
                   });
                   if (res.success) {
-                    Alert.alert("Success", "Auto-sponsor settings updated successfully!");
+                    Alert.alert(t("common.success"), t("group.detail.sponsor_saved"));
                     await fetchGroup();
                   } else {
-                    Alert.alert("Error", res.message || "Could not save settings.");
+                    Alert.alert(t("common.error"), res.message || t("group.detail.sponsor_save_failed"));
                   }
                 } catch {
-                  Alert.alert("Error", "Something went wrong.");
+                  Alert.alert(t("common.error"), t("group.detail.sponsor_save_failed"));
                 } finally {
                   setIsSavingSponsorship(false);
                 }
               }
             },
             {
-              text: "Input another number",
+              text: t("group.detail.sponsor_input_another"),
               style: "cancel"
             }
           ]
@@ -257,13 +264,13 @@ export default function GroupDetailScreen() {
       });
 
       if (res.success) {
-        Alert.alert("Success", "Auto-sponsor settings updated successfully!");
+        Alert.alert(t("common.success"), t("group.detail.sponsor_saved"));
         await fetchGroup();
       } else {
-        Alert.alert("Error", res.message || "Could not save settings.");
+        Alert.alert(t("common.error"), res.message || t("group.detail.sponsor_save_failed"));
       }
     } catch {
-      Alert.alert("Error", "Something went wrong.");
+      Alert.alert(t("common.error"), t("group.detail.sponsor_save_failed"));
     } finally {
       setIsSavingSponsorship(false);
     }
@@ -271,12 +278,12 @@ export default function GroupDetailScreen() {
 
   const handleRemoveMember = (member: GroupMemberResponse) => {
     Alert.alert(
-      "Remove Member",
-      `Remove this member from the group?`,
+      t("group.detail.remove_title"),
+      t("group.detail.remove_message"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Remove",
+          text: t("group.detail.remove_confirm"),
           style: "destructive",
           onPress: async () => {
             if (!group) return;
@@ -285,7 +292,7 @@ export default function GroupDetailScreen() {
               await GroupAPI.removeDeclinedMember(group.groupId, member.userId);
               await fetchGroup();
             } catch {
-              Alert.alert("Error", "Could not remove member.");
+              Alert.alert(t("common.error"), t("group.detail.remove_failed"));
             } finally {
               setRemovingUserId(null);
             }
@@ -306,7 +313,7 @@ export default function GroupDetailScreen() {
   if (!group) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.errorText}>Group not found.</Text>
+        <Text style={styles.errorText}>{t("group.detail.not_found")}</Text>
       </SafeAreaView>
     );
   }
@@ -323,10 +330,6 @@ export default function GroupDetailScreen() {
   const hasGroupProject = !!resolvedGroupProjectId;
   const canCreateProject = isAdmin && group.status === "LOCKED" && !hasGroupProject;
 
-  const bypassDateGate = process.env.EXPO_PUBLIC_BYPASS_DATE_GATE === "true";
-  const today = new Date().getDate();
-  const outsideCreationWindow = !bypassDateGate && (today < 1 || today > 7);
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -337,7 +340,7 @@ export default function GroupDetailScreen() {
             router.canGoBack() ? router.back() : router.replace("/(tabs)/project")
           }
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
         <View style={{ width: 36 }} />
@@ -352,7 +355,9 @@ export default function GroupDetailScreen() {
         <View style={styles.card}>
           <View style={styles.cardRow}>
             <View style={[styles.statusChip, { backgroundColor: statusStyle.bg }]}>
-              <Text style={[styles.statusChipText, { color: statusStyle.text }]}>{group.status}</Text>
+              <Text style={[styles.statusChipText, { color: statusStyle.text }]}>
+                {t(`group.status.${group.status}`)}
+              </Text>
             </View>
           </View>
 
@@ -364,19 +369,19 @@ export default function GroupDetailScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{joinedCount}</Text>
-              <Text style={styles.statLabel}>Joined</Text>
+              <Text style={styles.statLabel}>{t("group.detail.stat_joined")}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={[styles.statValue, pendingCount > 0 && { color: "#D97706" }]}>{pendingCount}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statLabel}>{t("group.detail.stat_pending")}</Text>
             </View>
             {declinedCount > 0 && (
               <>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, { color: "#DC2626" }]}>{declinedCount}</Text>
-                  <Text style={styles.statLabel}>Declined</Text>
+                  <Text style={styles.statLabel}>{t("group.detail.stat_declined")}</Text>
                 </View>
               </>
             )}
@@ -385,21 +390,19 @@ export default function GroupDetailScreen() {
           {group.status === "FORMING" && nonAdminMembers.length === 0 && (
             <View style={styles.progressHint}>
               <Ionicons name="person-add-outline" size={14} color="#92400E" />
-              <Text style={styles.progressHintText}>Invite members, then lock the group when everyone is ready</Text>
+              <Text style={styles.progressHintText}>{t("group.detail.hint_invite_first")}</Text>
             </View>
           )}
           {group.status === "FORMING" && nonAdminMembers.length > 0 && (
             <View style={styles.progressHint}>
               <Ionicons name="information-circle-outline" size={14} color="#92400E" />
-              <Text style={styles.progressHintText}>
-                Lock the group when you're done inviting — at least one member must have joined
-              </Text>
+              <Text style={styles.progressHintText}>{t("group.detail.hint_ready_to_lock")}</Text>
             </View>
           )}
           {group.status === "LOCKED" && (
             <View style={[styles.progressHint, { backgroundColor: "#D1FAE5" }]}>
               <Ionicons name="lock-closed-outline" size={14} color="#065F46" />
-              <Text style={[styles.progressHintText, { color: "#065F46" }]}>Group locked — ready to create a project</Text>
+              <Text style={[styles.progressHintText, { color: "#065F46" }]}>{t("group.detail.hint_locked")}</Text>
             </View>
           )}
         </View>
@@ -411,7 +414,7 @@ export default function GroupDetailScreen() {
               <>
                 <Pressable style={styles.actionBtn} onPress={() => setShowInviteModal(true)}>
                   <Ionicons name="person-add-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.actionBtnText}>Invite Member</Text>
+                  <Text style={styles.actionBtnText}>{t("group.invite_title")}</Text>
                 </Pressable>
 
                 <Pressable
@@ -424,13 +427,13 @@ export default function GroupDetailScreen() {
                   ) : (
                     <>
                       <Ionicons name="lock-closed-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                      <Text style={styles.actionBtnText}>Lock Group</Text>
+                      <Text style={styles.actionBtnText}>{t("group.detail.action_lock")}</Text>
                     </>
                   )}
                 </Pressable>
 
                 {joinedCount === 0 && (
-                  <Text style={styles.lockHint}>At least one member must join before you can lock the group</Text>
+                  <Text style={styles.lockHint}>{t("group.detail.lock_hint")}</Text>
                 )}
               </>
             )}
@@ -446,7 +449,7 @@ export default function GroupDetailScreen() {
                 ) : (
                   <>
                     <Ionicons name="lock-open-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.actionBtnText}>Unlock Group</Text>
+                    <Text style={styles.actionBtnText}>{t("group.detail.action_unlock")}</Text>
                   </>
                 )}
               </Pressable>
@@ -463,7 +466,7 @@ export default function GroupDetailScreen() {
                 ) : (
                   <>
                     <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.actionBtnText}>Delete Group</Text>
+                    <Text style={styles.actionBtnText}>{t("group.detail.action_delete")}</Text>
                   </>
                 )}
               </Pressable>
@@ -480,14 +483,11 @@ export default function GroupDetailScreen() {
 
         {canCreateProject && (
           <Pressable
-            style={[styles.actionBtn, outsideCreationWindow && styles.actionBtnDisabled]}
-            onPress={() => !outsideCreationWindow && setShowCreateModal(true)}
-            disabled={outsideCreationWindow}
+            style={styles.actionBtn}
+            onPress={() => setShowCreateModal(true)}
           >
             <Ionicons name="folder-open-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.actionBtnText}>
-              {outsideCreationWindow ? "Projects open days 1–7 of month" : "Create Group Project"}
-            </Text>
+            <Text style={styles.actionBtnText}>{t("group.project_create_title")}</Text>
           </Pressable>
         )}
 
@@ -502,8 +502,8 @@ export default function GroupDetailScreen() {
                 <Ionicons name="folder-open" size={22} color="#3629B7" />
               </View>
               <View>
-                <Text style={styles.projectCardTitle}>Group Project</Text>
-                <Text style={styles.projectCardSub}>Tap to view progress &amp; join</Text>
+                <Text style={styles.projectCardTitle}>{t("group.detail.project_card_title")}</Text>
+                <Text style={styles.projectCardSub}>{t("group.detail.project_card_sub")}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
@@ -515,12 +515,8 @@ export default function GroupDetailScreen() {
           <View style={styles.card}>
             <View style={styles.autoSponsorHeader}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.autoSponsorTitle}>
-                  Auto-Sponsor Teammates
-                </Text>
-                <Text style={styles.autoSponsorDesc}>
-                  Automatically contribute using your surplus income if a teammate lacks funds.
-                </Text>
+                <Text style={styles.autoSponsorTitle}>{t("group.detail.sponsor_title")}</Text>
+                <Text style={styles.autoSponsorDesc}>{t("group.detail.sponsor_desc")}</Text>
               </View>
               <Switch
                 value={autoSponsorEnabled}
@@ -542,7 +538,7 @@ export default function GroupDetailScreen() {
                     color="#3629B7"
                     style={{ marginRight: 8 }}
                   />
-                  <Text style={styles.radioOptionText}>Sponsor maximum (Full surplus)</Text>
+                  <Text style={styles.radioOptionText}>{t("group.detail.sponsor_max")}</Text>
                 </Pressable>
 
                 <Pressable
@@ -555,12 +551,12 @@ export default function GroupDetailScreen() {
                     color="#3629B7"
                     style={{ marginRight: 8 }}
                   />
-                  <Text style={styles.radioOptionText}>Specific maximum monthly limit</Text>
+                  <Text style={styles.radioOptionText}>{t("group.detail.sponsor_custom")}</Text>
                 </Pressable>
 
                 {autoSponsorLimitType === "CUSTOM" && (
                   <View style={styles.customLimitContainer}>
-                    <Text style={styles.inputLabel}>Maximum limit per month (VND)</Text>
+                    <Text style={styles.inputLabel}>{t("group.detail.sponsor_limit_label")}</Text>
                     <TextInput
                       style={styles.customLimitInput}
                       keyboardType="numeric"
@@ -569,7 +565,7 @@ export default function GroupDetailScreen() {
                         const numeric = parseCurrencyToNumber(val);
                         setAutoSponsorLimit(numeric > 0 ? formatNumberWithDots(numeric) : "");
                       }}
-                      placeholder="e.g. 500.000"
+                      placeholder={t("group.detail.sponsor_limit_placeholder")}
                     />
                   </View>
                 )}
@@ -584,14 +580,14 @@ export default function GroupDetailScreen() {
               {isSavingSponsorship ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.saveSponsorBtnText}>Save Settings</Text>
+                <Text style={styles.saveSponsorBtnText}>{t("group.detail.sponsor_save")}</Text>
               )}
             </Pressable>
           </View>
         )}
 
         {/* Members list */}
-        <Text style={styles.sectionTitle}>Members</Text>
+        <Text style={styles.sectionTitle}>{t("group.detail.members_title")}</Text>
         {group.members.map((member) => {
           const iStyle = INVITE_STATUS_COLORS[member.inviteStatus] ?? INVITE_STATUS_COLORS.INVITED;
           const isDeclined = member.inviteStatus === "DECLINED";
@@ -602,22 +598,24 @@ export default function GroupDetailScreen() {
               </View>
               <View style={styles.memberInfo}>
                 <Text style={styles.memberUserId} numberOfLines={1}>
-                  {member.username ?? member.userId}{member.userId === user?.id ? " (You)" : ""}
+                  {member.username ?? member.userId}{member.userId === user?.id ? t("group.detail.you_suffix") : ""}
                 </Text>
               </View>
               <View style={styles.memberBadges}>
                 {member.role === "ADMIN" && (
                   <View style={styles.adminBadge}>
-                    <Text style={styles.adminBadgeText}>Admin</Text>
+                    <Text style={styles.adminBadgeText}>{t("group.detail.role_admin")}</Text>
                   </View>
                 )}
                 {member.role === "MEMBER" && (
                   <View style={[styles.adminBadge, { backgroundColor: "#F1F5F9" }]}>
-                    <Text style={[styles.adminBadgeText, { color: "#64748B" }]}>Member</Text>
+                    <Text style={[styles.adminBadgeText, { color: "#64748B" }]}>{t("group.detail.role_member")}</Text>
                   </View>
                 )}
                 <View style={[styles.inviteChip, { backgroundColor: iStyle.bg }]}>
-                  <Text style={[styles.inviteChipText, { color: iStyle.text }]}>{member.inviteStatus}</Text>
+                  <Text style={[styles.inviteChipText, { color: iStyle.text }]}>
+                    {t(`group.invite_status.${member.inviteStatus}`)}
+                  </Text>
                 </View>
                 {isAdmin && isDeclined && (
                   removingUserId === member.userId ? (
@@ -633,7 +631,7 @@ export default function GroupDetailScreen() {
                     <ActivityIndicator size="small" color="#3629B7" style={{ marginLeft: 6 }} />
                   ) : (
                     <Pressable onPress={() => handleResendInvite(member.email || "")} hitSlop={10} style={styles.resendBtn}>
-                      <Text style={styles.resendBtnText}>Resend</Text>
+                      <Text style={styles.resendBtnText}>{t("group.detail.resend")}</Text>
                     </Pressable>
                   )
                 )}

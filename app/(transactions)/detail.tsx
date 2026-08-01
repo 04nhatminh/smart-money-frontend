@@ -14,13 +14,14 @@ import { t } from "../../src/i18n";
 import { CATEGORY_ICONS_LIST } from "../../src/constants/categories";
 import transactionApi from "../../src/api/transaction.api";
 import { TransactionResponse } from "../../src/types/transaction.types";
-import { transactionStyles as styles } from "../../src/styles/transactionStyles";
+import { useTransactionStyles } from "../../src/styles/transactionStyles";
 import { ButtonSave } from "../../src/components/ButtonSave";
 import { EditTransactionModal } from "../../src/components/transactions/EditTransactionModal";
 import { formatVND } from "../../src/utils/formatCurrency";
 
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { styles, theme } = useTransactionStyles();
 
   const [transaction, setTransaction] = useState<TransactionResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -114,16 +115,16 @@ export default function TransactionDetailScreen() {
   const isExpense = transaction?.type === "EXPENSE";
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
+
       {loading ? (
         <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
-          <ActivityIndicator size="large" color="#3629B7" />
-          <Text style={{ marginTop: 12 }}>{t("common.loading")}</Text>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={{ marginTop: 12, color: theme.text }}>{t("common.loading")}</Text>
         </View>
       ) : !transaction ? (
         <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
-          <Text> "Transaction not found"</Text>
+          <Text style={{ color: theme.text }}> "Transaction not found"</Text>
         </View>
       ) : (
         <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
@@ -155,14 +156,17 @@ export default function TransactionDetailScreen() {
 
           <View style={styles.card}>
             <Row
+              styles={styles}
               label={t("transaction.date") || "Date"}
               value={transaction.date}
             />
             <Row
+              styles={styles}
               label={t("transaction.type") || "Type"}
               value={t(`transaction.${transaction.type.toLowerCase()}`)}
             />
             <Row
+              styles={styles}
               label={t("transaction.description") || "Description"}
               value={transaction.description || t("transaction.noDescription")}
             />
@@ -200,9 +204,11 @@ export default function TransactionDetailScreen() {
 }
 
 const Row = ({
+  styles,
   label,
   value,
 }: {
+  styles: ReturnType<typeof useTransactionStyles>["styles"];
   label: string;
   value: string | number;
 }) => (

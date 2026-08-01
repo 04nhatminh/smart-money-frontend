@@ -1,4 +1,4 @@
-export type ThemeMode = "light" | "dark";
+export type ThemeMode = "light" | "dark" | "green" | "purple";
 
 export type Theme = {
   mode: string;
@@ -41,4 +41,32 @@ export const themes: Record<ThemeMode, Theme> = {
     fabIcon: "#111827",
     mode: "dark"
   },
+  green: {
+    bg: "#F7FFF8",
+    card: "rgb(0, 77, 17)",
+    text: "#111827",
+    subtext: "#6B7280",
+    inputBg: "#F3F4F6",
+    border: "#D9F5E2",
+    primary: "#22C55E",
+    link: "#22C55E",
+    fabBg: "#111827",
+    fabIcon: "#FFFFFF",
+    mode: "green"
+  },
+  // Tím pastel — giống green: card là màu đậm đại diện theme (dùng làm màu
+  // chữ trên balance card ảnh sáng), surface trắng được special-case ở nơi cần.
+  purple: {
+    bg: "#FFF9F5",
+    card: "#5B3A8E",
+    text: "#2D2440",
+    subtext: "#7C7295",
+    inputBg: "#F6F1FA",
+    border: "#EADFF3",
+    primary: "#A855F7",
+    link: "#EC4899",
+    fabBg: "#5B3A8E",
+    fabIcon: "#FFFFFF",
+    mode: "purple"
+  }
 };

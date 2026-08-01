@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { t } from '../../i18n';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useThemeMode } from '../../theme/ThemeProvider';
 import NotificationNative from '../../notification/NotificationNative';
 import { NotificationListenerService } from '../../notification/NotificationListenerService';
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -30,9 +31,87 @@ export const PrivacyAndSecurityModal: React.FC<PrivacyAndSecurityModalProps> = (
   onClose,
 }) => {
   const { lang } = useLanguage();
+  const { theme, mode } = useThemeMode();
   const [hasPermission, setHasPermission] = React.useState<boolean | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [enabled, setEnabled] = React.useState(false);
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === 'dark' ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    blurContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: surface,
+      borderTopLeftRadius: 30,
+      borderTopRightRadius: 30,
+      paddingHorizontal: 24,
+      paddingTop: 24,
+      paddingBottom: 32,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 24,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: mode === 'dark' ? theme.text : theme.primary,
+    },
+    content: {
+      alignItems: 'center',
+      paddingVertical: 16,
+    },
+    icon: {
+      marginBottom: 16,
+    },
+    description: {
+      fontSize: 16,
+      color: theme.text,
+      textAlign: 'center',
+      lineHeight: 24,
+      marginBottom: 12,
+    },
+    switchLabel: {
+      fontSize: 16,
+      color: theme.text,
+      flex: 1,
+      marginRight: 12,
+    },
+    hint: {
+      marginTop: 12,
+      fontSize: 13,
+      color: theme.subtext,
+      textAlign: 'center',
+    },
+    button: {
+      backgroundColor: theme.primary,
+      paddingVertical: 14,
+      borderRadius: 8,
+      width: '100%',
+      alignItems: 'center',
+    },
+    buttonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+  }), [theme, mode]);
 
   const loadEnabled = async () => {
     const val = await AsyncStorage.getItem(ENABLE_KEY);
@@ -99,20 +178,22 @@ export const PrivacyAndSecurityModal: React.FC<PrivacyAndSecurityModalProps> = (
               </Text>
 
               <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={28} color="#3629B7" />
+                <Ionicons name="close" size={28} color={accent} />
               </TouchableOpacity>
             </View>
 
             <View style={{ marginTop: 20, width: '100%' }}>
               {/* Switch */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 16 }}>
+                <Text style={styles.switchLabel}>
                   {t('notification.enable_bank_notification')}
                 </Text>
 
                 <Switch
                   value={enabled}
                   onValueChange={handleToggle}
+                  trackColor={{ false: theme.border, true: theme.primary }}
+                  ios_backgroundColor={theme.border}
                 />
               </View>
 
@@ -135,71 +216,5 @@ export const PrivacyAndSecurityModal: React.FC<PrivacyAndSecurityModalProps> = (
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  blurContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 32,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F1F9',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#3629B7',
-  },
-  content: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  icon: {
-    marginBottom: 16,
-  },
-  description: {
-    fontSize: 16,
-    color: '#333333',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 12,
-  },
-  hint: {
-    marginTop: 12,
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  button: {
-    backgroundColor: '#3629B7',
-    paddingVertical: 14,
-    borderRadius: 8,
-    width: '100%',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
 
 export default PrivacyAndSecurityModal;

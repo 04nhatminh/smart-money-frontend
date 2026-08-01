@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { GroupAPI } from "../src/api/group.api";
+import { useThemeMode } from "../src/theme/ThemeProvider";
+import { Theme, ThemeMode } from "../src/theme/tokens";
 import { groupStorage } from "../src/storage/groupStorage";
 import { useAuth } from "../src/context/AuthContext";
 import { t } from "../src/i18n";
@@ -21,6 +23,14 @@ import { getGroupProjectErrorMessage } from "../src/utils/groupProjectErrors";
 export default function AcceptInviteScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const { isSignedIn } = useAuth();
+  const { theme, mode } = useThemeMode();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
+
+  const styles = useMemo(() => createStyles(theme, mode, accent, surface), [theme, mode]);
 
   const [processing, setProcessing] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -110,7 +120,7 @@ export default function AcceptInviteScreen() {
   if (!isSignedIn) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3F2CCB" />
+        <ActivityIndicator size="large" color={theme.primary} />
         <Text style={styles.loadingText}>Redirecting to login...</Text>
       </SafeAreaView>
     );
@@ -132,7 +142,7 @@ export default function AcceptInviteScreen() {
       <View style={styles.content}>
         <View style={styles.card}>
           <View style={styles.iconContainer}>
-            <MaterialCommunityIcons name="account-group-outline" size={60} color="#3F2CCB" />
+            <MaterialCommunityIcons name="account-group-outline" size={60} color={accent} />
           </View>
           <Text style={styles.title}>You're Invited!</Text>
           <Text style={styles.description}>
@@ -179,53 +189,55 @@ export default function AcceptInviteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F6F6F8" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F6F6F8" },
-  loadingText: { marginTop: 12, fontSize: 16, color: "#6B7280", fontWeight: "500" },
-  header: {
-    backgroundColor: "#3F2CCB",
-    paddingHorizontal: 20,
-    paddingTop: 56,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backButton: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center", alignItems: "center",
-  },
-  headerTitle: { fontSize: 20, fontWeight: "800", color: "#FFFFFF" },
-  content: { flex: 1, padding: 20, justifyContent: "center" },
-  card: {
-    backgroundColor: "#FFFFFF", borderRadius: 24, padding: 24, alignItems: "center",
-    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 15,
-    shadowOffset: { width: 0, height: 6 }, elevation: 4,
-  },
-  iconContainer: {
-    width: 100, height: 100, borderRadius: 50,
-    backgroundColor: "#EEF0FF",
-    justifyContent: "center", alignItems: "center", marginBottom: 20,
-  },
-  title: { fontSize: 24, fontWeight: "900", color: "#0F172A", marginBottom: 10 },
-  description: { fontSize: 14, color: "#64748B", textAlign: "center", lineHeight: 22, marginBottom: 28 },
-  acceptButton: {
-    width: "100%", height: 52, backgroundColor: "#3F2CCB", borderRadius: 16,
-    flexDirection: "row", justifyContent: "center", alignItems: "center",
-    shadowColor: "#3F2CCB", shadowOpacity: 0.25, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 }, elevation: 3, marginBottom: 12,
-  },
-  buttonPressed: { opacity: 0.9 },
-  buttonDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
-  acceptButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
-  declineButton: {
-    width: "100%", height: 50,
-    justifyContent: "center", alignItems: "center",
-    borderWidth: 1, borderColor: "#EF4444", borderRadius: 16,
-  },
-  declineButtonText: { color: "#EF4444", fontSize: 15, fontWeight: "600" },
-});
+const createStyles = (theme: Theme, mode: ThemeMode, accent: string, surface: string) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.bg },
+    loadingText: { marginTop: 12, fontSize: 16, color: theme.subtext, fontWeight: "500" },
+    // Header nền primary đậm — chữ/icon trên đó giữ trắng cố định.
+    header: {
+      backgroundColor: theme.primary,
+      paddingHorizontal: 20,
+      paddingTop: 56,
+      paddingBottom: 20,
+      borderBottomLeftRadius: 24,
+      borderBottomRightRadius: 24,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    backButton: {
+      width: 40, height: 40, borderRadius: 20,
+      backgroundColor: "rgba(255,255,255,0.2)",
+      justifyContent: "center", alignItems: "center",
+    },
+    headerTitle: { fontSize: 20, fontWeight: "800", color: "#FFFFFF" },
+    content: { flex: 1, padding: 20, justifyContent: "center" },
+    card: {
+      backgroundColor: surface, borderRadius: 24, padding: 24, alignItems: "center",
+      shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 15,
+      shadowOffset: { width: 0, height: 6 }, elevation: 4,
+    },
+    iconContainer: {
+      width: 100, height: 100, borderRadius: 50,
+      backgroundColor: accent + "20",
+      justifyContent: "center", alignItems: "center", marginBottom: 20,
+    },
+    title: { fontSize: 24, fontWeight: "900", color: theme.text, marginBottom: 10 },
+    description: { fontSize: 14, color: theme.subtext, textAlign: "center", lineHeight: 22, marginBottom: 28 },
+    acceptButton: {
+      width: "100%", height: 52, backgroundColor: theme.primary, borderRadius: 16,
+      flexDirection: "row", justifyContent: "center", alignItems: "center",
+      shadowColor: theme.primary, shadowOpacity: 0.25, shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 }, elevation: 3, marginBottom: 12,
+    },
+    buttonPressed: { opacity: 0.9 },
+    buttonDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
+    acceptButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+    declineButton: {
+      width: "100%", height: 50,
+      justifyContent: "center", alignItems: "center",
+      borderWidth: 1, borderColor: "#EF4444", borderRadius: 16,
+    },
+    declineButtonText: { color: "#EF4444", fontSize: 15, fontWeight: "600" },
+  });

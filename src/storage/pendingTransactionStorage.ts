@@ -27,6 +27,10 @@ export type PendingTransaction = {
   processingStatus?: ProcessingStatus;
   processingError?: string;
 
+  // File gốc trên máy (ảnh/audio) — persist để có thể resume upload
+  // nếu app bị kill trước khi submit xong AI job.
+  localFileUri?: string;
+
   // AI Job
   jobId?: string;
 
@@ -113,6 +117,11 @@ class PendingStorage {
 
   find(id: string) {
     return this.queue.find((t) => t.id === id);
+  }
+
+  // Fallback khi jobMap (in-memory) đã mất sau khi app bị kill: jobId được persist trên item.
+  findByJobId(jobId: string) {
+    return this.queue.find((t) => t.jobId === jobId);
   }
 
   update(id: string, updatedFields: Partial<Omit<PendingTransaction, "id">>) {

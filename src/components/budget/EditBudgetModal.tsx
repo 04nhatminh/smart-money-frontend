@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, Text, View, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -9,6 +9,7 @@ import SuccessModal from "../SuccessModal";
 import { budgetAPI, BudgetItem } from "../../api/budget.api";
 import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../utils/dataRefreshEmitter";
 import { t } from "../../i18n";
+import { useThemeMode } from "../../theme/ThemeProvider";
 
 interface EditBudgetModalProps {
     visible: boolean;
@@ -23,6 +24,54 @@ export default function EditBudgetModal({
     onClose,
     onUpdated,
 }: EditBudgetModalProps) {
+    const { theme, mode } = useThemeMode();
+
+    // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+    const accent = mode === "dark" ? theme.link : theme.primary;
+    // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+    const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
+
+    const styles = useMemo(() => StyleSheet.create({
+        overlay: {
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            paddingHorizontal: 20,
+        },
+        container: {
+            backgroundColor: surface,
+            borderRadius: 20,
+            padding: 20,
+        },
+        header: {
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 8,
+        },
+        title: {
+            fontSize: 18,
+            fontWeight: "700",
+            color: theme.text,
+        },
+        desc: {
+            fontSize: 13,
+            color: theme.subtext,
+            marginBottom: 16,
+        },
+        label: {
+            fontSize: 13,
+            fontWeight: "600",
+            color: theme.text,
+            marginBottom: 6,
+        },
+        buttonRow: {
+            flexDirection: "row",
+            gap: 12,
+            marginTop: 8,
+        },
+    }), [theme, mode]);
+
     const [amountLimit, setAmountLimit] = useState(String(budget.amountLimit));
     const [error, setError] = useState<string | undefined>(undefined);
     const [saving, setSaving] = useState(false);
@@ -94,7 +143,7 @@ export default function EditBudgetModal({
                         <View style={styles.header}>
                             <Text style={styles.title}>{t("budget.edit_budget")}</Text>
                             <Pressable onPress={onClose} hitSlop={10}>
-                                <Ionicons name="close" size={24} color="#333" />
+                                <Ionicons name="close" size={24} color={theme.text} />
                             </Pressable>
                         </View>
 
@@ -154,43 +203,3 @@ export default function EditBudgetModal({
     );
 }
 
-const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        justifyContent: "center",
-        paddingHorizontal: 20,
-    },
-    container: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 20,
-        padding: 20,
-    },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 8,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#333",
-    },
-    desc: {
-        fontSize: 13,
-        color: "#6B7280",
-        marginBottom: 16,
-    },
-    label: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: "#333",
-        marginBottom: 6,
-    },
-    buttonRow: {
-        flexDirection: "row",
-        gap: 12,
-        marginTop: 8,
-    },
-});

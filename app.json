@@ -7,14 +7,20 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch",
+          "processing"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -68,7 +74,8 @@
           "savePhotosPermission": "Allow Smart Money to save photos",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ]
   }
 }

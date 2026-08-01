@@ -23,7 +23,9 @@ type Props = {
 };
 
 export function RecordingPreview({ audioUri, onRetake, onConfirm, isSubmitting, onCancel }: Props) {
-  const { theme } = useThemeMode();
+  const { theme, mode } = useThemeMode();
+  // Theme "green" co token card mau xanh dam (danh cho accent) nen surface dung trang.
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
 
   const soundRef = React.useRef<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -147,7 +149,7 @@ export function RecordingPreview({ audioUri, onRetake, onConfirm, isSubmitting, 
           {/* Content */}
           <View style={styles.content}>
             {/* Audio Playback Area */}
-            <View style={[styles.playbackArea, { backgroundColor: theme.card }]}>
+            <View style={[styles.playbackArea, { backgroundColor: surface }]}>
               <MaterialCommunityIcons
                 name="waveform"
                 size={80}
@@ -214,7 +216,7 @@ export function RecordingPreview({ audioUri, onRetake, onConfirm, isSubmitting, 
                 borderColor: theme.border,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: "#F2F1F9",
+                backgroundColor: theme.inputBg,
               }}
             >
               <Text style={{ color: theme.text, fontWeight: "600" }}>Retake</Text>

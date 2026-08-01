@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -20,6 +20,7 @@ import {
 import { FinancialSetupApi } from "../../api/financialSetup.api";
 import { useAuth } from "../../context/AuthContext";
 import { t } from "../../i18n";
+import { useThemeMode } from "../../theme/ThemeProvider";
 
 type Props = {
   visible: boolean;
@@ -58,6 +59,169 @@ export default function FinancialSetupModal({
   onSuccess,
 }: Props) {
   const { updateCachedUser } = useAuth();
+  const { theme, mode: themeMode } = useThemeMode();
+
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = themeMode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = themeMode === "green" || themeMode === "purple" ? "#FFFFFF" : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    keyboardContainer: {
+      flex: 1,
+    },
+
+    overlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.22)",
+    },
+
+    onboardingOverlay: {
+      justifyContent: "flex-start",
+    },
+
+    editOverlay: {
+      justifyContent: "flex-end",
+    },
+
+    container: {
+      backgroundColor: surface,
+    },
+
+    onboardingContainer: {
+      flex: 1,
+      marginTop: 28,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      overflow: "hidden",
+    },
+
+    editContainer: {
+      height: "90%",
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      overflow: "hidden",
+    },
+
+    centerContainer: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 28,
+    },
+
+    loadingText: {
+      marginTop: 12,
+      color: accent,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+
+    errorIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
+      backgroundColor: "#FEE2E2",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 14,
+    },
+
+    errorTitle: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: theme.text,
+      textAlign: "center",
+      marginBottom: 8,
+    },
+
+    errorMessage: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: theme.subtext,
+      textAlign: "center",
+    },
+
+    errorActions: {
+      width: "100%",
+      marginTop: 20,
+    },
+
+    retryButton: {
+      minHeight: 46,
+      borderRadius: 12,
+      backgroundColor: theme.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    retryButtonText: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "700",
+    },
+
+    closeButton: {
+      minHeight: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 8,
+    },
+
+    closeButtonText: {
+      color: accent,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+
+    successContainer: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 28,
+    },
+
+    successIcon: {
+      width: 80,
+      height: 80,
+      borderRadius: 24,
+      backgroundColor: "#D1FAE5",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 18,
+    },
+
+    successTitle: {
+      fontSize: 22,
+      fontWeight: "800",
+      color: theme.text,
+      textAlign: "center",
+      marginBottom: 8,
+    },
+
+    successDescription: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: theme.subtext,
+      textAlign: "center",
+      marginBottom: 24,
+    },
+
+    continueButton: {
+      width: "100%",
+      minHeight: 48,
+      borderRadius: 12,
+      backgroundColor: theme.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    continueButtonText: {
+      color: "#FFFFFF",
+      fontSize: 15,
+      fontWeight: "700",
+    },
+  }), [theme, themeMode]);
 
   const [setup, setSetup] = useState<Partial<FinancialSetup> | null>(
     initialValue ?? null
@@ -185,7 +349,7 @@ export default function FinancialSetupModal({
         </View>
       ) : loadingSetup ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#4B3FD6" />
+          <ActivityIndicator size="large" color={theme.primary} />
           <Text style={styles.loadingText}>
             {t("financialSetup.loading")}
           </Text>
@@ -252,7 +416,7 @@ export default function FinancialSetupModal({
           >
             {loadingSetup ? (
               <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color="#4B3FD6" />
+                <ActivityIndicator size="large" color={theme.primary} />
 
                 <Text style={styles.loadingText}>
                   {t("financialSetup.loading")}
@@ -315,160 +479,3 @@ export default function FinancialSetupModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  keyboardContainer: {
-    flex: 1,
-  },
-
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.22)",
-  },
-
-  onboardingOverlay: {
-    justifyContent: "flex-start",
-  },
-
-  editOverlay: {
-    justifyContent: "flex-end",
-  },
-
-  container: {
-    backgroundColor: "#FFFFFF",
-  },
-
-  onboardingContainer: {
-    flex: 1,
-    marginTop: 28,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: "hidden",
-  },
-
-  editContainer: {
-    height: "90%",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: "hidden",
-  },
-
-  centerContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 28,
-  },
-
-  loadingText: {
-    marginTop: 12,
-    color: "#4B3FD6",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  errorIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: "#FEE2E2",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#111827",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-
-  errorMessage: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: "#6B7280",
-    textAlign: "center",
-  },
-
-  errorActions: {
-    width: "100%",
-    marginTop: 20,
-  },
-
-  retryButton: {
-    minHeight: 46,
-    borderRadius: 12,
-    backgroundColor: "#4B3FD6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-
-  closeButton: {
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-  },
-
-  closeButtonText: {
-    color: "#4B3FD6",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-
-  successContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 28,
-  },
-
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: "#D1FAE5",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 18,
-  },
-
-  successTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-
-  successDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#6B7280",
-    textAlign: "center",
-    marginBottom: 24,
-  },
-
-  continueButton: {
-    width: "100%",
-    minHeight: 48,
-    borderRadius: 12,
-    backgroundColor: "#4B3FD6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  continueButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-});

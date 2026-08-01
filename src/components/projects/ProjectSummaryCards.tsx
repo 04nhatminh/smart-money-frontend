@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, View } from "react-native";
-import { projectListStyles as styles } from "../../styles/projectListStyles";
+import { useProjectListStyles } from "../../styles/projectListStyles";
 import { formatCurrencyVND } from "../../utils/project";
 import { t } from "../../i18n";
 
@@ -13,6 +13,8 @@ export default function ProjectSummaryCards({
   totalSaved,
   totalAmount,
 }: Props) {
+  const { styles } = useProjectListStyles();
+
   return (
     <View style={styles.summaryRow}>
       <View style={[styles.summaryCard, styles.savedCard]}>

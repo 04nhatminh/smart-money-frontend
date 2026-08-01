@@ -1,8 +1,9 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PendingStorage, { pendingEventBus } from "../../storage/pendingTransactionStorage";
+import { useThemeMode } from "../../theme/ThemeProvider";
 
 type QuickFeatureSectionProps = {
   onOpenCreateProject: () => void;
@@ -14,6 +15,75 @@ export default function QuickFeatureSection({
   onOpenClassify,
 }: QuickFeatureSectionProps) {
   const [pendingCount, setPendingCount] = useState(0);
+  const { theme, mode } = useThemeMode();
+
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === 'green' || mode === 'purple' ? '#FFFFFF' : theme.card;
+
+  const styles = useMemo(() => StyleSheet.create({
+    quickFeatureWrapper: {
+      marginBottom: 15,
+    },
+
+    quickFeatureContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: theme.inputBg,
+      borderRadius: 22,
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+    },
+
+    quickFeatureItem: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    quickFeatureIconBox: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      backgroundColor: surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 10,
+
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+
+    quickFeatureLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.text,
+      textAlign: 'center',
+    },
+
+    badge: {
+      position: "absolute",
+      top: -5,
+      right: -5,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: "#EF4444",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 4,
+    },
+
+    badgeText: {
+      color: "#FFF",
+      fontSize: 10,
+      fontWeight: "700",
+    },
+  }), [theme, mode]);
+
   const quickFeatures = [
     {
       id: 'project',
@@ -68,13 +138,13 @@ export default function QuickFeatureSection({
                 <Ionicons
                   name={item.iconName as any}
                   size={22}
-                  color="#1F2937"
+                  color={theme.text}
                 />
               ) : (
                 <MaterialCommunityIcons
                   name={item.iconName as any}
                   size={22}
-                  color="#1F2937"
+                  color={theme.text}
                 />
               )}
 
@@ -94,67 +164,3 @@ export default function QuickFeatureSection({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  quickFeatureWrapper: {
-    marginBottom: 15,
-  },
-
-  quickFeatureContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#EDF4F4',
-    borderRadius: 22,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-  },
-
-  quickFeatureItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  quickFeatureIconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-
-  quickFeatureLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#111827',
-    textAlign: 'center',
-  },
-
-  badge: {
-    position: "absolute",
-    top: -5,
-    right: -5,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#EF4444",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 4,
-  },
-
-  badgeText: {
-    color: "#FFF",
-    fontSize: 10,
-    fontWeight: "700",
-  },
-});

@@ -4,7 +4,7 @@ import { Alert, Modal, View, ScrollView, KeyboardAvoidingView, Keyboard, Platfor
 import SuccessModal from "../SuccessModal";
 import ConfirmExitModal from "../ConfirmExitModal";
 
-import { projectStyles as styles } from "../../styles/projectStyles";
+import { useProjectStyles } from "../../styles/projectStyles";
 import { useCreateProject } from "../../hooks/useCreateProject";
 import { getMonthsFromDeadline } from "../../utils/project";
 import {
@@ -55,6 +55,7 @@ export default function CreateProjectModal({
     initialAmount,
     initialDeadline,
 }: Props) {
+    const { styles, theme } = useProjectStyles();
     const { user, refreshUser } = useAuth();
     const scrollViewRef = useRef<ScrollView>(null);
     const scrollOffsetRef = useRef(0);
@@ -709,7 +710,7 @@ export default function CreateProjectModal({
                                             onPress={handleBudgetGenerationClose}
                                             disabled={budgetSaveLoading}
                                         >
-                                            <Text style={{ fontSize: 15, fontWeight: "600", color: "#6B7280" }}>
+                                            <Text style={{ fontSize: 15, fontWeight: "600", color: theme.subtext }}>
                                                 {t("project.skip")}
                                             </Text>
                                         </Pressable>

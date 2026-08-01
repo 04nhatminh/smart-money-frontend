@@ -1,227 +1,261 @@
 import { StyleSheet } from "react-native";
+import { useMemo } from "react";
+import { useThemeMode } from "../theme/ThemeProvider";
+import { Theme, ThemeMode } from "../theme/tokens";
 
-export const transactionStyles = StyleSheet.create({
+// ==================== DYNAMIC STYLES ====================
+// Styles dùng chung cho màn hình chi tiết giao dịch + modal thêm/sửa,
+// build lại theo theme hiện tại (light / dark / green).
+export function useTransactionStyles() {
+  const { theme, mode } = useThemeMode();
 
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#F6F6F6"
-  },
+  // Accent: dark mode dùng link (sáng hơn primary) cho đủ tương phản trên nền tối.
+  const accent = mode === "dark" ? theme.link : theme.primary;
+  // Theme "green" có token card màu xanh đậm (dành cho accent) nên surface dùng trắng.
+  const surface = mode === "green" || mode === "purple" ? "#FFFFFF" : theme.card;
 
-  title: {
-    fontSize: 26,
-    fontWeight: "600",
-    marginBottom: 20
-  },
+  const styles = useMemo(
+    () => createTransactionStyles(theme, mode, accent, surface),
+    [theme, mode]
+  );
 
-  typeRow: {
-    flexDirection: "row",
-    marginBottom: 20
-  },
+  return { styles, theme, mode, accent, surface };
+}
 
-  typeBtn: {
-    flex: 1,
-    backgroundColor: "#E5E5EA",
-    padding: 12,
-    borderRadius: 20,
-    alignItems: "center",
-    marginRight: 10
-  },
+const createTransactionStyles = (
+  theme: Theme,
+  mode: ThemeMode,
+  accent: string,
+  surface: string
+) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 20,
+      backgroundColor: theme.bg,
+    },
 
-  expenseActive: {
-    backgroundColor: "#FF4D6D"
-  },
+    title: {
+      fontSize: 26,
+      fontWeight: "600",
+      marginBottom: 20,
+      color: theme.text,
+    },
 
-  incomeActive: {
-    backgroundColor: "#4adcbf"
-  },
+    typeRow: {
+      flexDirection: "row",
+      marginBottom: 20,
+    },
 
-  typeText: {
-    color: "white",
-    fontWeight: "600"
-  },
+    typeBtn: {
+      flex: 1,
+      backgroundColor: theme.inputBg,
+      padding: 12,
+      borderRadius: 20,
+      alignItems: "center",
+      marginRight: 10,
+    },
 
-  form: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 20
-  },
+    expenseActive: {
+      backgroundColor: "#FF4D6D",
+    },
 
-  buttonRow: {
-    flexDirection: "row",
-    marginTop: 25,
-    gap: 10
-  },
+    incomeActive: {
+      backgroundColor: "#4adcbf",
+    },
 
-  cancel: {
-    flex: 1,
-    height: 48,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 25,
-    backgroundColor: "#E5E5EA"
-  },
+    typeText: {
+      color: theme.text,
+      fontWeight: "600",
+    },
 
-  cancelText: {
-    fontWeight: "600"
-  },
+    // Chữ trên nút loại đang chọn (nền hồng/xanh đậm) luôn trắng.
+    typeTextActive: {
+      color: "#FFFFFF",
+    },
 
-  name: {
-    fontSize: 14, 
-    fontWeight: "600", 
-    marginBottom: 12,
-    color: "#979797"
-  },
+    form: {
+      backgroundColor: surface,
+      padding: 20,
+      borderRadius: 20,
+    },
 
-  row: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 14,
-  },
+    buttonRow: {
+      flexDirection: "row",
+      marginTop: 25,
+      gap: 10,
+    },
 
-  dateInput: {
-    flex: 2,
-    height: 46,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-  },
+    cancel: {
+      flex: 1,
+      height: 48,
+      justifyContent: "center",
+      alignItems: "center",
+      borderRadius: 25,
+      backgroundColor: theme.inputBg,
+    },
 
-  timeInput: {
-    flex: 1,
-    height: 46,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-  },
+    cancelText: {
+      fontWeight: "600",
+      color: theme.text,
+    },
 
+    name: {
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 12,
+      color: theme.subtext,
+    },
 
-  dateText: {
-    fontSize: 14,
-    color: "#1F2937",
-  },
+    row: {
+      flexDirection: "row",
+      gap: 10,
+      marginBottom: 14,
+    },
 
-  amountSection: {
-    alignItems: "center",
-    marginBottom: 30,
-  },
+    dateInput: {
+      flex: 2,
+      height: 46,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: theme.border,
+      justifyContent: "center",
+      paddingHorizontal: 16,
+    },
 
-  amount: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginTop: 10,
-  },
+    timeInput: {
+      flex: 1,
+      height: 46,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: theme.border,
+      justifyContent: "center",
+      paddingHorizontal: 16,
+    },
 
-  category: {
-    flexDirection: "row",
-    fontSize: 16,
-    color: "#666",
-    marginTop: 4,
-  },
+    dateText: {
+      fontSize: 14,
+      color: theme.text,
+    },
 
-  card: {
-    backgroundColor: "white",
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 20,
-  },
+    amountSection: {
+      alignItems: "center",
+      marginBottom: 30,
+    },
 
-  label: {
-    fontSize: 14,
-    color: "#888",
-  },
+    amount: {
+      fontSize: 28,
+      fontWeight: "700",
+      marginTop: 10,
+      color: theme.text,
+    },
 
-  value: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
+    category: {
+      flexDirection: "row",
+      fontSize: 16,
+      color: theme.subtext,
+      marginTop: 4,
+    },
 
-  expense: {
-    color: "#FF4D6D",
-  },
+    card: {
+      backgroundColor: surface,
+      borderRadius: 18,
+      padding: 18,
+      marginBottom: 20,
+    },
 
-  income: {
-    color: "#2ECC71",
-  },
+    label: {
+      fontSize: 14,
+      color: theme.subtext,
+    },
 
-  actions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+    value: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: theme.text,
+    },
 
-  editBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
+    expense: {
+      color: "#FF4D6D",
+    },
 
-  editText: {
-    color: "#3629B7",
-    fontWeight: "600",
-  },
+    income: {
+      color: "#2ECC71",
+    },
 
-  deleteBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
+    actions: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
 
-  deleteText: {
-    color: "#FF4D6D",
-    fontWeight: "600",
-  },
+    editBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
 
-  errorText: {
-    color: "#FF4D6D",
-    fontSize: 12,
-    marginTop: 4,
-    marginBottom: 6
-  },
+    editText: {
+      color: accent,
+      fontWeight: "600",
+    },
 
-  summaryCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
+    deleteBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
 
-  iconBox: {
-    width: 45,
-    height: 45,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 15,
-    marginLeft: 4,
-  },
-  summaryTextWrap: {
-    flex: 1,
-  },
+    deleteText: {
+      color: "#FF4D6D",
+      fontWeight: "600",
+    },
 
-  titleDetail: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#5B5BD6",
-    marginRight: 8,
-  },
+    errorText: {
+      color: "#FF4D6D",
+      fontSize: 12,
+      marginTop: 4,
+      marginBottom: 6,
+    },
 
-  amountDetail: {
-    fontSize: 22,
-    fontWeight: "700",
-    flexShrink: 0,
-  },
+    summaryCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: surface,
+      borderRadius: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginBottom: 16,
+      shadowColor: "#000",
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
+    },
 
-});
+    iconBox: {
+      width: 45,
+      height: 45,
+      borderRadius: 10,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 15,
+      marginLeft: 4,
+    },
+    summaryTextWrap: {
+      flex: 1,
+    },
+
+    titleDetail: {
+      flex: 1,
+      fontSize: 18,
+      fontWeight: "600",
+      color: accent,
+      marginRight: 8,
+    },
+
+    amountDetail: {
+      fontSize: 22,
+      fontWeight: "700",
+      flexShrink: 0,
+    },
+  });
