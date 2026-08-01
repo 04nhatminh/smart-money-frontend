@@ -7,8 +7,6 @@ import { parseAIResult as resultAIParse } from "../utils/resultAIParse";
 import { parseAIJson } from "../utils/parseAIJson";
 import { useAuth } from "../context/AuthContext";
 
-const CACHE_DURATION = 30 * 60 * 1000;
-
 type InsightItem = {
   text: string;
   state: "Positive" | "Negative";
@@ -16,6 +14,16 @@ type InsightItem = {
 
 const sleep = (ms: number) =>
   new Promise(resolve => setTimeout(resolve, ms));
+
+// Insight chỉ được làm mới vào đầu tuần: cache tạo từ 00:00 thứ Hai tuần này
+// trở đi được coi là còn hạn; cache thuộc tuần trước mới bị refresh nền.
+const startOfCurrentWeek = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const daysSinceMonday = (d.getDay() + 6) % 7; // getDay(): 0=CN..6=T7 → thứ Hai = 0
+  d.setDate(d.getDate() - daysSinceMonday);
+  return d.getTime();
+};
 
 export function useAIInsight() {
   const { isSignedIn } = useAuth();
@@ -29,6 +37,12 @@ export function useAIInsight() {
 
   useEffect(() => {
     if (!isSignedIn) {
+      // Đăng xuất: hủy job đang chờ và xóa insight khỏi RAM để phiên đăng nhập
+      // kế tiếp trên cùng máy không thấy dữ liệu của user trước (cache trong
+      // AsyncStorage đã được clearAuthData dọn ở AuthContext.logout).
+      controllerRef.current?.abort();
+      setInsight([]);
+      setLoading(false);
       return;
     }
 
@@ -44,15 +58,13 @@ export function useAIInsight() {
       const cached = await aiInsightStorage.get();
 
       if (cached) {
+        // Hiện cache ngay cho khỏi trống màn hình; chỉ refresh nền khi cache
+        // thuộc tuần trước (chính sách: làm mới mỗi tuần vào thứ Hai).
         setInsight(cached.data);
 
-        const age = Date.now() - cached.createdAt;
-
-        if (age < CACHE_DURATION) {
+        if (cached.createdAt >= startOfCurrentWeek()) {
           return;
         }
-
-        return;
       }
 
       refreshInsight();

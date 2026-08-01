@@ -363,7 +363,7 @@ class AuthService {
   async logout(): Promise<CheckResponse<void>> {
     const response = await AuthApi.logout();
     if (response.success) {
-      this.clearAuthData();
+      await this.clearAuthData();
     }
     return response;
   }
