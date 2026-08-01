@@ -41,6 +41,52 @@ export interface ProjectChangeSuggestion {
   reason: string;
 }
 
+// Mirrors ChatResponse.TransactionChangeSuggestion — one fully-specified ledger
+// change the assistant collected over one or more turns.
+export type TransactionChangeOperation = "CREATE" | "UPDATE" | "DELETE";
+
+export interface TransactionChangeSuggestion {
+  transactionId: string | null;
+  operation: TransactionChangeOperation;
+  currentAmount: number | null;
+  newAmount: number | null;
+  currentType: string | null;
+  newType: string | null;
+  currentCategory: string | null;
+  newCategory: string | null;
+  currentDescription: string | null;
+  newDescription: string | null;
+  currentDate: string | null;
+  newDate: string | null;
+  reason: string;
+}
+
+// Mirrors ChatResponse.GroupChangeSuggestion — a group / group-project operation
+// the backend runs itself on confirm (creating a group, sending an invite email,
+// locking a group, creating the group project, or joining one).
+export type GroupChangeOperation =
+  | "CREATE_GROUP"
+  | "INVITE_MEMBER"
+  | "LOCK_GROUP"
+  | "CREATE_GROUP_PROJECT"
+  | "JOIN_GROUP_PROJECT";
+
+export interface GroupChangeSuggestion {
+  operation: GroupChangeOperation;
+  groupId: string | null;
+  groupName: string | null;
+  groupProjectId: string | null;
+  projectName: string | null;
+  email: string | null;
+  targetAmount: number | null;
+  totalMonths: number | null;
+  priority: string | null;
+  // Human-readable consequence to echo in the confirm card (per-member monthly
+  // share, invite-email expiry, ...).
+  impact: string;
+  reason: string;
+}
+
 export interface BudgetUpdateSuggestion {
   budgetId: string;
   category: string;
@@ -78,6 +124,13 @@ export interface ChatResponse {
   savingsSuggestions?: SavingsPlanSuggestion[] | null;
   // Populated only when intent == PROJECT_HYPOTHESIS.
   projectChangeSuggestions?: ProjectChangeSuggestion[] | null;
+  // Populated only when intent == TRANSACTION_UPDATE and every required field
+  // has been gathered.
+  transactionChangeSuggestions?: TransactionChangeSuggestion[] | null;
+  // Populated when this turn resolved a group / group-project operation the
+  // backend can execute itself. Confirm it the same way as any other suggestion:
+  // POST pendingActionId to /api/v1/ai/chat/confirm.
+  groupChangeSuggestions?: GroupChangeSuggestion[] | null;
   // Set alongside budgetSuggestions only when those suggestions target a month
   // other than the one asked about — currently: a budget-cut request always
   // computes a full per-category plan for the FOLLOWING month only.
