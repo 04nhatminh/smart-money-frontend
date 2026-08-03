@@ -18,7 +18,10 @@ import {
   PanResponder,
   Animated,
   ScrollView,
+  Easing,
+  useWindowDimensions,
 } from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import Modal from "react-native-modal";
 import { t } from '../../i18n';
@@ -39,18 +42,66 @@ const formatAmount = (amount?: number) => {
   return amount.toLocaleString("vi-VN") + " ₫";
 };
 
-// Source config
-const SOURCE_CONFIG: Record<string, { icon: string; labelKey: string; color: string }> = {
-  camera: { icon: "📷", labelKey: "transaction.source_camera", color: "#4CAF50" },
-  voice: { icon: "🎙️", labelKey: "transaction.source_voice", color: "#2196F3" },
-  notification: { icon: "🔔", labelKey: "transaction.source_notification", color: "#FF9800" },
-  default: { icon: "📄", labelKey: "transaction.source_other", color: "#3629B7" },
+// O nhap so tien: giu state la chuoi chi gom chu so, chi chen dau "." khi hien
+// thi. Nho vay parseFloat luc luu van dung, khong phai bo dau phan cach.
+const digitsOnly = (value: string) => value.replace(/\D/g, "");
+
+const formatAmountInput = (rawDigits: string) => {
+  const digits = digitsOnly(rawDigits);
+  if (!digits) return "";
+  return Number(digits).toLocaleString("vi-VN");
+};
+
+// Source config — dung dung bo icon cua menu Add Transaction (BottomBar.tsx) de
+// nguoi dung nhan ra ngay giao dich nay den tu luong nhap nao.
+type SourceConfig = {
+  icon: string;
+  family: "ionicons" | "material-community";
+  labelKey: string;
+  color: string;
+};
+
+const SOURCE_CONFIG: Record<string, SourceConfig> = {
+  camera: {
+    icon: "camera-outline",
+    family: "ionicons",
+    labelKey: "transaction.source_camera",
+    color: "#4CAF50",
+  },
+  voice: {
+    icon: "microphone-outline",
+    family: "material-community",
+    labelKey: "transaction.source_voice",
+    color: "#2196F3",
+  },
+  notification: {
+    icon: "notifications-outline",
+    family: "ionicons",
+    labelKey: "transaction.source_notification",
+    color: "#FF9800",
+  },
+  default: {
+    icon: "document-text-outline",
+    family: "ionicons",
+    labelKey: "transaction.source_other",
+    color: "#3629B7",
+  },
 };
 
 const getSourceConfig = (source?: string) => {
   if (source && SOURCE_CONFIG[source]) return SOURCE_CONFIG[source];
   return SOURCE_CONFIG.default;
 };
+
+const SourceIcon: React.FC<{ config: SourceConfig; size?: number }> = ({
+  config,
+  size = 26,
+}) =>
+  config.family === "material-community" ? (
+    <MaterialCommunityIcons name={config.icon as any} size={size} color={config.color} />
+  ) : (
+    <Ionicons name={config.icon as any} size={size} color={config.color} />
+  );
 
 const getCategoryLabel = (category?: string) => {
   const normalized = (category || "OTHER").toUpperCase();
@@ -101,6 +152,9 @@ const categoryIcons: Record<string, string> = {
 
 const TRANSACTION_TYPES = ["EXPENSE", "INCOME"];
 
+// Be rong khoang lo ra khi vuot roi nha tay giua chung (ban cu la 80px).
+const ACTION_WIDTH = 120;
+
 // ==================== DYNAMIC STYLES ====================
 // Styles dung chung cho PendingTransactionPanel + SwipeableItem, build lai theo theme.
 function usePendingPanelStyles() {
@@ -134,80 +188,142 @@ const SwipeableItem: React.FC<{
   processingMessage: Record<string, string | undefined>;
   processingError: Record<string, string | undefined>;
 }> = ({ item, onApprove, onReject, onEdit, processingMap, processingMessage, processingError }) => {
-  const { styles, accent } = usePendingPanelStyles();
+  const { styles, accent, theme } = usePendingPanelStyles();
   const status = processingMap[item.id] ?? item.processingStatus;
   const error = processingError[item.id] ?? item.processingError;
   const isProcessing = status !== undefined && status !== 'completed' && status !== 'failed';
 
+  const { width: screenWidth } = useWindowDimensions();
+  // Do be ngang that cua dong de vuot duoc tron ca thanh; screenWidth chi la
+  // gia tri tam thoi cho lan render dau tien.
+  const [rowWidth, setRowWidth] = useState(screenWidth);
+
   const translateX = useRef(new Animated.Value(0)).current;
-  const THRESHOLD = 80;
-  const MAX_SWIPE = 120;
-  const ACTION_THRESHOLD = 70;
+
+  // Ben nao dang mo -> chi ben do nhan cham, ben con lai (opacity 0) phai
+  // pointerEvents="none" keo no nam de len va nuot mat cham cua nguoi dung.
+  const [openSide, setOpenSide] = useState<null | "approve" | "reject">(null);
+
+  // PanResponder chi duoc tao dung mot lan, nen moi gia tri thay doi theo thoi
+  // gian phai doc qua ref — neu doc truc tiep se dinh gia tri cua lan render dau.
+  const isProcessingRef = useRef(isProcessing);
+  isProcessingRef.current = isProcessing;
+  const rowWidthRef = useRef(rowWidth);
+  rowWidthRef.current = rowWidth;
+  const actionsRef = useRef({ onApprove, onReject });
+  actionsRef.current = { onApprove, onReject };
+
+  // Vuot qua nguong -> day not ca thanh ra khoi man hinh roi moi chay hanh dong.
+  const commit = (direction: 1 | -1) => {
+    setOpenSide(null);
+    Animated.timing(translateX, {
+      toValue: direction * rowWidthRef.current,
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      if (direction === 1) actionsRef.current.onApprove(item.id);
+      else actionsRef.current.onReject(item.id);
+
+      // Thanh cong thi item bi go khoi danh sach nen khong ai thay gi. Neu that
+      // bai (loi mang...) thi item van con, tra no ve cho cu.
+      setTimeout(() => {
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          speed: 16,
+          bounciness: 0,
+        }).start();
+      }, 450);
+    });
+  };
+
+  // Nha tay giua chung -> dung lai o vi tri lo han nut, de nguoi dung bam xac
+  // nhan (hanh vi cu, chi khac la khoang lo rong hon: 80px -> ACTION_WIDTH).
+  const openTo = (direction: 1 | -1) => {
+    setOpenSide(direction === 1 ? "approve" : "reject");
+    Animated.spring(translateX, {
+      toValue: direction * ACTION_WIDTH,
+      useNativeDriver: true,
+      speed: 16,
+      bounciness: 4,
+    }).start();
+  };
+
+  const springBack = () => {
+    setOpenSide(null);
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+      speed: 18,
+      bounciness: 6,
+    }).start();
+  };
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !isProcessing,
+      // PHAI gianh responder ngay tu luc cham (giong ban goc). Neu de false va
+      // trong cho onMoveShouldSetPanResponder thi gesture khong bao gio toi tay:
+      // container cua modal / ScrollView doc da giu mat responder tu truoc.
+      // Viec nay khong lam hong nut Edit: negotiation luc cham di tu view sau
+      // nhat len tren, nen TouchableOpacity (nam duoi overlay trong cay) van
+      // duoc hoi truoc va thang.
+      onStartShouldSetPanResponder: () => !isProcessingRef.current,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
-        return isHorizontal && Math.abs(gestureState.dx) > 5;
+        if (isProcessingRef.current) return false;
+        const { dx, dy } = gestureState;
+        // Nguong thap + he so 1.2 de bat gesture som, khong phai vuot that thang
+        // moi an — nhung van du chat de ScrollView doc ben ngoai cuon binh thuong.
+        return Math.abs(dx) > Math.abs(dy) * 1.2 && Math.abs(dx) > 4;
       },
       onPanResponderTerminationRequest: () => false,
 
       onPanResponderMove: (_, gestureState) => {
-        let dx = gestureState.dx;
-
-        if (Math.abs(dx) > MAX_SWIPE) {
-          dx =
-            Math.sign(dx) *
-            (MAX_SWIPE + (Math.abs(dx) - MAX_SWIPE) * 0.25);
-        }
-
-        translateX.setValue(dx);
+        // Bam theo ngon tay tren toan bo be ngang, khong chan lai o 120px nua.
+        const max = rowWidthRef.current;
+        translateX.setValue(Math.max(-max, Math.min(max, gestureState.dx)));
       },
       onPanResponderRelease: (_, gestureState) => {
-        const { dx } = gestureState;
-        if (dx > ACTION_THRESHOLD) {
-          Animated.spring(translateX, {
-            toValue: THRESHOLD,
-            stiffness: 180,
-            damping: 20,
-            mass: 0.7,
-            useNativeDriver: true,
-          }).start(() => {
-            onApprove(item.id);
-            Animated.timing(translateX, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: true,
-            }).start();
-          });
-        } else if (dx < -ACTION_THRESHOLD) {
-          Animated.spring(translateX, {
-            toValue: -ACTION_THRESHOLD,
-            stiffness: 180,
-            damping: 20,
-            useNativeDriver: true,
-          }).start(() => {
-            onReject(item.id);
+        const { dx, vx } = gestureState;
+        // Keo qua nua dong -> chay luon; chi qua nua khoang lo -> dung lai cho nut.
+        const commitDistance = rowWidthRef.current * 0.5;
+        const isFling = Math.abs(vx) > 0.8 && Math.abs(dx) > ACTION_WIDTH;
 
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-            }).start();
-          });
-        } else {
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-        }
+        if (dx >= commitDistance || (isFling && vx > 0)) commit(1);
+        else if (dx <= -commitDistance || (isFling && vx < 0)) commit(-1);
+        else if (dx > ACTION_WIDTH * 0.5) openTo(1);
+        else if (dx < -ACTION_WIDTH * 0.5) openTo(-1);
+        else springBack();
       },
+      onPanResponderTerminate: springBack,
     })
   ).current;
 
   useEffect(() => {
     translateX.setValue(0);
   }, [item.id]);
+
+  // Nen mau chi hien dan theo huong vuot, icon phong to khi keo cang.
+  const approveOpacity = translateX.interpolate({
+    inputRange: [0, 24],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+  const rejectOpacity = translateX.interpolate({
+    inputRange: [-24, 0],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+  const approveScale = translateX.interpolate({
+    inputRange: [0, 110],
+    outputRange: [0.75, 1],
+    extrapolate: "clamp",
+  });
+  const rejectScale = translateX.interpolate({
+    inputRange: [-110, 0],
+    outputRange: [1, 0.75],
+    extrapolate: "clamp",
+  });
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -254,25 +370,51 @@ const SwipeableItem: React.FC<{
   };
 
   return (
-    <View style={styles.swipeContainer}>
-      {/* Lớp nền chứa hai nút */}
-      <View style={styles.backgroundButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.approveButton]}
-          onPress={() => onApprove(item.id)}
-          disabled={isProcessing}
-          activeOpacity={0.7}
+    <View
+      style={styles.swipeContainer}
+      onLayout={(e) => setRowWidth(e.nativeEvent.layout.width)}
+    >
+      {/* Lop nen: hai mang mau phu kin ca dong, chong len nhau, chi mang ung voi
+          huong dang vuot moi hien ra — nho vay keo het thanh van thay mot mang
+          mau lien thay vi ho mot nua. Nut ben trong van bam duoc nhu ban cu. */}
+      <View style={styles.swipeBackdrop}>
+        <Animated.View
+          style={[styles.swipeLayer, styles.approveLayer, { opacity: approveOpacity }]}
+          pointerEvents={openSide === "approve" ? "auto" : "none"}
         >
-          <Text style={styles.actionButtonText}>✅ {t("transaction.approve")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.rejectButton]}
-          onPress={() => onReject(item.id)}
-          disabled={isProcessing}
-          activeOpacity={0.7}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => onApprove(item.id)}
+            disabled={isProcessing}
+            activeOpacity={0.8}
+          >
+            <Animated.View
+              style={[styles.actionButtonInner, { transform: [{ scale: approveScale }] }]}
+            >
+              <Ionicons name="checkmark-circle" size={26} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>{t("transaction.approve")}</Text>
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        <Animated.View
+          style={[styles.swipeLayer, styles.rejectLayer, { opacity: rejectOpacity }]}
+          pointerEvents={openSide === "reject" ? "auto" : "none"}
         >
-          <Text style={styles.actionButtonText}>🗑️ {t("transaction.reject")}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => onReject(item.id)}
+            disabled={isProcessing}
+            activeOpacity={0.8}
+          >
+            <Animated.View
+              style={[styles.actionButtonInner, { transform: [{ scale: rejectScale }] }]}
+            >
+              <Ionicons name="trash" size={24} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>{t("transaction.reject")}</Text>
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
       {/* Lớp nội dung di chuyển */}
@@ -281,7 +423,6 @@ const SwipeableItem: React.FC<{
           styles.contentContainer,
           { transform: [{ translateX }] },
         ]}
-        {...panResponder.panHandlers}
       >
         <View style={styles.itemContent}>
           <View style={styles.topRow}>
@@ -342,15 +483,38 @@ const SwipeableItem: React.FC<{
             </Text>
           ) : null}
         </View>
+
+        {/* Lop trong suot phu kin dong, giu toan bo gesture vuot. Truoc day
+            panHandlers gan o contentContainer va phai trong cho cham tren <Text>
+            bubble len — thuc te khong bubble, nen chi keo duoc o khoang trong
+            ben phai. Overlay nay la touch target duy nhat cua vung chu nen khong
+            con phu thuoc vao view nao nuot touch nua.
+            Dat TRUOC rightActions: con render sau se nam tren, nho vay nut Edit
+            van bam duoc trong pham vi cua no. */}
+        <View
+          style={StyleSheet.absoluteFill}
+          pointerEvents="box-only"
+          {...panResponder.panHandlers}
+        />
+
         <View style={styles.rightActions}>
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => onEdit(item)}
-            disabled={isProcessing}
-          >
-            <Text style={styles.editButtonText}>✏️</Text>
-          </TouchableOpacity>
-          <Text style={styles.swipeHint}>↔</Text>
+          {/* Approve / Reject nam o lop nen, lo ra khi vuot trai - phai. */}
+          {!isProcessing && (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => onEdit(item)}
+              activeOpacity={0.7}
+              hitSlop={6}
+            >
+              <Ionicons name="pencil" size={24} color={accent} />
+            </TouchableOpacity>
+          )}
+          <Ionicons
+            name="swap-horizontal"
+            size={15}
+            color={theme.subtext}
+            style={styles.swipeHintIcon}
+          />
         </View>
       </Animated.View>
     </View>
@@ -374,6 +538,7 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
     category: CATEGORIES[0],
     type: TRANSACTION_TYPES[0],
     date: "",
+    description: "",
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -417,10 +582,12 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
   const openEditModal = (item: PendingTransaction) => {
     setEditingItem(item);
     setEditForm({
-      amount: item.amount?.toString() ?? "",
+      amount: digitsOnly(item.amount?.toString() ?? ""),
       category: item.category ?? CATEGORIES[0],
       type: item.type ?? TRANSACTION_TYPES[0],
       date: item.date ?? "",
+      // groupText la truong luu description (do AI tra ve).
+      description: item.groupText ?? "",
     });
     setEditModalVisible(true);
   };
@@ -429,11 +596,15 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
     if (!editingItem) return;
     setIsSaving(true);
     try {
+      const isIncome = editForm.type === "INCOME";
       const updates: Partial<PendingTransaction> = {
         amount: parseFloat(editForm.amount) || 0,
-        category: editForm.category,
+        // Khoan thu khong co o chon danh muc, nen dung "OTHER" thay vi giu lai
+        // danh muc chi tieu cu (vd van con "FOOD" sau khi doi sang INCOME).
+        category: isIncome ? "OTHER" : editForm.category,
         type: editForm.type as "INCOME" | "EXPENSE",
         date: editForm.date,
+        groupText: editForm.description.trim(),
       };
       await PendingService.update(editingItem.id, updates);
       setEditModalVisible(false);
@@ -524,6 +695,12 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
         isVisible={visible}
         onBackdropPress={() => setVisible(false)}
         style={styles.modal}
+        // swipeDirection lam react-native-modal gan PanResponder len container,
+        // va PanResponder do `onStartShouldSetPanResponder: () => true`. No chi
+        // thang khi khong con nao gianh truoc — negotiation luc cham di tu view
+        // sau nhat len tren, ma PanResponder cua tung dong cung tra ve true o
+        // onStart, nen dong van vuot trai/phai duoc. Vuot xuong de dong chi an
+        // khi bat dau tu vung ngoai dong (tieu de, khoang trong).
         swipeDirection="down"
         onSwipeComplete={() => setVisible(false)}
       >
@@ -554,7 +731,9 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                         { backgroundColor: config.color + "20" }
                       ]}
                     >
-                      <Text style={styles.groupIcon}>{config.icon}</Text>
+                      <View style={styles.groupIcon}>
+                        <SourceIcon config={config} />
+                      </View>
                       <Text style={styles.groupTitle}>{t(config.labelKey)}</Text>
                     </View>
 
@@ -604,25 +783,17 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
               <Text style={styles.inputLabel}>{t("transaction.amount")}</Text>
               <TextInput
                 style={styles.input}
-                value={editForm.amount}
-                onChangeText={(text) => setEditForm({ ...editForm, amount: text })}
+                value={formatAmountInput(editForm.amount)}
+                onChangeText={(text) =>
+                  setEditForm({ ...editForm, amount: digitsOnly(text) })
+                }
                 keyboardType="numeric"
                 placeholder="0"
                 placeholderTextColor={theme.subtext}
               />
-              <Text style={styles.inputLabel}>{t("transaction.category")}</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={editForm.category}
-                  onValueChange={(value) => setEditForm({ ...editForm, category: value })}
-                  style={styles.picker}
-                  dropdownIconColor={accent}
-                >
-                  {CATEGORIES.map((cat) => (
-                    <Picker.Item key={cat} label={getCategoryLabel(cat)} value={cat} />
-                  ))}
-                </Picker>
-              </View>
+              {/* Type dat truoc Category: danh sach CATEGORIES chi gom cac muc
+                  chi tieu, khong ap dung cho khoan thu — nen chon loai truoc,
+                  roi o Category moi an/hien theo. */}
               <Text style={styles.inputLabel}>{t("transaction.type")}</Text>
               <View style={styles.pickerContainer}>
                 <Picker
@@ -636,6 +807,36 @@ const PendingTransactionPanel = forwardRef<PendingPanelRef>((props, ref) => {
                   ))}
                 </Picker>
               </View>
+
+              {editForm.type !== "INCOME" && (
+                <>
+                  <Text style={styles.inputLabel}>{t("transaction.category")}</Text>
+                  <View style={styles.pickerContainer}>
+                    <Picker
+                      selectedValue={editForm.category}
+                      onValueChange={(value) => setEditForm({ ...editForm, category: value })}
+                      style={styles.picker}
+                      dropdownIconColor={accent}
+                    >
+                      {CATEGORIES.map((cat) => (
+                        <Picker.Item key={cat} label={getCategoryLabel(cat)} value={cat} />
+                      ))}
+                    </Picker>
+                  </View>
+                </>
+              )}
+              <Text style={styles.inputLabel}>{t("transaction.description")}</Text>
+              <TextInput
+                style={[styles.input, styles.descriptionInput]}
+                value={editForm.description}
+                onChangeText={(text) => setEditForm({ ...editForm, description: text })}
+                placeholder={t("transaction.description")}
+                placeholderTextColor={theme.subtext}
+                multiline
+                numberOfLines={2}
+                textAlignVertical="top"
+              />
+
               <Text style={styles.inputLabel}>{t("transaction.date")}</Text>
               <TextInput
                 style={styles.input}
@@ -744,7 +945,7 @@ const createPendingPanelStyles = (
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
   },
-  groupIcon: { fontSize: 18, marginRight: 6 },
+  groupIcon: { marginRight: 8, alignItems: 'center', justifyContent: 'center' },
   groupTitle: { fontSize: 14, fontWeight: "600", color: theme.text, flex: 1 },
 
   // Item styles
@@ -761,7 +962,8 @@ const createPendingPanelStyles = (
     minHeight: 60,
   },
   descriptionText: {
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 21,
     color: theme.text,
     flexShrink: 1,
   },
@@ -818,6 +1020,7 @@ const createPendingPanelStyles = (
   editTitle: { fontSize: 18, fontWeight: "bold", color: accent, marginBottom: 16, textAlign: "center" },
   inputLabel: { fontSize: 13, fontWeight: "500", color: theme.text, marginBottom: 4, marginTop: 8 },
   input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: theme.inputBg, color: theme.text },
+  descriptionInput: { minHeight: 64, paddingTop: 10 },
   pickerContainer: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, backgroundColor: theme.inputBg, marginBottom: 4 },
   picker: { height: 50, width: "100%", color: theme.text },
   editButtonsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 16, gap: 12 },
@@ -826,48 +1029,50 @@ const createPendingPanelStyles = (
   editSaveBtn: { flex: 1, backgroundColor: theme.primary, padding: 12, borderRadius: 8, alignItems: "center" },
   editSaveText: { color: "white", fontWeight: "500" },
   approveBtnDisabled: { backgroundColor: "#A0A0A0", opacity: 0.7 },
+  // Dong cao han de vung vuot rong, de trung ngon tay hon.
   swipeContainer: {
     position: 'relative',
     overflow: 'hidden',
     backgroundColor: surface,
     borderBottomWidth: 0.5,
     borderBottomColor: theme.border,
-    minHeight: 60,
+    minHeight: 88,
   },
 
-  // Lớp nền chứa hai nút, chiếm toàn bộ container
-  backgroundButtons: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+  // Lop nen phia sau noi dung: hai mang mau chong len nhau, moi mang phu kin ca
+  // dong. Chi mang ung voi huong dang vuot duoc lam hien (opacity) nen khi keo
+  // het thanh van la mot mang mau lien, khong bi ho nua ben.
+  swipeBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  swipeLayer: {
+    ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'stretch',
   },
-
-  // Nút hành động chung
+  approveLayer: {
+    backgroundColor: '#16A34A',
+    justifyContent: 'flex-start',
+  },
+  rejectLayer: {
+    backgroundColor: '#DC2626',
+    justifyContent: 'flex-end',
+  },
+  // Vung bam nam gon trong khoang lo ra khi nha tay giua chung.
   actionButton: {
-    width: 80, // bằng với ngưỡng THRESHOLD
-    justifyContent: 'center',
+    width: ACTION_WIDTH,
+    height: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 10,
   },
-  approveButton: {
-    backgroundColor: '#4CAF50', // màu xanh
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
-  },
-  rejectButton: {
-    backgroundColor: '#F44336', // màu đỏ
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
+  actionButtonInner: {
+    alignItems: 'center',
+    gap: 4,
   },
   actionButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
     textAlign: 'center',
   },
 
@@ -876,9 +1081,9 @@ const createPendingPanelStyles = (
     backgroundColor: surface,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    minHeight: 60,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    minHeight: 88,
     zIndex: 2, // đảm bảo nằm trên nền
   },
 
@@ -900,8 +1105,8 @@ const createPendingPanelStyles = (
     marginRight: 8,
   },
   amount: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: theme.text,
   },
   category: {
@@ -962,9 +1167,10 @@ const createPendingPanelStyles = (
     fontWeight: "600",
   },
   description: {
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 19,
     color: theme.subtext,
-    marginTop: 4,
+    marginTop: 6,
     flexShrink: 1,
     width: '100%',
   },
@@ -972,17 +1178,17 @@ const createPendingPanelStyles = (
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 8,
+    gap: 6,
   },
+  // Icon tran, khong vong tron nen — vung cham van rong de de bam.
   editButton: {
-    padding: 4,
-    marginRight: 4,
+    width: 48,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  editButtonText: {
-    fontSize: 16,
-    color: accent,
-  },
-  swipeHint: {
-    fontSize: 12,
-    color: theme.subtext,
+  swipeHintIcon: {
+    marginLeft: 2,
+    opacity: 0.5,
   },
 });

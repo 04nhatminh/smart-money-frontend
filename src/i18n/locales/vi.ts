@@ -20,6 +20,7 @@ export default {
     saving: "Đang lưu...",
     cancel: "Hủy",
     delete: "Xóa",
+    deleting: "Đang xóa...",
     edit: "Chỉnh sửa",
     confirm: "Xác nhận",
     back: "Quay lại",

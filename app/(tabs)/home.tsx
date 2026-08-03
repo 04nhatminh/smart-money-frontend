@@ -318,6 +318,9 @@ export default function HomePage() {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
+        // Cho phep co lai khi so tien dai, thay vi tran ra ngoai the.
+        minWidth: 0,
+        overflow: 'hidden',
       },
       summaryIconBox: {
         width: 34,
@@ -327,6 +330,13 @@ export default function HomePage() {
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 10,
+        flexShrink: 0,
+      },
+      // Khoi chu phai co flex + minWidth:0 thi numberOfLines/adjustsFontSizeToFit
+      // moi biet be rong toi da de thu nho chu — thieu no thi Text van tran.
+      summaryTextContainer: {
+        flex: 1,
+        minWidth: 0,
       },
       summaryLabel: {
         fontSize: 12,
@@ -526,6 +536,7 @@ export default function HomePage() {
 
     const refreshListener = () => {
       loadBudgets();
+      loadTransactions();
       fetchLatestProjects();
       loadAnalyticsSummary();
     };
@@ -948,7 +959,12 @@ export default function HomePage() {
 
               <View style={dynamicStyles.balanceHeader}>
                 <Text style={dynamicStyles.balanceDate}>{t("transaction.this_month")}</Text>
-                <Text style={dynamicStyles.balanceAmount}>
+                <Text
+                  style={dynamicStyles.balanceAmount}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.5}
+                >
                   {formatVND(monthlyTotalIncome - monthlyTotalExpense)}
                 </Text>
                 <Text style={dynamicStyles.balanceLabel}>{t("home.total_balance")}</Text>
@@ -959,9 +975,16 @@ export default function HomePage() {
                   <View style={dynamicStyles.summaryIconBox}>
                     <Ionicons name="arrow-down" size={16} color="#16A34A" />
                   </View>
-                  <View>
-                    <Text style={dynamicStyles.summaryLabel}>{t("transaction.income")}</Text>
-                    <Text style={dynamicStyles.summaryAmount}>
+                  <View style={dynamicStyles.summaryTextContainer}>
+                    <Text style={dynamicStyles.summaryLabel} numberOfLines={1}>
+                      {t("transaction.income")}
+                    </Text>
+                    <Text
+                      style={dynamicStyles.summaryAmount}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                    >
                       {formatVND(monthlyTotalIncome)}
                     </Text>
                   </View>
@@ -973,9 +996,16 @@ export default function HomePage() {
                   <View style={dynamicStyles.summaryIconBox}>
                     <Ionicons name="arrow-up" size={16} color="#DC2626" />
                   </View>
-                  <View>
-                    <Text style={dynamicStyles.summaryLabel}>{t("transaction.expense")}</Text>
-                    <Text style={dynamicStyles.summaryAmount}>
+                  <View style={dynamicStyles.summaryTextContainer}>
+                    <Text style={dynamicStyles.summaryLabel} numberOfLines={1}>
+                      {t("transaction.expense")}
+                    </Text>
+                    <Text
+                      style={dynamicStyles.summaryAmount}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                    >
                       {formatVND(monthlyTotalExpense)}
                     </Text>
                   </View>
