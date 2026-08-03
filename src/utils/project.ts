@@ -37,9 +37,7 @@ export function getPreviewDeadline(deadlineMonths: string): string {
   const months = Number(deadlineMonths);
   if (Number.isNaN(months) || months < 0) return "";
 
-  // Inclusive month convention (backend counts gap + 1): the deadline shown must
-  // match what's saved for an N-month plan, i.e. today + (N - 1) months.
-  return formatDateToDDMMYYYY(addMonthsFromDate(Math.max(0, months - 1)));
+  return formatDateToDDMMYYYY(addMonthsFromDate(Math.max(0, months)));
 }
 
 export function validateCreateProjectForm(
@@ -163,9 +161,7 @@ export function getMonthsFromDeadline(deadlineStr: string): string {
   const monthsDiff = deadlineDate.getMonth() - now.getMonth();
   const gap = yearsDiff * 12 + monthsDiff;
 
-  // Reverse of the send-side convention: the backend treats a deadline as a
-  // (gap + 1)-month plan, so map the ISO deadline back to that inclusive count.
-  const totalMonths = gap + 1;
+  const totalMonths = Math.max(1, gap);
 
   return totalMonths > 0 ? totalMonths.toString() : "0";
 }

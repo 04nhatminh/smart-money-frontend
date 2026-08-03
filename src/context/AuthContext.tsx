@@ -168,16 +168,23 @@ const checkAuthStatus = async () => {
   const logout = async () => {
     try {
       setIsLoading(true);
-      
+
       // 🔌 Disconnect WebSocket on logout
       disconnectWebSocket();
-      
+
       await authService.logout();
     } catch (error) {
       console.error("Logout error:", error);
-      // Still clear local data even if API fails
-      await authService.clearAuthData();
     } finally {
+      // Logout phía client không được phép fail: AuthApi.logout nuốt lỗi và trả
+      // {success:false} thay vì throw, nên nhánh catch gần như không bao giờ chạy.
+      // Luôn dọn token/user/insight cache ở đây để user sau trên cùng máy không
+      // đọc được dữ liệu (đặc biệt là AI insight) của user trước.
+      try {
+        await authService.clearAuthData();
+      } catch (clearError) {
+        console.error("Clear auth data error:", clearError);
+      }
       setUser(null);
       setIsSignedIn(false);
       setIsLoading(false);

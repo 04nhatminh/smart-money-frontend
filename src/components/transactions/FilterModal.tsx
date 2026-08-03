@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   ScrollView,
   SafeAreaView,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeMode } from "../../theme/ThemeProvider";
@@ -34,6 +37,12 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   initialFilters,
 }) => {
   const { theme } = useThemeMode();
+  const scrollRef = useRef<ScrollView>(null);
+  // Modal chiem tron man hinh nen chieu cao cua no = chieu cao window. Dung so
+  // px tuong minh thay vi flex:1 vi cua so Modal tren Android khong bao chieu cao
+  // dung o lan layout dau -> ScrollView tran het noi dung va day footer (nut
+  // Apply) ra ngoai, chi tro lai binh thuong sau mot re-render bat ky.
+  const { height: windowHeight } = useWindowDimensions();
   const [filters, setFilters] = useState<TransactionFilter>(
     initialFilters || {
       type: "all",
@@ -71,6 +80,12 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     setFilters({ ...filters, dateRange });
   };
 
+  // Hai o custom range nam cuoi ScrollView. KeyboardAvoidingView chi thu nho vung
+  // hien thi, nguoi dung van phai tu keo — nen chu dong cuon xuong cuoi khi focus.
+  const handleDateInputFocus = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
   const handleApply = () => {
     onApply(filters);
     onClose();
@@ -85,15 +100,29 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   };
 
   return (
+    // Modal nay chiem toan man hinh. Neu de `transparent` thi tren Android cua so
+    // modal khong cap chieu cao cho SafeAreaView o lan layout dau tien -> ScrollView
+    // tran dai het noi dung, footer (nut Apply) bi day ra ngoai man hinh va khong
+    // scroll duoc cho toi khi co mot re-render (vd: bam vao category).
     <Modal
       visible={visible}
-      transparent
+      transparent={false}
       animationType="slide"
       onRequestClose={onClose}
     >
       <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.bg }]}
+        style={[
+          styles.container,
+          { height: windowHeight, backgroundColor: theme.bg },
+        ]}
       >
+        {/* Cua so Modal cua Android khong ke thua windowSoftInputMode=adjustResize
+            cua Activity, nen phai tu day noi dung len khi ban phim mo — neu khong,
+            hai o nhap ngay custom range nam duoi cung se bi ban phim che. */}
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <Pressable onPress={onClose}>
             <Ionicons name="close" size={24} color={theme.text} />
@@ -108,7 +137,14 @@ export const FilterModal: React.FC<FilterModalProps> = ({
           </Pressable>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           {/* Type Section */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
@@ -249,6 +285,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     ]}
                     placeholder="dd/mm/yyyy"
                     placeholderTextColor={theme.subtext}
+                    onFocus={handleDateInputFocus}
                     value={filters.customStartDate || ""}
                     onChangeText={(text) =>
                       setFilters({ ...filters, customStartDate: text })
@@ -270,6 +307,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     ]}
                     placeholder="dd/mm/yyyy"
                     placeholderTextColor={theme.subtext}
+                    onFocus={handleDateInputFocus}
                     value={filters.customEndDate || ""}
                     onChangeText={(text) =>
                       setFilters({ ...filters, customEndDate: text })
@@ -314,14 +352,20 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             </Text>
           </Pressable>
         </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
     flex: 1,
+  },
+  // Khong dat flex:1 o day: flex:1 keo theo flexBasis:0% se de len chieu cao px
+  // tuong minh truyen vao inline, lam mat tac dung cua no.
+  container: {
+    width: "100%",
   },
   header: {
     flexDirection: "row",
@@ -341,8 +385,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     paddingHorizontal: 16,
     paddingTop: 20,
+    paddingBottom: 24,
   },
   section: {
     marginBottom: 24,

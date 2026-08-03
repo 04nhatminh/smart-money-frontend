@@ -1,33 +1,9 @@
 import * as Notifications from 'expo-notifications';
 import { Notification } from "../types/notification.type";
-import React, { useEffect, useState } from "react";
 import { notificationEmitter } from '../utils/notificationEmitter';
 import notificationService from "../notification/notificationService";
-import { t } from "../i18n"
-import { useLanguage } from "../../src/i18n/LanguageProvider";
-
-const CATEGORY_MAP: Record<string, string> = {
-  FOOD: t("category.food"),
-  TRANSPORT: t("category.transport"),
-  SHOPPING: t("category.shopping"),
-  ENTERTAINMENT: t("category.entertainment"),
-};
-
-const normalizeNotification = (content: string) => {
-  const [key, type, amount, category] = content.split("|");
-
-  switch (key) {
-    case "notification.notification_done":
-      return t(key, {
-        type: t(type), // expense -> Spent
-        amount: Number(amount).toLocaleString(),
-        category: t(`category.${category.toUpperCase()}`),
-      });
-
-    default:
-      return t(key);
-  }
-};
+import { t } from "../i18n";
+import { localizeNotificationContent } from "../i18n/notificationContent";
 
 let isAppInNotificationScreen = false;
 
@@ -61,7 +37,7 @@ export const handleIncomingNotification = async (
       await Notifications.scheduleNotificationAsync({
         content: {
           title: t("notification.new_notification"),
-          body: normalizeNotification(newNotification.content),
+          body: localizeNotificationContent(newNotification.content),
           data: {
             id: newNotification.id,
             ...(newNotification.deepLink

@@ -28,6 +28,14 @@ class NotificationListener : NotificationListenerService() {
 
         if (sbn == null) return
 
+        // Bo qua thong bao do chinh app nay ban ra. Khi nguoi dung tao giao dich
+        // o noi khac (vd: web), server day push ve may -> listener bat lai chinh
+        // no va tao them mot pending trung lap voi giao dich vua tao.
+        if (sbn.packageName == packageName) {
+            Log.d(TAG, "⏭️ Skip own notification")
+            return
+        }
+
         try {
 
             val extras = sbn.notification.extras

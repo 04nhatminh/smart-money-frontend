@@ -32,6 +32,7 @@ import { TransactionItem } from "../../src/components/transactions/TransactionIt
 import { TransactionFilter, TransactionResponse } from "../../src/types/transaction.types";
 import { CATEGORY_ENUM_MAP } from "../../src/constants/categories";
 import { formatDateTime, parseDDMMYYYYHHMM } from "../../src/utils/dateFormatter";
+import { dataRefreshEmitter, FINANCIAL_DATA_UPDATED } from "../../src/utils/dataRefreshEmitter";
 
 interface TransactionSection {
   title: string;
@@ -68,6 +69,18 @@ export default function TransactionListScreen() {
       fetchTransactions();
     }, [filters, currentPage])
   );
+
+  // Panel duyet giao dich la modal de tren man hinh nay nen useFocusEffect khong
+  // chay lai sau khi duyet -> nghe event de tu tai lai danh sach.
+  useEffect(() => {
+    const refreshListener = () => {
+      fetchTransactions();
+    };
+    dataRefreshEmitter.on(FINANCIAL_DATA_UPDATED, refreshListener);
+    return () => {
+      dataRefreshEmitter.off(FINANCIAL_DATA_UPDATED, refreshListener);
+    };
+  }, [filters, currentPage]);
 
   const fetchTransactions = async () => {
     setIsLoadingTransactions(true);
@@ -275,32 +288,28 @@ export default function TransactionListScreen() {
     setFilters(newFilters);
   };
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+  // Co filter nao khac mac dinh khong -> hien cham xanh tren nut filter.
+  const hasActiveFilters =
+    filters.type !== "all" ||
+    filters.categories.length > 0 ||
+    filters.dateRange !== "all_time";
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View
-            style={[
-              styles.searchBar,
-              {
-                backgroundColor: theme.inputBg,
-                borderColor: theme.border,
-              },
-            ]}
-          >
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.primary }]}>
+      {/* Search row noi tiep header mau brand cua stack, dong bo voi man Projects */}
+      <View style={[styles.header, { backgroundColor: theme.primary }]}>
+        <View style={styles.searchRow}>
+          <View style={styles.searchBox}>
             <Ionicons
               name="search"
               size={18}
-              color={theme.subtext}
+              color="#C2C2C7"
               style={styles.searchIcon}
             />
             <TextInput
-              style={[styles.searchInput, { color: theme.text }]}
+              style={styles.searchInput}
               placeholder={t("transaction.search_transactions")}
-              placeholderTextColor={theme.subtext}
+              placeholderTextColor="#C2C2C7"
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -309,14 +318,21 @@ export default function TransactionListScreen() {
           <Pressable
             onPress={() => setFilterModalVisible(true)}
             style={[
-              styles.filterButton,
-              { backgroundColor: theme.primary },
+              styles.filterIconButton,
+              hasActiveFilters && { backgroundColor: theme.primary },
             ]}
           >
-            <Ionicons name="funnel" size={20} color="#FFFFFF" />
+            <Ionicons
+              name={hasActiveFilters ? "options" : "options-outline"}
+              size={20}
+              color={hasActiveFilters ? "#FFFFFF" : theme.primary}
+            />
+            {hasActiveFilters && <View style={styles.filterActiveDot} />}
           </Pressable>
         </View>
       </View>
+
+      <View style={[styles.content, { backgroundColor: theme.bg }]}>
 
       {/* Transactions List */}
       {isLoadingTransactions ? (
@@ -371,6 +387,7 @@ export default function TransactionListScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+      </View>
 
       {/* Bottom Bar */}
       <AppBottomBar
@@ -415,30 +432,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 4,
   },
-  headerTop: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-  },
-  searchContainer: {
+  searchRow: {
     flexDirection: "row",
-    gap: 10,
     alignItems: "center",
+    gap: 12,
   },
-  searchBar: {
+  // Search box trang co dinh tren header mau — chu trong do cung co dinh toi.
+  searchBox: {
     flex: 1,
+    height: 42,
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingHorizontal: 14,
   },
   searchIcon: {
     marginRight: 8,
@@ -446,14 +457,40 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    fontWeight: "400",
+    color: "#1F2937",
+    padding: 0,
   },
-  filterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  filterIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    position: "relative",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  filterActiveDot: {
+    position: "absolute",
+    top: 7,
+    right: 7,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#10B981",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+  },
+  content: {
+    flex: 1,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 8,
+    overflow: "hidden",
   },
   listContent: {
     paddingVertical: 12,
