@@ -4,6 +4,7 @@ import AIAPI from "../api/ai.api";
 import PendingStorage, { pendingEventBus, ProcessingEvent, ProcessingStatus } from "../storage/pendingTransactionStorage";
 import { watchPendingJob } from "../services/websocket";
 import DeduplicationService from "../utils/DeduplicationService";
+import Constants from "expo-constants";
 
 const { NotificationModule } = NativeModules;
 const emitter = new NativeEventEmitter(NotificationModule);
@@ -173,6 +174,19 @@ export class NotificationListenerService {
     }
   }
 
+  // Package cua chinh app. Thong bao do app tu ban ra (push tu server khi giao
+  // dich duoc tao o web, hoac local notification cua handleIncomingNotification)
+  // khong bao gio duoc coi la thong bao ngan hang -> neu khong chan se tao them
+  // mot pending trung voi giao dich vua tao.
+  private static readonly SELF_PACKAGE =
+    Constants.expoConfig?.android?.package ?? "com.smartmoneyfrontend";
+
+  private static isOwnNotification(packageName?: string): boolean {
+    const normalized = packageName?.toLowerCase().trim();
+    if (!normalized) return false;
+    return normalized === this.SELF_PACKAGE.toLowerCase();
+  }
+
   private static isFinanceApp(packageName?: string, title?: string): boolean {
 
     const normalized = packageName?.toLowerCase().trim();
@@ -312,6 +326,12 @@ export class NotificationListenerService {
 
       if (!text) return;
 
+      // 🔥 Chặn thông báo của chính app (tránh double với giao dịch vừa tạo)
+      if (this.isOwnNotification(pkg)) {
+        console.log("⏭️ Skip own app notification:", pkg);
+        return;
+      }
+
       // 🔥 FILTER QUAN TRỌNG
       const isTransaction = this.isTransactionNotification(text);
       const isFinance = this.isFinanceApp(pkg, title);
@@ -350,6 +370,10 @@ export class NotificationListenerService {
     }
   }
 
+  // ⚠️ Hien khong duoc goi o dau. Expo foreground notification chi la thong bao
+  // cua CHINH app nay, nen neu wire lai ham nay thi moi push "da tao giao dich"
+  // tu server se sinh ra mot pending trung lap. Can loc theo data payload cua
+  // server truoc khi dung lai.
   static async handleForegroundNotification(notification: any) {
     try {
       const text = notification.request.content.body || "";
