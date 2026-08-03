@@ -297,12 +297,11 @@ export default function ProjectDetailScreen() {
   const isTerminalFailed = TERMINAL_FAILED_STATUSES.includes(project.status);
   const netSaved = project.netSaved ?? project.totalContributed;
   const moneyOwed = project.moneyOwed ?? 0;
-  // Manual contribute (Screen 5): personal, standalone (group sub-projects are
-  // auto-funded via settlement) goals in a contributable state.
+  // Manual contribute (Screen 5): any personal goal in a contributable state,
+  // including group sub-projects — there is no group ledger funding them, so a
+  // member's own contributions are the only way their sub-project progresses.
   const canContribute =
-    isPersonal &&
-    !isSubPersonal &&
-    CONTRIBUTABLE_STATUSES.includes(project.status);
+    isPersonal && CONTRIBUTABLE_STATUSES.includes(project.status);
 
   // Debt overlay (B1): red segment to the right of the green net fill, sized as
   // debt's share of the target and clamped to the empty space on the bar.
