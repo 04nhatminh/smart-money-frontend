@@ -23,6 +23,7 @@ import {
 import { formatCurrencyVND } from "../../src/utils/project";
 import { getGroupProjectErrorMessage } from "../../src/utils/groupProjectErrors";
 import PriorityPickerModal from "../../src/components/groups/PriorityPickerModal";
+import BudgetGenerationModal from "../../src/components/budget/BudgetGenerationModal";
 import { groupStorage } from "../../src/storage/groupStorage";
 import { useThemeMode } from "../../src/theme/ThemeProvider";
 import { Theme, ThemeMode } from "../../src/theme/tokens";
@@ -133,6 +134,9 @@ export default function GroupProjectDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showPriority, setShowPriority] = useState(false);
+  // Sau khi join thành công: cam kết tiết kiệm hằng tháng đã tăng, nên mở flow
+  // gen budget (giống bước 3–4 của CreateProjectModal) để cập nhật ngân sách.
+  const [showBudgetGen, setShowBudgetGen] = useState(false);
   const [dissolving, setDissolving] = useState(false);
   const [myPendingRequest, setMyPendingRequest] = useState<GroupProjectSponsorshipRequestResponse | null>(null);
 
@@ -483,7 +487,12 @@ export default function GroupProjectDetailScreen() {
         groupProject={project}
         currentUserId={currentUserId}
         onClose={() => setShowPriority(false)}
-        onJoined={() => { setShowPriority(false); fetchProject(); }}
+        onJoined={() => { setShowPriority(false); fetchProject(); setShowBudgetGen(true); }}
+      />
+
+      <BudgetGenerationModal
+        visible={showBudgetGen}
+        onClose={() => setShowBudgetGen(false)}
       />
     </SafeAreaView>
   );
