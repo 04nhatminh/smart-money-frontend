@@ -1,10 +1,38 @@
 import { t } from "../i18n";
 import {
+  BudgetAdjustment,
   Suggestion,
   SuggestionStatus,
   SuggestionType,
 } from "../types/suggestion.types";
 import { formatVND } from "./formatCurrency";
+import { localizeInsight } from "./insightFormat";
+
+/** Raised limit (money in) / cut limit (money out) — same hexes as the status chips. */
+export const ADJUST_UP_COLOR = "#4CAF50";
+export const ADJUST_DOWN_COLOR = "#F44336";
+
+/** An amount with an explicit direction: "+200,000 VND" / "−200,000 VND". */
+export function formatSignedVND(amount: number): string {
+  const sign = amount > 0 ? "+" : amount < 0 ? "−" : "";
+  return `${sign}${formatVND(Math.abs(amount))}`;
+}
+
+/**
+ * How much the month's total committed budget moves if this snapshot is accepted.
+ * Zero for a pure reallocation (money only moved between categories), positive for
+ * a raise, negative for a rebalance-down — the one number that says what the user
+ * is actually taking on, which no single row shows.
+ */
+export function adjustmentsNetDelta(adjustments: BudgetAdjustment[]): number {
+  const sum = adjustments.reduce(
+    (total, adj) => total + (adj.newLimit - adj.currentLimit),
+    0
+  );
+  // Snap to the cent the server works in: summing floats makes an exactly zero-sum
+  // reallocation land on 1e-13, which would read as "+0 VND" instead of "unchanged".
+  return Math.round(sum * 100) / 100;
+}
 
 /** i18n leaf group per suggestion type ("suggestion.raise_budget", ...). */
 export function suggestionTypeKey(type: Suggestion["type"]): string {
@@ -73,6 +101,17 @@ export function askSentence(
     // Never render a raw key if a future type is unwired.
     defaultValue: suggestion.narrative ?? suggestionTitle(suggestion.type),
   });
+}
+
+/**
+ * The "why we're asking" sentence on a suggestion card — the same one the Insights screen shows for
+ * that insight, deliberately. An earlier version special-cased REALLOCATE_BUDGET here to avoid the
+ * forecast figure; that fixed the card but left the two screens quoting different numbers for one
+ * budget, which is the worse failure. The forecast was removed from the insight copy itself instead,
+ * so there is one sentence and one set of figures wherever the insight appears.
+ */
+export function whySentence(suggestion: Suggestion): string {
+  return localizeInsight(suggestion.payload.insightSnapshot);
 }
 
 export interface StatusChipStyle {
