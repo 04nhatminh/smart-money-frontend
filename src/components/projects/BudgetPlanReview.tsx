@@ -295,6 +295,16 @@ export default function BudgetPlanReview({
       .slice(0, MAX_BULK_ITEMS);
   }, [plan.allocations, amounts, dropped]);
 
+  const totalAllocated = useMemo(
+    () => applyItems.reduce((acc, item) => acc + item.amountLimit, 0),
+    [applyItems]
+  );
+
+  const dynamicSurplusToSavings = useMemo(() => {
+    const surplus = plan.envelope - totalAllocated;
+    return surplus > 0 ? surplus : 0;
+  }, [plan.envelope, totalAllocated]);
+
   const canApply = !plan.overCommitted && applyItems.length > 0;
 
   // ---- Over-committed: nothing to allocate, don't offer apply. ----
@@ -330,21 +340,21 @@ export default function BudgetPlanReview({
           <Text style={styles.summaryLabel}>
             {t("budget.spendable_envelope")}
           </Text>
-          <Text style={styles.summaryValue}>{format(plan.envelope)}</Text>
+          <Text style={styles.summaryValue}>{format(totalAllocated)}</Text>
         </View>
 
-        {plan.surplusToSavings > 0 && (
+        {dynamicSurplusToSavings > 0 && (
           <View style={styles.savingsRow}>
             <View style={styles.savingsLabelWrap}>
               <Ionicons name="trending-up" size={16} color="#059669" />
               <Text style={styles.savingsLabel}>{t("budget.to_savings")}</Text>
             </View>
             <Text style={styles.savingsValue}>
-              +{format(plan.surplusToSavings)}
+              +{format(dynamicSurplusToSavings)}
             </Text>
           </View>
         )}
-        {plan.surplusToSavings > 0 && (
+        {dynamicSurplusToSavings > 0 && (
           <Text style={styles.savingsHint}>{t("budget.to_savings_hint")}</Text>
         )}
       </View>
