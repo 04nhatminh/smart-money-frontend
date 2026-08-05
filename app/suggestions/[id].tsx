@@ -20,15 +20,19 @@ import { useThemeMode } from "../../src/theme/ThemeProvider";
 import { Suggestion } from "../../src/types/suggestion.types";
 import {
   formatPeriod,
-  localizeInsight,
   severityStyle,
 } from "../../src/utils/insightFormat";
 import {
+  ADJUST_DOWN_COLOR,
+  ADJUST_UP_COLOR,
   PROJECT_NAME_TYPES,
   SUGGESTION_TYPE_ICONS,
+  adjustmentsNetDelta,
   askSentence,
+  formatSignedVND,
   statusChipStyle,
   suggestionTitle,
+  whySentence,
 } from "../../src/utils/suggestionFormat";
 import { formatVND } from "../../src/utils/formatCurrency";
 
@@ -207,6 +211,7 @@ export default function SuggestionCardScreen() {
     const waitingForProjectName =
       PROJECT_NAME_TYPES.includes(suggestion.type) && projectName === null;
     const adjustments = action?.budgetAdjustments ?? [];
+    const netDelta = adjustmentsNetDelta(adjustments);
 
     return (
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -269,7 +274,7 @@ export default function SuggestionCardScreen() {
             </View>
           </View>
           <Text style={[styles.whyText, { color: theme.text }]}>
-            {localizeInsight(snapshot)}
+            {whySentence(suggestion)}
           </Text>
           <Text style={[styles.whyPeriod, { color: theme.subtext }]}>
             {formatPeriod(snapshot.period)}
@@ -286,29 +291,76 @@ export default function SuggestionCardScreen() {
             <Text style={[styles.adjustTitle, { color: theme.subtext }]}>
               {t("suggestion.adjustments_title")}
             </Text>
-            {adjustments.map((adj) => (
-              <View key={adj.budgetId} style={styles.adjustRow}>
-                <Text
-                  style={[styles.adjustCategory, { color: theme.text }]}
-                  numberOfLines={1}
-                >
-                  {t(`category.${adj.category}`, { defaultValue: adj.category })}
-                </Text>
-                <View style={styles.adjustValues}>
-                  <Text style={[styles.adjustFrom, { color: theme.subtext }]}>
-                    {formatVND(adj.currentLimit)}
-                  </Text>
-                  <Ionicons
-                    name="arrow-forward"
-                    size={13}
-                    color={theme.subtext}
-                  />
-                  <Text style={[styles.adjustTo, { color: theme.text }]}>
-                    {formatVND(adj.newLimit)}
-                  </Text>
+            {adjustments.map((adj) => {
+              const delta = adj.newLimit - adj.currentLimit;
+              return (
+                <View key={adj.budgetId} style={styles.adjustRow}>
+                  <View style={styles.adjustRowTop}>
+                    <Text
+                      style={[styles.adjustCategory, { color: theme.text }]}
+                      numberOfLines={1}
+                    >
+                      {t(`category.${adj.category}`, {
+                        defaultValue: adj.category,
+                      })}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.adjustDelta,
+                        {
+                          color:
+                            delta > 0
+                              ? ADJUST_UP_COLOR
+                              : delta < 0
+                              ? ADJUST_DOWN_COLOR
+                              : theme.subtext,
+                        },
+                      ]}
+                    >
+                      {formatSignedVND(delta)}
+                    </Text>
+                  </View>
+                  <View style={styles.adjustValues}>
+                    <Text style={[styles.adjustFrom, { color: theme.subtext }]}>
+                      {formatVND(adj.currentLimit)}
+                    </Text>
+                    <Ionicons
+                      name="arrow-forward"
+                      size={12}
+                      color={theme.subtext}
+                    />
+                    <Text style={[styles.adjustTo, { color: theme.subtext }]}>
+                      {formatVND(adj.newLimit)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
+
+            {/* What the user is actually taking on: unchanged for a pure move,
+                a real increase when the raise couldn't be fully funded. */}
+            <View style={[styles.adjustNet, { borderTopColor: theme.border }]}>
+              <Text style={[styles.adjustNetLabel, { color: theme.subtext }]}>
+                {t("suggestion.adjustments_net_label")}
+              </Text>
+              <Text
+                style={[
+                  styles.adjustNetValue,
+                  {
+                    color:
+                      netDelta > 0
+                        ? ADJUST_UP_COLOR
+                        : netDelta < 0
+                        ? ADJUST_DOWN_COLOR
+                        : theme.text,
+                  },
+                ]}
+              >
+                {netDelta === 0
+                  ? t("suggestion.adjustments_net_same")
+                  : formatSignedVND(netDelta)}
+              </Text>
+            </View>
           </View>
         ) : null}
 
@@ -494,26 +546,53 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   adjustRow: {
+    paddingVertical: 7,
+  },
+  adjustRowTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 6,
+    gap: 8,
   },
   adjustCategory: {
     flex: 1,
     fontSize: 14,
     fontWeight: "600",
   },
+  // The headline of each row: how much this category gains or gives up.
+  adjustDelta: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
   adjustValues: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
+    marginTop: 2,
   },
   adjustFrom: {
-    fontSize: 13,
+    fontSize: 12,
     textDecorationLine: "line-through",
   },
   adjustTo: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  adjustNet: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginTop: 6,
+    paddingTop: 10,
+    borderTopWidth: 1,
+  },
+  adjustNetLabel: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  adjustNetValue: {
     fontSize: 14,
     fontWeight: "700",
   },

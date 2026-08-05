@@ -845,16 +845,20 @@ export default {
       shopping: "Bạn đã chi {{actual}} cho mua sắm tháng này — cao hơn hẳn mức thường lệ {{baseline}}.",
       other: "Chi tiêu khác của bạn tháng này là {{actual}} — cao hơn hẳn mức thường lệ {{baseline}}.",
     },
+    // Nói bằng số đã xảy ra ({{spent}} / {{limit}}), không bằng dự phóng cuối tháng. Thẻ gợi ý
+    // hiển thị đúng câu này ngay trên bảng thay đổi, mà đề xuất được tính theo chuẩn lịch sử chứ
+    // không nhằm phủ hết dự phóng — nêu con số dự phóng ở đây khiến hai số cạnh nhau trông mâu thuẫn.
+    // Ý "vượt tiến độ" giữ lại phần cảnh báo mà không cần con số gây tranh cãi đó.
     budget_pace: {
-      food: "Với đà này, chi tiêu thực phẩm sẽ đạt {{projectedEndOfMonth}} vào cuối tháng — vượt ngân sách {{limit}} của bạn.",
-      transportation: "Với đà này, chi tiêu giao thông sẽ đạt {{projectedEndOfMonth}} vào cuối tháng — vượt ngân sách {{limit}} của bạn.",
-      clothing: "Với đà này, chi tiêu quần áo sẽ đạt {{projectedEndOfMonth}} vào cuối tháng — vượt ngân sách {{limit}} của bạn.",
-      utilities: "Với đà này, chi tiêu tiện ích sẽ đạt {{projectedEndOfMonth}} vào cuối tháng — vượt ngân sách {{limit}} của bạn.",
-      entertainment: "Với đà này, chi tiêu giải trí sẽ đạt {{projectedEndOfMonth}} vào cuối tháng — vượt ngân sách {{limit}} của bạn.",
-      health: "Với đà này, chi tiêu sức khỏe sẽ đạt {{projectedEndOfMonth}} vào cuối tháng — vượt ngân sách {{limit}} của bạn.",
-      education: "Với đà này, chi tiêu giáo dục sẽ đạt {{projectedEndOfMonth}} vào cuối tháng — vượt ngân sách {{limit}} của bạn.",
-      shopping: "Với đà này, chi tiêu mua sắm sẽ đạt {{projectedEndOfMonth}} vào cuối tháng — vượt ngân sách {{limit}} của bạn.",
-      other: "Với đà này, các chi tiêu khác sẽ đạt {{projectedEndOfMonth}} vào cuối tháng — vượt ngân sách {{limit}} của bạn.",
+      food: "Ngân sách thực phẩm đã dùng {{spent}} trên {{limit}} chỉ sau {{dayOfMonth}} ngày — đang vượt tiến độ.",
+      transportation: "Ngân sách giao thông đã dùng {{spent}} trên {{limit}} chỉ sau {{dayOfMonth}} ngày — đang vượt tiến độ.",
+      clothing: "Ngân sách quần áo đã dùng {{spent}} trên {{limit}} chỉ sau {{dayOfMonth}} ngày — đang vượt tiến độ.",
+      utilities: "Ngân sách tiện ích đã dùng {{spent}} trên {{limit}} chỉ sau {{dayOfMonth}} ngày — đang vượt tiến độ.",
+      entertainment: "Ngân sách giải trí đã dùng {{spent}} trên {{limit}} chỉ sau {{dayOfMonth}} ngày — đang vượt tiến độ.",
+      health: "Ngân sách sức khỏe đã dùng {{spent}} trên {{limit}} chỉ sau {{dayOfMonth}} ngày — đang vượt tiến độ.",
+      education: "Ngân sách giáo dục đã dùng {{spent}} trên {{limit}} chỉ sau {{dayOfMonth}} ngày — đang vượt tiến độ.",
+      shopping: "Ngân sách mua sắm đã dùng {{spent}} trên {{limit}} chỉ sau {{dayOfMonth}} ngày — đang vượt tiến độ.",
+      other: "Ngân sách chi tiêu khác đã dùng {{spent}} trên {{limit}} chỉ sau {{dayOfMonth}} ngày — đang vượt tiến độ.",
     },
     category_trend: {
       food: "Chi tiêu thực phẩm đã tăng liên tục trong {{sampleMonths}} tháng — hiện trung bình {{meanMonthly}} mỗi tháng.",
@@ -1073,6 +1077,8 @@ export default {
       ask: "Tháng này bạn có tiền dư — bắt đầu một mục tiêu tiết kiệm với {{resolvedValue}}?",
     },
     adjustments_title: "Những thay đổi",
+    adjustments_net_label: "Tổng ngân sách",
+    adjustments_net_same: "Không đổi",
     action: {
       yes: "Đồng ý",
       no: "Không, cảm ơn",

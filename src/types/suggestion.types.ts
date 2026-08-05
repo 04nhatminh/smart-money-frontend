@@ -24,7 +24,11 @@ export const SUGGESTION_STATUSES = [
 
 export type SuggestionStatus = (typeof SUGGESTION_STATUSES)[number];
 
-/** One row of a multi-budget adjustment (REBALANCE_BUDGETS / REALLOCATE_BUDGET). */
+/**
+ * One row of a multi-budget adjustment. A row is a raise when `newLimit` is above
+ * `currentLimit` and a cut when it's below — the card colors it accordingly, since
+ * a single ask can now contain both (a raise funded by cuts elsewhere).
+ */
 export interface BudgetAdjustment {
   budgetId: string;
   category: string;
@@ -45,7 +49,13 @@ export interface ProposedAction {
    * whole proposedAction is null.
    */
   resolvedValue?: number;
-  /** Present on REBALANCE_BUDGETS / REALLOCATE_BUDGET — render as a table. */
+  /**
+   * The full re-planned month, rendered as a table. Present on REBALANCE_BUDGETS,
+   * REALLOCATE_BUDGET and RAISE_BUDGET — the last of these because a raise is now
+   * funded first from uncommitted income and other budgets' slack, so the ask can
+   * carry the cuts that pay for it. Accepting applies every row, so every row has
+   * to be on screen. Cards raised before this existed have only `resolvedValue`.
+   */
   budgetAdjustments?: BudgetAdjustment[];
   /**
    * CREATE_PROJECT only. Seeds to pre-fill the create-project form (all

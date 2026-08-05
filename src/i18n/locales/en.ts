@@ -845,16 +845,20 @@ export default {
       shopping: "You've spent {{actual}} on shopping this month — well above your usual {{baseline}}.",
       other: "Your other spending this month is {{actual}} — well above your usual {{baseline}}.",
     },
+    // Stated in what has already happened ({{spent}} / {{limit}}), not in the month-end forecast. The
+    // suggestion card renders this very sentence directly above its change table, and the ask is sized
+    // from the trailing norm rather than to cover the forecast — quoting the forecast here left two
+    // numbers side by side that read as a contradiction. "Ahead of pace" keeps the warning without it.
     budget_pace: {
-      food: "At this pace, food spending will reach {{projectedEndOfMonth}} by month-end — over your {{limit}} budget.",
-      transportation: "At this pace, transportation spending will reach {{projectedEndOfMonth}} by month-end — over your {{limit}} budget.",
-      clothing: "At this pace, clothing spending will reach {{projectedEndOfMonth}} by month-end — over your {{limit}} budget.",
-      utilities: "At this pace, utilities spending will reach {{projectedEndOfMonth}} by month-end — over your {{limit}} budget.",
-      entertainment: "At this pace, entertainment spending will reach {{projectedEndOfMonth}} by month-end — over your {{limit}} budget.",
-      health: "At this pace, health spending will reach {{projectedEndOfMonth}} by month-end — over your {{limit}} budget.",
-      education: "At this pace, education spending will reach {{projectedEndOfMonth}} by month-end — over your {{limit}} budget.",
-      shopping: "At this pace, shopping spending will reach {{projectedEndOfMonth}} by month-end — over your {{limit}} budget.",
-      other: "At this pace, your other spending will reach {{projectedEndOfMonth}} by month-end — over your {{limit}} budget.",
+      food: "Food has used {{spent}} of its {{limit}} budget in just {{dayOfMonth}} days — ahead of pace.",
+      transportation: "Transportation has used {{spent}} of its {{limit}} budget in just {{dayOfMonth}} days — ahead of pace.",
+      clothing: "Clothing has used {{spent}} of its {{limit}} budget in just {{dayOfMonth}} days — ahead of pace.",
+      utilities: "Utilities has used {{spent}} of its {{limit}} budget in just {{dayOfMonth}} days — ahead of pace.",
+      entertainment: "Entertainment has used {{spent}} of its {{limit}} budget in just {{dayOfMonth}} days — ahead of pace.",
+      health: "Health has used {{spent}} of its {{limit}} budget in just {{dayOfMonth}} days — ahead of pace.",
+      education: "Education has used {{spent}} of its {{limit}} budget in just {{dayOfMonth}} days — ahead of pace.",
+      shopping: "Shopping has used {{spent}} of its {{limit}} budget in just {{dayOfMonth}} days — ahead of pace.",
+      other: "Your other spending has used {{spent}} of its {{limit}} budget in just {{dayOfMonth}} days — ahead of pace.",
     },
     category_trend: {
       food: "Food spending has been climbing for {{sampleMonths}} months — now averaging {{meanMonthly}} a month.",
@@ -1071,6 +1075,8 @@ export default {
       ask: "You have spare money this month — start a saving project for {{resolvedValue}}?",
     },
     adjustments_title: "What changes",
+    adjustments_net_label: "Total budgeted",
+    adjustments_net_same: "Unchanged",
     action: {
       yes: "Yes, do it",
       no: "No thanks",
