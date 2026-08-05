@@ -6,6 +6,7 @@ export const EXPENSE_CATEGORIES = [
   "entertainment",
   "health",
   "education",
+  "shopping",
   "other",
 ];
 
@@ -24,6 +25,7 @@ export const CATEGORY_ICONS: Record<string, any> = {
   entertainment: "game-controller-outline",
   health: "fitness-outline",
   education: "school-outline",
+  shopping: "cart-outline",
   salary: "wallet-outline",
   bonus: "cash-outline",
   investment: "trending-up-outline",
@@ -39,6 +41,7 @@ export const CATEGORY_ICONS_LIST: Record<string, { icon: string; color: string }
   entertainment: { icon: "game-controller", color: "#F97316" },
   health: { icon: "heart", color: "#EC4899" },
   education: { icon: "book", color: "#3B82F6" },
+  shopping: { icon: "cart", color: "#10B981" },
   other: { icon: "ellipsis-horizontal", color: "#6B7280" },
 };
 
