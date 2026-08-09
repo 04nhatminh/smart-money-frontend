@@ -31,13 +31,26 @@ export function addMonthsFromDate(month: number): Date {
   return result;
 }
 
+/**
+ * Converts a plan length in months into the deadline the backend expects.
+ *
+ * The backend counts a plan's months inclusively: a deadline inside the current
+ * month is a 1-month plan, and every further month adds one. So an N-month plan
+ * has to be sent as today + (N - 1) months, otherwise the user's "6 months"
+ * becomes a 7-month plan.
+ */
+export function getDeadlineFromMonths(months: number): Date {
+  if (Number.isNaN(months)) return addMonthsFromDate(0);
+  return addMonthsFromDate(Math.max(0, months - 1));
+}
+
 export function getPreviewDeadline(deadlineMonths: string): string {
   if (!deadlineMonths.trim()) return "";
 
   const months = Number(deadlineMonths);
   if (Number.isNaN(months) || months < 0) return "";
 
-  return formatDateToDDMMYYYY(addMonthsFromDate(Math.max(0, months)));
+  return formatDateToDDMMYYYY(getDeadlineFromMonths(months));
 }
 
 export function validateCreateProjectForm(
@@ -161,7 +174,8 @@ export function getMonthsFromDeadline(deadlineStr: string): string {
   const monthsDiff = deadlineDate.getMonth() - now.getMonth();
   const gap = yearsDiff * 12 + monthsDiff;
 
-  const totalMonths = Math.max(1, gap);
+  // Inverse of getDeadlineFromMonths: the deadline's own month counts as month 1.
+  const totalMonths = Math.max(1, gap + 1);
 
-  return totalMonths > 0 ? totalMonths.toString() : "0";
+  return totalMonths.toString();
 }

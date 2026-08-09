@@ -10,7 +10,7 @@ import {
     ProjectType,
 } from "../types/project.types";
 import {
-    addMonthsFromDate,
+    getDeadlineFromMonths,
     getPreviewDeadline,
     formatNumberWithDots,
     hasErrors,
@@ -127,7 +127,7 @@ export function useCreateProject({
             name: values.name.trim(),
             description: values.description.trim(),
             targetAmount: parseCurrencyToNumber(values.targetAmount),
-            deadline: formatDateToYYYYMMDD(addMonthsFromDate(Number(values.deadlineMonths))),
+            deadline: formatDateToYYYYMMDD(getDeadlineFromMonths(Number(values.deadlineMonths))),
             type: values.type,
             priority: values.priority,
             currency: "VND",
@@ -141,7 +141,7 @@ export function useCreateProject({
         return {
             ...buildPayload(),
             deadline: formatDateToYYYYMMDD(
-                addMonthsFromDate(advisor.numberOfMonths)
+                getDeadlineFromMonths(advisor.numberOfMonths)
             ),
         };
     };
