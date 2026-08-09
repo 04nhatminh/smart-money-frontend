@@ -7,7 +7,7 @@ import {
   ProjectPriority,
 } from "../types/project.types";
 import {
-  addMonthsFromDate,
+  getDeadlineFromMonths,
   formatNumberWithDots,
   getMonthsFromDeadline,
   getPreviewDeadline,
@@ -133,7 +133,7 @@ export function useEditProject({
       currency: "VND",
       priority: values.priority,
       deadline: formatDateToYYYYMMDD(
-        addMonthsFromDate(Number(values.deadlineMonths))
+        getDeadlineFromMonths(Number(values.deadlineMonths))
       ),
     };
   };
