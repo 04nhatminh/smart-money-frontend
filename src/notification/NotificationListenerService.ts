@@ -35,6 +35,8 @@ export class NotificationListenerService {
   private static inFlightSet = new Set<Fingerprint>(); // Prevent concurrent processing
 
   private static MAX_AGE_MS = 30 * 1000;
+  // Thong bao duoc native queue lai khi app dong -> cho phep xu ly muon toi 24h
+  private static QUEUED_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   private static BUCKET_MS = 10 * 1000;
   private static CLEANUP_TTL = 60 * 1000;
 
@@ -57,9 +59,11 @@ export class NotificationListenerService {
 
     console.log("✅ NotificationListener initialized:", this.processedSet.size);
 
-    NotificationModule?.notifyJSReady();
-
+    // PHAI attach listener TRUOC khi notifyJSReady, neu khong cac event
+    // duoc native flush ra se khong co ai nhan -> mat thong bao da queue
     this.attachNativeListener();
+
+    NotificationModule?.notifyJSReady();
   }
 
   static destroy() {
@@ -97,8 +101,8 @@ export class NotificationListenerService {
     return payload?.timestamp || notification?.date || Date.now();
   }
 
-  private static isFresh(timestamp: number): boolean {
-    return Date.now() - timestamp < this.MAX_AGE_MS;
+  private static isFresh(timestamp: number, maxAgeMs = this.MAX_AGE_MS): boolean {
+    return Date.now() - timestamp < maxAgeMs;
   }
 
   private static normalizeText(text: string): string {
@@ -119,9 +123,10 @@ export class NotificationListenerService {
     text: string,
     timestamp: number,
     source: string,
-    pkg?: string
+    pkg?: string,
+    maxAgeMs?: number
   ): boolean {
-    if (!this.isFresh(timestamp)) {
+    if (!this.isFresh(timestamp, maxAgeMs)) {
       console.log("⏭️ Skip old notification");
       return false;
     }
@@ -187,35 +192,34 @@ export class NotificationListenerService {
     return normalized === this.SELF_PACKAGE.toLowerCase();
   }
 
-  private static isFinanceApp(packageName?: string, title?: string): boolean {
+  // Package cua cac app ngan hang / vi dien tu VN.
+  // Luu y: VCB co package "com.VCB" (khong chua chu "bank") nen phai co "vcb".
+  private static FINANCE_PKG_KEYWORDS = [
+    "bank", "vcb", "vietcombank", "vietcom", "vietin", "bidv", "agribank",
+    "techcom", "tcb", "mbmobile", "mbbank", "mb", "vpbank", "acb",
+    "sacombank", "stb", "tpb", "tpbank", "hdbank", "shb", "vib", "msb",
+    "ocb", "scb", "seabank", "eximbank", "abbank", "pvcom", "lpbank",
+    "lienviet", "namabank", "vietabank", "kienlong", "baoviet", "vikki",
+    "cake", "timo", "tnex", "momo", "zalopay", "shopeepay", "viettelmoney",
+    "viettelpay", "moca", "pay", "gm",
+  ];
 
-    const normalized = packageName?.toLowerCase().trim();
+  private static FINANCE_TITLE_KEYWORDS = [
+    "bank", "vcb", "digibank", "vietcombank", "vietinbank", "bidv",
+    "agribank", "techcombank", "mb bank", "mbbank", "vpbank", "acb",
+    "sacombank", "tpbank", "hdbank", "shb", "vib", "msb", "ocb", "scb",
+    "seabank", "eximbank", "cake", "timo", "momo", "zalopay", "shopeepay",
+    "viettel money", "pay", "vietcom", "vietin", "techcom",
+    "bien dong so du", "biến động số dư",
+  ];
+
+  private static isFinanceApp(packageName?: string, title?: string): boolean {
+    const pkg = packageName?.toLowerCase().trim() || "";
     const titleNormalized = title?.toLowerCase() || "";
 
-
     return (
-      normalized?.includes("bank") ||
-      normalized?.includes("mb") ||
-      normalized?.includes("momo") ||
-      normalized?.includes("zalopay") ||
-      normalized?.includes("pay") ||
-      normalized?.includes("agribank") ||
-      normalized?.includes("vietcom") ||
-      normalized?.includes("vietin") ||
-      normalized?.includes("bidv") ||
-      normalized?.includes("techcom") ||
-      normalized?.includes("vpbank") ||
-      normalized?.includes("sacombank") ||
-      normalized?.includes("gm") ||
-      titleNormalized.includes("bank") ||
-      titleNormalized.includes("momo") ||
-      titleNormalized.includes("zalopay") ||
-      titleNormalized.includes("pay") ||
-      titleNormalized.includes("agribank") ||
-      titleNormalized.includes("vietcom") ||
-      titleNormalized.includes("vietin") ||
-      titleNormalized.includes("bidv") ||
-      titleNormalized.includes("techcom")
+      this.FINANCE_PKG_KEYWORDS.some((k) => pkg.includes(k)) ||
+      this.FINANCE_TITLE_KEYWORDS.some((k) => titleNormalized.includes(k))
     );
   }
 
@@ -237,16 +241,25 @@ export class NotificationListenerService {
     let score = 0;
 
     // 1. CHECK DẤU + / - TRƯỚC SỐ TIỀN (Quan trọng nhất)
-    // Bắt các mẫu: -500.000đ, + 2.000.000, -1tr, + 5k
+    // Bắt các mẫu: -500.000đ, + 2.000.000, -1tr, + 5k, -100,000 VND (VCB)
     const signedMoneyRegex =
       /[-+]\s*\d[\d.,]*\s*(?:₫|đ|d|vnđ|vnd|k|nghin|ngan|tr|trieu)/i;
     if (signedMoneyRegex.test(normalized)) {
       score += 50; // Cộng cực mạnh
+    } else if (/[-+]\s*\d{1,3}(?:[.,]\d{3})+(?!\d)/.test(normalized)) {
+      // Có dấu +/- và số tiền có phân cách nghìn nhưng KHÔNG có đơn vị tiền
+      // (một số bank ghi "GD: -300.000" không kèm VND)
+      score += 40;
     }
 
     // 2. CHECK SỐ TIỀN (không cần dấu)
     if (this.MONEY_REGEX.test(normalized)) {
       score += 10;
+    }
+
+    // 2b. "Số tiền GD: 500.000" - có nhãn số tiền dù thiếu đơn vị
+    if (/so tien(?:\s*gd)?\s*[:\s]\s*[\d.,]+/.test(normalized)) {
+      score += 15;
     }
 
     // 3. CHECK SỐ TÀI KHOẢN
@@ -255,7 +268,10 @@ export class NotificationListenerService {
     }
 
     // 4. CHECK TỪ KHÓA GIAO DỊCH (Transaction Keywords)
-    const txKeywords = ["chuyển", "nhận", "ghi có", "ghi nợ", "thanh toán", "nạp", "rút", "số tiền"];
+    const txKeywords = [
+      "chuyển", "nhận", "ghi có", "ghi nợ", "thanh toán", "nạp", "rút",
+      "số tiền", "chuyển khoản", "trừ tiền", "cộng tiền",
+    ];
     let txMatch = 0;
     for (const kw of txKeywords) {
       if (normalized.includes(this.normalizeVietnamese(kw))) {
@@ -263,10 +279,27 @@ export class NotificationListenerService {
       }
     }
     // Từ "giao dịch" vẫn là keyword nhưng bị loãng do quảng cáo, nên điểm thấp hơn
+    const hasStrongTxKeyword = txMatch >= 1;
     if (normalized.includes("giao dich")) {
       txMatch += 0.5;
     }
     score += txMatch * 15;
+
+    // Co dong tu giao dich + so tien cu the (vd: "vừa chuyển 250.000đ" cua vi
+    // MoMo - khong co dau +/- nen rule 1 khong bat duoc) -> cong them diem
+    if (hasStrongTxKeyword && this.MONEY_REGEX.test(normalized)) {
+      score += 15;
+    }
+
+    // 4b. "Biến động số dư" - cụm đặc trưng của thông báo giao dịch (VCB, ACB...)
+    if (normalized.includes("bien dong so du")) {
+      score += 25;
+    }
+
+    // 4c. Viết tắt kiểu SMS banking: "SD TK", "GD:" (VCB, Vietinbank...)
+    if (/\bsd\s*tk\b/.test(normalized) || /\bgd\s*[:.]/.test(normalized)) {
+      score += 15;
+    }
 
     // 5. CHECK "SỐ DƯ" (Balance) - điểm thấp hơn vì thường là tra cứu
     if (normalized.includes("so du") || normalized.includes("số dư")) {
@@ -287,17 +320,6 @@ export class NotificationListenerService {
     if (normalized.includes("giam gia") && normalized.includes("giao dich")) {
       score -= 10; // Phạt thêm để đẩy xuống dưới ngưỡng
     }
-    console.log(JSON.stringify(normalized));
-
-    console.log(
-      "signed",
-      signedMoneyRegex.test(normalized)
-    );
-
-    console.log(
-      "money",
-      this.MONEY_REGEX.test(normalized)
-    );
     console.log(`📊 Score for "${text.substring(0, 40)}...": ${score}`);
     return score;
   }
@@ -312,8 +334,31 @@ export class NotificationListenerService {
   private static MONEY_REGEX =
     /\d[\d.,]*\s*(?:₫|đ|d|vnđ|vnd|k|nghin|ngan|tr|trieu)/i;
 
-  private static ACCOUNT_REGEX = /(tk|tài khoản|account)/i;
+  // Text da qua normalizeVietnamese (bo dau) truoc khi test -> keyword phai khong dau
+  private static ACCOUNT_REGEX = /\b(tk|stk|tai khoan|account)\b/i;
 
+
+  // ================= PRE-PROCESS USER INFO =================
+
+  // Che thong tin nhay cam cua nguoi dung truoc khi gui text len AI server:
+  // - So tai khoan sau "TK/STK/tai khoan/account" -> giu 4 so cuoi
+  // - Chuoi so dai >= 9 chu so lien tuc khong phai so tien (khong co don vi
+  //   tien va khong co phan cach nghin) -> giu 4 so cuoi (SDT, so the...)
+  private static sanitizeUserInfo(text: string): string {
+    let sanitized = text;
+
+    sanitized = sanitized.replace(
+      /((?:s[ốo]\s+)?(?:tk|stk|t[àa]i\s*kho[ảa]n|acc(?:ount)?)\s*[:\s]\s*)(\d{5,})/gi,
+      (_m, label, digits) => `${label}***${digits.slice(-4)}`
+    );
+
+    sanitized = sanitized.replace(
+      /\b(\d{9,})\b(?!\s*(?:₫|đ|d|vn[đd]|k|tr)\b)/gi,
+      (_m, digits) => `***${digits.slice(-4)}`
+    );
+
+    return sanitized;
+  }
 
   // ================= HANDLERS =================
 
@@ -323,6 +368,9 @@ export class NotificationListenerService {
       const timestamp = this.getTimestamp(payload);
       const pkg = payload?.package || "native";
       const title = payload?.title || "";
+      // Thong bao duoc native queue lai khi app dong -> nới hạn tuổi
+      const isQueued = payload?.queued === true;
+      const maxAge = isQueued ? this.QUEUED_MAX_AGE_MS : this.MAX_AGE_MS;
 
       if (!text) return;
 
@@ -347,7 +395,7 @@ export class NotificationListenerService {
       }
 
       // 🔥 DUPLICATE FILTER
-      if (!this.shouldProcess(text, timestamp, "native", pkg)) return;
+      if (!this.shouldProcess(text, timestamp, "native", pkg, maxAge)) return;
 
       const nativeDedupKey = `${pkg || "native"}_${this.normalizeText(text)}_${Math.floor(timestamp / this.BUCKET_MS)}`;
       if (DeduplicationService.isDuplicateByKey(nativeDedupKey)) {
@@ -356,10 +404,11 @@ export class NotificationListenerService {
       }
       DeduplicationService.registerKey(nativeDedupKey);
 
-      console.log("🚀 Processing lockscreen notification");
+      console.log(`🚀 Processing ${isQueued ? "queued" : "lockscreen"} notification`);
 
       try {
-        await this.processAndCreateTransaction(text);
+        // Dung timestamp cua thong bao (quan trong voi thong bao queue tu hom truoc)
+        await this.processAndCreateTransaction(text, timestamp);
       } finally {
         const fp = this.getFingerprint(text, timestamp, "native", pkg);
         this.inFlightSet.delete(fp);
@@ -428,7 +477,7 @@ export class NotificationListenerService {
 
   // ================= MAIN FLOW =================
 
-  private static async processAndCreateTransaction(rawText: string) {
+  private static async processAndCreateTransaction(rawText: string, timestamp?: number) {
     try {
 
       // ✅ Create pending FIRST
@@ -436,13 +485,15 @@ export class NotificationListenerService {
         amount: 0,
         category: "OTHER",
         type: "EXPENSE",
-        date: new Date().toISOString(),
+        date: new Date(timestamp || Date.now()).toISOString(),
         source: "notification" as const,
       });
 
       emitStatus(pendingTx.id, 'ai_submitting', undefined);
 
-      const submitRes = await AIAPI.submitText(rawText);
+      // 🔒 Che thong tin nguoi dung (so TK, SDT...) truoc khi gui len AI
+      const sanitizedText = this.sanitizeUserInfo(rawText);
+      const submitRes = await AIAPI.submitText(sanitizedText);
 
       if (!submitRes?.success || !submitRes?.data?.jobId) {
         throw new Error("Submit failed: No jobId returned");

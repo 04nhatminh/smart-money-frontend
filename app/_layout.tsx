@@ -114,29 +114,42 @@ function RootLayoutNav() {
   }, []);
 
   useEffect(() => {
+    const setupNotificationListener = async () => {
+      try {
+        if (!NotificationNative || !NotificationNative.hasPermission) {
+          console.warn("⚠️ NotificationNative not available");
+          return;
+        }
+
+        const hasPermission = await NotificationNative.hasPermission();
+
+        if (hasPermission) {
+          // PHAI await de listener attach xong roi moi notifyJSReady,
+          // neu khong queue native flush ra se khong co ai nhan
+          await NotificationListenerService?.initialize?.();
+          NotificationNative?.notifyJSReady?.();
+        }
+      } catch (e) {
+        console.error("❌ Notification crash:", e);
+      }
+    };
+
+    // 🔥 COLD START: khi mo app tu dau, AppState da la 'active' san nen event
+    // 'change' KHONG bao gio ban -> phai goi setup ngay khi mount, neu khong
+    // queue thong bao luu luc app tat se khong bao gio duoc xu ly.
+    const coldStartTimer = setTimeout(setupNotificationListener, 500);
+
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        setTimeout(async () => {
-          try {
-            if (!NotificationNative || !NotificationNative.hasPermission) {
-              console.warn("⚠️ NotificationNative not available");
-              return;
-            }
-
-            const hasPermission = await NotificationNative.hasPermission();
-
-            if (hasPermission) {
-              NotificationListenerService?.initialize?.();
-              NotificationNative?.notifyJSReady?.();
-            }
-          } catch (e) {
-            console.error("❌ Notification crash:", e);
-          }
-        }, 500);
+        // App quay lai tu background: flush queue tich luy trong luc bi tat
+        setTimeout(setupNotificationListener, 500);
       }
     });
 
-    return () => sub.remove();
+    return () => {
+      clearTimeout(coldStartTimer);
+      sub.remove();
+    };
   }, []);
 
 

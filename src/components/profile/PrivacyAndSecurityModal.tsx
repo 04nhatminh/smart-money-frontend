@@ -154,7 +154,9 @@ export const PrivacyAndSecurityModal: React.FC<PrivacyAndSecurityModalProps> = (
       }
 
       // ✅ chỉ init khi user bật
-      NotificationListenerService.initialize();
+      // PHAI await de listener attach xong roi moi notifyJSReady,
+      // neu khong queue native flush ra se khong co ai nhan
+      await NotificationListenerService.initialize();
       NotificationNative.notifyJSReady();
 
     } else {

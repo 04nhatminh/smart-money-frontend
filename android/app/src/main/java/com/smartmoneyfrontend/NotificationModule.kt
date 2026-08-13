@@ -11,7 +11,6 @@ class NotificationModule(private val reactContext: ReactApplicationContext) :
 
     companion object {
         var instance: NotificationModule? = null
-        private val pendingEvents = mutableListOf<WritableMap>() // 🔥 queue
     }
 
     init {
@@ -22,21 +21,26 @@ class NotificationModule(private val reactContext: ReactApplicationContext) :
         return "NotificationModule"
     }
 
-    fun sendNotificationEvent(data: WritableMap) {
-        if (reactContext.hasActiveCatalystInstance()) {
-            try {
-                reactContext
-                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-                    .emit("onNotificationReceived", data)
+    /**
+     * Emit truc tiep sang JS. Tra ve true neu gui thanh cong; false neu
+     * React chua san sang -> caller (NotificationListener) se luu vao
+     * NotificationQueue (SharedPreferences) de xu ly khi app mo lai.
+     */
+    fun sendNotificationEvent(data: WritableMap): Boolean {
+        if (!reactContext.hasActiveCatalystInstance()) {
+            Log.w("NotificationModule", "⚠️ React not ready → persist event")
+            return false
+        }
+        return try {
+            reactContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                .emit("onNotificationReceived", data)
 
-                Log.d("NotificationModule", "✅ Event sent to JS")
-
-            } catch (e: Exception) {
-                Log.e("NotificationModule", "❌ Emit error", e)
-            }
-        } else {
-            Log.w("NotificationModule", "⚠️ React not ready → queue event")
-            pendingEvents.add(data) // 🔥 giữ lại
+            Log.d("NotificationModule", "✅ Event sent to JS")
+            true
+        } catch (e: Exception) {
+            Log.e("NotificationModule", "❌ Emit error", e)
+            false
         }
     }
 
@@ -44,19 +48,24 @@ class NotificationModule(private val reactContext: ReactApplicationContext) :
     fun notifyJSReady() {
         if (!reactContext.hasActiveCatalystInstance()) return
 
-        Log.d("NotificationModule", "🚀 Flushing ${pendingEvents.size} events")
+        val queued = NotificationQueue.drain(reactContext)
+        Log.d("NotificationModule", "🚀 Flushing ${queued.size} persisted events")
 
-        val iterator = pendingEvents.iterator()
-        while (iterator.hasNext()) {
-            val event = iterator.next()
+        for (json in queued) {
             try {
+                val map = Arguments.createMap().apply {
+                    putString("title", json.optString("title"))
+                    putString("text", json.optString("text"))
+                    putString("package", json.optString("package"))
+                    putDouble("timestamp", json.optLong("timestamp").toDouble())
+                    putBoolean("queued", true) // JS dua vao flag nay de noi han tuoi
+                }
                 reactContext
                     .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-                    .emit("onNotificationReceived", event)
+                    .emit("onNotificationReceived", map)
             } catch (e: Exception) {
                 Log.e("NotificationModule", "❌ Flush error", e)
             }
-            iterator.remove()
         }
     }
 
