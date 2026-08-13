@@ -28,18 +28,19 @@ import {
   SavingsPlanSuggestion,
   SimulationResult,
   ProjectChangeSuggestion,
+  TransactionChangeSuggestion,
+  GroupChangeSuggestion,
 } from "../../src/types/ai.types";
+import ChatConfirmCard, { ConfirmStatus } from "../../src/components/assistant/ChatConfirmCard";
 
 type MessagePhase = "context" | "thinking" | "streaming" | "done" | "error";
-type SuggestionStatus = "pending" | "applying" | "confirmed" | "denied" | "error";
 
-type BudgetSuggestionItem = BudgetUpdateSuggestion & {
-  status: SuggestionStatus;
-  errorMsg?: string;
-};
-
-type SavingsSuggestionItem = SavingsPlanSuggestion & {
-  status: SuggestionStatus;
+// The single confirm/dismiss action a suggestion-producing turn resolves through.
+// Until this is POSTed to /api/v1/ai/chat/confirm the backend has applied NOTHING —
+// the reply only describes what it *would* do.
+type PendingAction = {
+  actionId: string;
+  status: ConfirmStatus;
   errorMsg?: string;
 };
 
@@ -49,10 +50,13 @@ type Message = {
   role: "user" | "assistant";
   phase?: MessagePhase;
   intent?: ChatIntent;
-  budgetSuggestions?: BudgetSuggestionItem[];
+  budgetSuggestions?: BudgetUpdateSuggestion[];
   simulationResult?: SimulationResult;
-  savingsSuggestions?: SavingsSuggestionItem[];
+  savingsSuggestions?: SavingsPlanSuggestion[];
   projectChangeSuggestions?: ProjectChangeSuggestion[];
+  transactionChangeSuggestions?: TransactionChangeSuggestion[];
+  groupChangeSuggestions?: GroupChangeSuggestion[];
+  pendingAction?: PendingAction;
   actionRequired?: boolean;
   relatedQuestions?: string[];
   // Detected language of this turn's reply — undefined for the local "welcome" message and
@@ -593,16 +597,15 @@ export default function AIScreen() {
                   ...m,
                   phase: "done",
                   intent: data.intent,
-                  budgetSuggestions: (data.budgetSuggestions || []).map((s) => ({
-                    ...s,
-                    status: "pending" as SuggestionStatus,
-                  })),
+                  budgetSuggestions: data.budgetSuggestions || [],
                   simulationResult: data.simulationResult || undefined,
-                  savingsSuggestions: (data.savingsSuggestions || []).map((s) => ({
-                    ...s,
-                    status: "pending" as SuggestionStatus,
-                  })),
+                  savingsSuggestions: data.savingsSuggestions || [],
                   projectChangeSuggestions: data.projectChangeSuggestions || [],
+                  transactionChangeSuggestions: data.transactionChangeSuggestions || [],
+                  groupChangeSuggestions: data.groupChangeSuggestions || [],
+                  pendingAction: data.pendingActionId
+                    ? { actionId: data.pendingActionId, status: "pending" as ConfirmStatus }
+                    : undefined,
                   actionRequired: data.actionRequired,
                   relatedQuestions: data.relatedQuestions || [],
                   english: data.english,
@@ -635,16 +638,23 @@ export default function AIScreen() {
     }
   };
 
-  // True when the last message is a "done" assistant reply carrying an unresolved suggestion
-  // (actionRequired) — the chat is locked to a yes/no answer until this resolves. Never true for
-  // the out-of-scope warning, which isn't a suggestion to decide on.
+  // True when the last message is a "done" assistant reply carrying an unresolved suggestion —
+  // the chat is locked until it resolves. Never true for the out-of-scope warning, which isn't a
+  // suggestion to decide on.
   const lastMessage = messages[messages.length - 1];
+  const lastPending = lastMessage?.role === "assistant" ? lastMessage.pendingAction : undefined;
+  // A pendingActionId turn resolves through the confirm card's buttons, not through a typed
+  // yes/no — only the card's POST to /chat/confirm actually applies the change.
+  const awaitingConfirm =
+    !!lastPending && lastPending.status !== "confirmed" && lastPending.status !== "denied";
   const awaitingDecision =
-    !!lastMessage &&
-    lastMessage.role === "assistant" &&
-    lastMessage.phase === "done" &&
-    !!lastMessage.actionRequired &&
-    lastMessage.intent !== "OUT_OF_SCOPE";
+    awaitingConfirm ||
+    (!!lastMessage &&
+      lastMessage.role === "assistant" &&
+      lastMessage.phase === "done" &&
+      !!lastMessage.actionRequired &&
+      !lastPending &&
+      lastMessage.intent !== "OUT_OF_SCOPE");
 
   const sendMessage = async (overrideText?: string) => {
     const message = (overrideText ?? input).trim();
@@ -695,15 +705,90 @@ export default function AIScreen() {
     await runAssistantRequest(target.sourceText, assistantId);
   };
 
+  const setPendingStatus = (assistantId: string, status: ConfirmStatus, errorMsg?: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === assistantId && m.pendingAction
+          ? { ...m, pendingAction: { ...m.pendingAction, status, errorMsg } }
+          : m
+      )
+    );
+  };
+
+  // Applies (or discards) a turn's pending action. THIS is what makes the backend run the real
+  // mutation — the chat reply on its own only describes what it would do, so without this call a
+  // "created your project" reply leaves nothing behind on the project screen.
+  const resolvePendingAction = async (assistantId: string, confirm: boolean) => {
+    const target = messages.find((m) => m.id === assistantId);
+    const action = target?.pendingAction;
+    if (!action || action.status === "applying" || action.status === "confirmed" || action.status === "denied") {
+      return;
+    }
+
+    if (typewriterTimerRef.current) clearInterval(typewriterTimerRef.current);
+
+    setPendingStatus(assistantId, "applying");
+    setLoading(true);
+
+    try {
+      const res = await AIAPI.confirmChatAction(action.actionId, confirm);
+
+      if (!res.success || !res.data) {
+        setPendingStatus(assistantId, "error", res.message);
+        setLoading(false);
+        return;
+      }
+
+      const data = res.data;
+      // `success: false` means denied / expired / failed to apply. On an explicit dismiss that's
+      // the expected outcome; on a confirm it's a failure the user needs to see and can retry.
+      if (confirm && !data.success) {
+        setPendingStatus(assistantId, "error", data.reply || undefined);
+        setLoading(false);
+        return;
+      }
+
+      setPendingStatus(assistantId, confirm ? "confirmed" : "denied");
+
+      const followUpId = `${Date.now()}-confirm`;
+      setMessages((prev) => [
+        ...prev,
+        { id: followUpId, text: "", role: "assistant", phase: "streaming", english: target?.english },
+      ]);
+      scrollToBottom();
+
+      startTypewriter(followUpId, data.reply || "", () => {
+        setMessages((prev) => prev.map((m) => (m.id === followUpId ? { ...m, phase: "done" } : m)));
+        setLoading(false);
+        scrollToBottom();
+      });
+
+      if (confirm) {
+        // The mutation really ran — tell the screens keeping their own local copies of this data
+        // (project.tsx, budgets.tsx, home.tsx) to re-fetch instead of showing stale values.
+        dataRefreshEmitter.emit(FINANCIAL_DATA_UPDATED);
+      }
+    } catch (error) {
+      console.error("Failed to resolve chat action:", error);
+      setPendingStatus(assistantId, "error");
+      setLoading(false);
+    }
+  };
+
   const renderItem = ({ item }: { item: Message }) => {
     const isUser = item.role === "user";
     const markdownStyles = getMarkdownStyles(isUser);
     const isThinking = !isUser && (item.phase === "context" || item.phase === "thinking");
     const isOutOfScope = !isUser && item.phase === "done" && item.intent === "OUT_OF_SCOPE";
     const isLastMessage = messages.length > 0 && messages[messages.length - 1].id === item.id;
-    // Yes/No decision chips: only on the LAST message, only when it's an actual suggestion
-    // (actionRequired), never for the out-of-scope warning.
-    const showDecisionChips = !isUser && isLastMessage && item.phase === "done" && !!item.actionRequired && !isOutOfScope;
+    // Confirm card: whenever the turn carries a pendingActionId. Kept visible after it resolves so
+    // the history shows what was applied or dismissed.
+    const pending = item.pendingAction;
+    const showConfirmCard = !isUser && item.phase === "done" && !!pending;
+    // Yes/No decision chips: fallback for a suggestion turn that came back WITHOUT a
+    // pendingActionId (nothing to POST) — only on the LAST message, never for out-of-scope.
+    const showDecisionChips =
+      !isUser && isLastMessage && item.phase === "done" && !!item.actionRequired && !isOutOfScope && !pending;
     // Hidden on EVERY message (not just this one) while a decision is pending elsewhere —
     // otherwise an older message's related-question chip would let the user bypass the
     // "chat locked until you answer yes/no" gate below.
@@ -784,6 +869,23 @@ export default function AIScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {showConfirmCard && (
+          <ChatConfirmCard
+            payload={{
+              projectChangeSuggestions: item.projectChangeSuggestions,
+              budgetSuggestions: item.budgetSuggestions,
+              savingsSuggestions: item.savingsSuggestions,
+              transactionChangeSuggestions: item.transactionChangeSuggestions,
+              groupChangeSuggestions: item.groupChangeSuggestions,
+            }}
+            status={pending!.status}
+            errorMsg={pending!.errorMsg}
+            lang={item.english === undefined ? undefined : item.english ? "en" : "vi"}
+            onConfirm={() => resolvePendingAction(item.id, true)}
+            onDeny={() => resolvePendingAction(item.id, false)}
+          />
         )}
 
         {showDecisionChips && (() => {
@@ -911,7 +1013,9 @@ export default function AIScreen() {
             value={input}
             onChangeText={setInput}
             placeholder={
-              awaitingDecision
+              awaitingConfirm
+                ? t('ai.awaiting_confirm_placeholder')
+                : awaitingDecision
                 ? t('ai.awaiting_decision_placeholder')
                 : loading
                 ? t('ai.waiting_for_reply')
